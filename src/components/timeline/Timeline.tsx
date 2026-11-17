@@ -4,7 +4,7 @@ import {
   Copy, Link2, Bookmark, Sparkles, AlignLeft, AlignRight, Maximize2, Layers 
 } from 'lucide-react';
 import { useEditorStore } from '@/store/useEditorStore';
-import { TrackHeader, getTrackHeight } from './TrackHeader';
+import { TrackHeader } from './TrackHeader';
 import { TimeRuler } from './TimeRuler';
 import { Playhead } from './Playhead';
 import { ClipItem } from './ClipItem';
@@ -50,7 +50,7 @@ export const Timeline: React.FC = () => {
     setZoom(Math.round(newZoom));
   };
 
-  const timelineHeight = tracks.reduce((acc, t) => acc + getTrackHeight(t.type) + 6, 40);
+  const timelineHeight = tracks.length * 64 + 32;
 
   return (
     <div className="flex h-64 sm:h-72 lg:h-80 w-full shrink-0 flex-col border-t border-app-border bg-app-bg select-none transition-colors duration-200">
@@ -270,11 +270,15 @@ export const Timeline: React.FC = () => {
       {/* Tracks & Ruler Grid Workspace */}
       <div className="flex flex-1 overflow-hidden">
         {/* Left Track Headers Column */}
-        <div className="flex w-28 shrink-0 flex-col border-r border-app-border bg-app-surface">
-          <div className="h-8 border-b border-app-border bg-app-surface flex items-center justify-end px-3">
-            <Layers className="h-3.5 w-3.5 text-neutral-400" />
+        <div className="flex w-80 shrink-0 flex-col border-r border-app-border bg-app-surface">
+          <div className="h-8 border-b border-app-border bg-app-surface flex items-center justify-between px-3 text-[10px] font-semibold tracking-wider text-app-text-muted uppercase">
+            <div className="flex items-center gap-1.5">
+              <Layers className="h-3.5 w-3.5" />
+              <span>Tracks ({tracks.length})</span>
+            </div>
+            <span className="font-mono text-[9px] lowercase opacity-60">scroll ↕</span>
           </div>
-          <div className="flex-1 overflow-y-auto flex flex-col gap-1.5 pt-1.5">
+          <div className="flex-1 overflow-y-auto">
             {tracks.map((track, idx) => (
               <TrackHeader 
                 key={track.id} 
@@ -310,22 +314,22 @@ export const Timeline: React.FC = () => {
           )}
 
           {/* Multi-Track Rows and Clip Drop Targets */}
-          <div style={{ width: `${(duration + 15) * zoom}px` }} className="relative flex flex-col gap-1.5 pt-1.5">
+          <div style={{ width: `${(duration + 15) * zoom}px` }} className="relative">
             {tracks.map((track) => {
               const trackClips = clips.filter((c) => c.trackId === track.id);
               const isTrackEmpty = trackClips.length === 0;
-              const height = getTrackHeight(track.type);
 
               return (
                 <div
                   key={track.id}
                   data-track-id={track.id}
-                  style={{ height: `${height}px` }}
-                  className="relative rounded-sm bg-neutral-900/40 hover:bg-neutral-900/60 transition-colors"
+                  className="relative h-16 border-b border-app-border/80 transition-colors bg-app-surface/20 hover:bg-app-surface/40"
                 >
                   {/* Empty Track Dashed Dropzone */}
                   {isTrackEmpty && (
-                    <div className="pointer-events-none flex size-full items-center justify-center rounded-sm border-2 border-dashed border-neutral-800/60 text-xs text-neutral-500" />
+                    <div className="pointer-events-none absolute inset-x-3 inset-y-2 flex items-center justify-center rounded-lg border border-dashed border-app-border/60 text-[10px] text-app-text-muted/60">
+                      Empty {track.type} track — Drag clips here or add from left panel
+                    </div>
                   )}
 
                   {/* Render Track Clips */}
