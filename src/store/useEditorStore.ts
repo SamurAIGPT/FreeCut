@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { AspectRatio, Clip, ColorFilter, MediaAsset, SidebarTab, Track, TrackType, Transform } from '@/types/editor';
+import { AspectRatio, Clip, ColorFilter, MediaAsset, SidebarTab, TimelineMarker, Track, TrackType, Transform } from '@/types/editor';
 
 interface HistorySnapshot {
   tracks: Track[];
@@ -25,6 +25,9 @@ interface EditorState {
   activeTool: 'select' | 'razor';
   canvasZoom: number;
   showGrid: boolean;
+  markers: TimelineMarker[];
+  snapGuideX: number | null;
+  isRippleMode: boolean;
 
   // History
   history: {
@@ -43,16 +46,24 @@ interface EditorState {
   setSelectedClipId: (id: string | null) => void;
   setZoom: (zoom: number) => void;
   toggleSnapping: () => void;
+  toggleRippleMode: () => void;
   setActiveSidebarTab: (tab: SidebarTab) => void;
   setActiveTool: (tool: 'select' | 'razor') => void;
   setCanvasZoom: (zoom: number) => void;
   toggleShowGrid: () => void;
+  setSnapGuideX: (x: number | null) => void;
   
+  // Markers
+  addMarker: (time?: number, label?: string, color?: string) => void;
+  deleteMarker: (id: string) => void;
+
   // Asset Management
   addAsset: (asset: MediaAsset) => void;
 
   // Track Management
-  addTrack: (type: TrackType) => void;
+  addTrack: (type: TrackType, name?: string) => string;
+  deleteTrack: (trackId: string) => void;
+  moveTrack: (trackId: string, direction: 'up' | 'down') => void;
   toggleTrackMute: (trackId: string) => void;
   toggleTrackLock: (trackId: string) => void;
   toggleTrackVisibility: (trackId: string) => void;
@@ -64,6 +75,12 @@ interface EditorState {
   updateClipTransform: (id: string, updates: Partial<Transform>) => void;
   updateClipFilter: (id: string, updates: Partial<ColorFilter>) => void;
   splitClip: (clipId: string, splitTime?: number) => void;
+  splitLeft: (clipId: string) => void;
+  splitRight: (clipId: string) => void;
+  duplicateClip: (clipId: string) => void;
+  extractAudio: (clipId: string) => void;
+  rippleDelete: (clipId: string) => void;
+  moveClipToTrack: (clipId: string, targetTrackId: string, newStart?: number) => void;
   deleteClip: (clipId: string) => void;
 
   // Undo / Redo
@@ -102,6 +119,12 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   activeTool: 'select',
   canvasZoom: 0,
   showGrid: false,
+  markers: [
+    { id: 'marker-1', time: 2.0, label: 'Intro Cut', color: '#3b82f6' },
+    { id: 'marker-2', time: 5.0, label: 'B-Roll In', color: '#10b981' },
+  ],
+  snapGuideX: null,
+  isRippleMode: false,
   history: { past: [], future: [] },
 
   setTheme: (theme) => {
@@ -136,21 +159,62 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   setSelectedClipId: (id) => set({ selectedClipId: id }),
   setZoom: (zoom) => set({ zoom: Math.max(25, Math.min(zoom, 300)) }),
   toggleSnapping: () => set((state) => ({ isSnapping: !state.isSnapping })),
+  toggleRippleMode: () => set((state) => ({ isRippleMode: !state.isRippleMode })),
   setActiveSidebarTab: (tab) => set({ activeSidebarTab: tab }),
   setActiveTool: (tool) => set({ activeTool: tool }),
   setCanvasZoom: (zoom) => set({ canvasZoom: zoom }),
   toggleShowGrid: () => set((state) => ({ showGrid: !state.showGrid })),
+  setSnapGuideX: (x) => set({ snapGuideX: x }),
+
+  addMarker: (time, label, color) => {
+    const state = get();
+    const markerTime = time !== undefined ? time : state.playhead;
+    const newMarker: TimelineMarker = {
+      id: `marker-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+      time: Math.round(markerTime * 100) / 100,
+      label: label || `Marker ${state.markers.length + 1}`,
+      color: color || '#3b82f6',
+    };
+    set({ markers: [...state.markers, newMarker] });
+  },
+
+  deleteMarker: (id) =>
+    set((state) => ({ markers: state.markers.filter((m) => m.id !== id) })),
 
   addAsset: (asset) => set((state) => ({ assets: [...state.assets, asset] })),
 
-  addTrack: (type) => {
+  addTrack: (type, name) => {
+    const id = `track-${type}-${Date.now()}`;
     const newTrack: Track = {
-      id: `track-${type}-${Date.now()}`,
-      name: `${type.toUpperCase()} Track ${get().tracks.filter((t) => t.type === type).length + 1}`,
+      id,
+      name: name || `${type.charAt(0).toUpperCase() + type.slice(1)} Track ${get().tracks.filter((t) => t.type === type).length + 1}`,
       type,
       isVisible: true,
     };
-    set((state) => ({ tracks: [newTrack, ...state.tracks] }));
+    set((state) => ({ tracks: [...state.tracks, newTrack] }));
+    return id;
+  },
+
+  deleteTrack: (trackId) => {
+    const state = get();
+    if (state.tracks.length <= 1) return;
+    set({
+      tracks: state.tracks.filter((t) => t.id !== trackId),
+      clips: state.clips.filter((c) => c.trackId !== trackId),
+      selectedClipId: null,
+    });
+  },
+
+  moveTrack: (trackId, direction) => {
+    const state = get();
+    const index = state.tracks.findIndex((t) => t.id === trackId);
+    if (index === -1) return;
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= state.tracks.length) return;
+    const newTracks = [...state.tracks];
+    const [moved] = newTracks.splice(index, 1);
+    newTracks.splice(targetIndex, 0, moved);
+    set({ tracks: newTracks });
   },
 
   toggleTrackMute: (trackId) =>
@@ -270,6 +334,167 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       history: { past, future: [] },
       clips: state.clips.map((c) => (c.id === clipId ? firstClip : c)).concat(secondClip),
       selectedClipId: secondClip.id,
+    });
+  },
+
+  splitLeft: (clipId) => {
+    const state = get();
+    const clip = state.clips.find((c) => c.id === clipId);
+    if (!clip) return;
+    const cutAt = state.playhead;
+    if (cutAt <= clip.start || cutAt >= clip.start + clip.duration) return;
+    const trimDelta = cutAt - clip.start;
+    const newDuration = clip.duration - trimDelta;
+    if (newDuration < 0.1) return;
+
+    const past = [...state.history.past, { tracks: state.tracks, clips: state.clips }];
+    const updated: Clip = {
+      ...clip,
+      start: cutAt,
+      duration: newDuration,
+      trimStart: clip.trimStart + trimDelta,
+    };
+    set({
+      history: { past, future: [] },
+      clips: state.clips.map((c) => (c.id === clipId ? updated : c)),
+    });
+  },
+
+  splitRight: (clipId) => {
+    const state = get();
+    const clip = state.clips.find((c) => c.id === clipId);
+    if (!clip) return;
+    const cutAt = state.playhead;
+    if (cutAt <= clip.start || cutAt >= clip.start + clip.duration) return;
+    const newDuration = cutAt - clip.start;
+    if (newDuration < 0.1) return;
+
+    const past = [...state.history.past, { tracks: state.tracks, clips: state.clips }];
+    const updated: Clip = {
+      ...clip,
+      duration: newDuration,
+      trimEnd: clip.trimStart + newDuration,
+    };
+    set({
+      history: { past, future: [] },
+      clips: state.clips.map((c) => (c.id === clipId ? updated : c)),
+    });
+  },
+
+  duplicateClip: (clipId) => {
+    const state = get();
+    const clip = state.clips.find((c) => c.id === clipId);
+    if (!clip) return;
+    const newId = `clip-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+    const newClip: Clip = {
+      ...clip,
+      id: newId,
+      name: `${clip.name} (Copy)`,
+      start: clip.start + clip.duration + 0.1,
+    };
+    const past = [...state.history.past, { tracks: state.tracks, clips: state.clips }];
+    set({
+      history: { past, future: [] },
+      clips: [...state.clips, newClip],
+      selectedClipId: newId,
+      duration: Math.max(state.duration, newClip.start + newClip.duration + 5),
+    });
+  },
+
+  extractAudio: (clipId) => {
+    const state = get();
+    const clip = state.clips.find((c) => c.id === clipId);
+    if (!clip || clip.type !== 'video') return;
+
+    // Find or create an audio track
+    let audioTrack = state.tracks.find((t) => t.type === 'audio');
+    let updatedTracks = state.tracks;
+    if (!audioTrack) {
+      audioTrack = {
+        id: `track-audio-${Date.now()}`,
+        name: 'Extracted Audio',
+        type: 'audio',
+        isVisible: true,
+      };
+      updatedTracks = [...state.tracks, audioTrack];
+    }
+
+    const audioClipId = `clip-audio-${Date.now()}`;
+    const extractedAudioClip: Clip = {
+      id: audioClipId,
+      trackId: audioTrack.id,
+      assetId: clip.assetId,
+      name: `${clip.name} (Audio)`,
+      type: 'audio',
+      start: clip.start,
+      duration: clip.duration,
+      trimStart: clip.trimStart,
+      trimEnd: clip.trimEnd,
+      transform: { x: 0, y: 0, scale: 1, rotation: 0, opacity: 1 },
+      volume: clip.volume || 1,
+      color: '#059669',
+    };
+
+    const updatedVideoClip: Clip = {
+      ...clip,
+      volume: 0,
+      isMuted: true,
+    };
+
+    const past = [...state.history.past, { tracks: state.tracks, clips: state.clips }];
+    set({
+      tracks: updatedTracks,
+      clips: state.clips.map((c) => (c.id === clipId ? updatedVideoClip : c)).concat(extractedAudioClip),
+      history: { past, future: [] },
+      selectedClipId: audioClipId,
+    });
+  },
+
+  rippleDelete: (clipId) => {
+    const state = get();
+    const clip = state.clips.find((c) => c.id === clipId);
+    if (!clip) return;
+    const gap = clip.duration;
+    const clipTrackId = clip.trackId;
+    const clipStart = clip.start;
+
+    const remainingClips = state.clips.filter((c) => c.id !== clipId).map((c) => {
+      if (c.trackId === clipTrackId && c.start > clipStart) {
+        return {
+          ...c,
+          start: Math.max(0, c.start - gap),
+        };
+      }
+      return c;
+    });
+
+    const past = [...state.history.past, { tracks: state.tracks, clips: state.clips }];
+    set({
+      history: { past, future: [] },
+      clips: remainingClips,
+      selectedClipId: null,
+    });
+  },
+
+  moveClipToTrack: (clipId, targetTrackId, newStart) => {
+    const state = get();
+    const targetTrack = state.tracks.find((t) => t.id === targetTrackId);
+    const clip = state.clips.find((c) => c.id === clipId);
+    if (!clip || !targetTrack) return;
+
+    if (clip.type === 'audio' && targetTrack.type !== 'audio') return;
+    if (clip.type !== 'audio' && targetTrack.type === 'audio') return;
+
+    set({
+      clips: state.clips.map((c) =>
+        c.id === clipId
+          ? {
+              ...c,
+              trackId: targetTrackId,
+              start: newStart !== undefined ? Math.max(0, newStart) : c.start,
+            }
+          : c
+      ),
     });
   },
 

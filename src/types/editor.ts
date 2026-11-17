@@ -18,6 +18,13 @@ export interface ColorFilter {
   blur: number;       // 0 - 20px (default 0)
 }
 
+export interface TimelineMarker {
+  id: string;
+  time: number;
+  label: string;
+  color: string;
+}
+
 export interface Clip {
   id: string;
   trackId: string;
@@ -34,6 +41,8 @@ export interface Clip {
   color?: string;      // Color for timeline item
   blendMode?: GlobalCompositeOperation;
   filter?: ColorFilter;
+  isMuted?: boolean;
+  isHidden?: boolean;
   // Text clip specific properties
   text?: string;
   fontSize?: number;

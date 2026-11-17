@@ -5,7 +5,13 @@ export function useKeyboardShortcuts() {
   const togglePlay = useEditorStore((s) => s.togglePlay);
   const selectedClipId = useEditorStore((s) => s.selectedClipId);
   const deleteClip = useEditorStore((s) => s.deleteClip);
+  const rippleDelete = useEditorStore((s) => s.rippleDelete);
   const splitClip = useEditorStore((s) => s.splitClip);
+  const splitLeft = useEditorStore((s) => s.splitLeft);
+  const splitRight = useEditorStore((s) => s.splitRight);
+  const duplicateClip = useEditorStore((s) => s.duplicateClip);
+  const addMarker = useEditorStore((s) => s.addMarker);
+  const setActiveTool = useEditorStore((s) => s.setActiveTool);
   const undo = useEditorStore((s) => s.undo);
   const redo = useEditorStore((s) => s.redo);
   const playhead = useEditorStore((s) => s.playhead);
@@ -28,6 +34,16 @@ export function useKeyboardShortcuts() {
         togglePlay();
       }
 
+      // Tool Switching (V = Select, C = Razor)
+      if (e.code === 'KeyV' && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        setActiveTool('select');
+      }
+      if (e.code === 'KeyC' && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        setActiveTool('razor');
+      }
+
       // S -> Split Selected Clip at Playhead
       if (e.code === 'KeyS' && !e.ctrlKey && !e.metaKey) {
         if (selectedClipId) {
@@ -36,11 +52,45 @@ export function useKeyboardShortcuts() {
         }
       }
 
-      // Delete or Backspace -> Delete Selected Clip
+      // Q -> Split Left (Trim start to playhead)
+      if (e.code === 'KeyQ' && !e.ctrlKey && !e.metaKey) {
+        if (selectedClipId) {
+          e.preventDefault();
+          splitLeft(selectedClipId);
+        }
+      }
+
+      // W -> Split Right (Trim end to playhead)
+      if (e.code === 'KeyW' && !e.ctrlKey && !e.metaKey) {
+        if (selectedClipId) {
+          e.preventDefault();
+          splitRight(selectedClipId);
+        }
+      }
+
+      // M -> Add Marker at playhead
+      if (e.code === 'KeyM' && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        addMarker(playhead);
+      }
+
+      // Ctrl + D -> Duplicate Selected Clip
+      if ((e.ctrlKey || e.metaKey) && e.code === 'KeyD') {
+        if (selectedClipId) {
+          e.preventDefault();
+          duplicateClip(selectedClipId);
+        }
+      }
+
+      // Delete or Backspace -> Delete Selected Clip (or Shift+Del for Ripple Delete)
       if (e.code === 'Delete' || e.code === 'Backspace') {
         if (selectedClipId) {
           e.preventDefault();
-          deleteClip(selectedClipId);
+          if (e.shiftKey) {
+            rippleDelete(selectedClipId);
+          } else {
+            deleteClip(selectedClipId);
+          }
         }
       }
 
