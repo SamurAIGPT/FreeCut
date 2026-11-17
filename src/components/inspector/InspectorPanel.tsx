@@ -39,7 +39,7 @@ export const InspectorPanel: React.FC = () => {
 
   if (!clip) {
     return (
-      <aside className="flex h-full w-80 flex-col border-l border-app-border bg-app-surface p-6 text-center select-none transition-colors duration-200">
+      <aside className="flex h-full min-h-0 w-80 flex-col border-l border-app-border bg-app-surface p-6 text-center select-none overflow-hidden transition-colors duration-200">
         <div className="flex flex-1 flex-col items-center justify-center text-app-text-muted">
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-app-border bg-app-elevated text-app-text-muted shadow-sm">
             <Sliders className="h-6 w-6" />
@@ -59,7 +59,7 @@ export const InspectorPanel: React.FC = () => {
   const filter = clip.filter || { brightness: 1, contrast: 1, saturation: 1, blur: 0 };
 
   return (
-    <aside className="flex h-full w-80 flex-col border-l border-app-border bg-app-surface select-none transition-colors duration-200">
+    <aside className="flex h-full min-h-0 w-80 flex-col border-l border-app-border bg-app-surface select-none overflow-hidden transition-colors duration-200">
       {/* Top Header */}
       <div className="flex items-center justify-between border-b border-app-border p-3">
         <div className="flex items-center gap-2 overflow-hidden">

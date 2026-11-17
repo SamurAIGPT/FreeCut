@@ -127,7 +127,7 @@ export const App: React.FC = () => {
       <Header />
 
       {/* Main Studio Workspace */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 min-h-0 min-w-0 overflow-hidden">
         <AssetsPanel />
         <PreviewCanvas />
         <InspectorPanel />

@@ -53,7 +53,7 @@ export const Timeline: React.FC = () => {
   const timelineHeight = tracks.length * 64 + 32;
 
   return (
-    <div className="flex h-80 w-full flex-col border-t border-app-border bg-app-bg select-none transition-colors duration-200">
+    <div className="flex h-64 sm:h-72 lg:h-80 w-full shrink-0 flex-col border-t border-app-border bg-app-bg select-none transition-colors duration-200">
       {/* Timeline Pro Control Bar */}
       <div className="flex h-11 w-full items-center justify-between border-b border-app-border bg-app-surface px-3">
         {/* Left Section: Icon Editing Tools with Hover Tooltips */}

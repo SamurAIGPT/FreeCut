@@ -169,9 +169,9 @@ export const SidebarContent: React.FC = () => {
   ];
 
   return (
-    <div className="flex h-full w-80 flex-col border-r border-app-border bg-app-surface select-none transition-colors duration-200">
+    <div className="flex h-full min-h-0 w-80 flex-col border-r border-app-border bg-app-surface select-none overflow-hidden transition-colors duration-200">
       {/* Search Header */}
-      <div className="border-b border-app-border p-3">
+      <div className="border-b border-app-border p-3 shrink-0">
         <div className="flex items-center gap-2 rounded-lg border border-app-border bg-app-elevated px-2.5 py-1.5 text-xs text-app-text focus-within:border-neutral-500">
           <Search className="h-3.5 w-3.5 text-app-text-muted" />
           <input
@@ -185,7 +185,7 @@ export const SidebarContent: React.FC = () => {
       </div>
 
       {/* Main Panel Content */}
-      <div className="flex-1 overflow-y-auto p-3">
+      <div className="flex-1 min-h-0 overflow-y-auto p-3">
         {/* --- MEDIA TAB --- */}
         {activeTab === 'media' && (
           <div className="space-y-4">

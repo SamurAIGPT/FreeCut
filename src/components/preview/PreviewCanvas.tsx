@@ -70,7 +70,7 @@ export const PreviewCanvas: React.FC = () => {
   return (
     <div
       ref={containerRef}
-      className="relative flex flex-1 flex-col overflow-hidden bg-app-bg select-none transition-colors duration-200"
+      className="relative flex flex-1 min-h-0 min-w-0 flex-col overflow-hidden bg-app-bg select-none transition-colors duration-200"
     >
       {/* Floating Viewport HUD */}
       <div className="absolute top-3 left-4 right-4 z-20 flex items-center justify-between pointer-events-none">
@@ -125,7 +125,7 @@ export const PreviewCanvas: React.FC = () => {
       </div>
 
       {/* Canvas Viewport Frame */}
-      <div className="flex flex-1 items-center justify-center p-6 pt-12 overflow-hidden">
+      <div className="flex flex-1 min-h-0 items-center justify-center p-4 pt-11 overflow-hidden">
         <div
           style={
             canvasZoom > 0
