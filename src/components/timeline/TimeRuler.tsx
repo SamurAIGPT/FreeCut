@@ -20,10 +20,9 @@ export const TimeRuler: React.FC<TimeRulerProps> = ({ scrollLeft }) => {
     setPlayhead(clickedTime);
   };
 
-  // Generate tick marks
-  const totalSeconds = Math.ceil(duration) + 10;
+  const totalSeconds = Math.ceil(duration) + 15;
   const ticks = [];
-  const step = zoom < 40 ? 5 : zoom < 80 ? 2 : 1; // Major mark step
+  const step = zoom < 40 ? 5 : zoom < 80 ? 2 : 1;
 
   for (let s = 0; s <= totalSeconds; s += step) {
     ticks.push(
@@ -32,8 +31,8 @@ export const TimeRuler: React.FC<TimeRulerProps> = ({ scrollLeft }) => {
         className="absolute top-0 flex flex-col items-center"
         style={{ left: s * zoom }}
       >
-        <span className="font-mono text-[9px] text-slate-500">{formatShortTime(s)}</span>
-        <div className="h-2 w-px bg-slate-700" />
+        <span className="font-mono text-[9px] text-app-text-muted">{formatShortTime(s)}</span>
+        <div className="h-2 w-px bg-app-border" />
       </div>
     );
   }
@@ -42,8 +41,8 @@ export const TimeRuler: React.FC<TimeRulerProps> = ({ scrollLeft }) => {
     <div
       ref={rulerRef}
       onClick={handleClick}
-      style={{ width: `${(duration + 10) * zoom}px` }}
-      className="relative h-7 cursor-pointer border-b border-border bg-[#0d0f12] select-none"
+      style={{ width: `${(duration + 15) * zoom}px` }}
+      className="relative h-7 cursor-pointer border-b border-app-border bg-app-surface select-none transition-colors duration-200"
     >
       {ticks}
     </div>

@@ -6,7 +6,10 @@ interface HistorySnapshot {
   clips: Clip[];
 }
 
+export type ThemeMode = 'dark' | 'light';
+
 interface EditorState {
+  theme: ThemeMode;
   projectTitle: string;
   aspectRatio: AspectRatio;
   tracks: Track[];
@@ -16,11 +19,11 @@ interface EditorState {
   duration: number;
   isPlaying: boolean;
   selectedClipId: string | null;
-  zoom: number; // Pixels per second (e.g. 80)
+  zoom: number; // Pixels per second
   isSnapping: boolean;
   activeSidebarTab: SidebarTab;
   activeTool: 'select' | 'razor';
-  canvasZoom: number; // 100%, 75%, 50%, or 0 for Fit
+  canvasZoom: number;
   showGrid: boolean;
 
   // History
@@ -30,6 +33,8 @@ interface EditorState {
   };
 
   // Actions
+  setTheme: (theme: ThemeMode) => void;
+  toggleTheme: () => void;
   setProjectTitle: (title: string) => void;
   setAspectRatio: (aspect: AspectRatio) => void;
   setPlayhead: (time: number) => void;
@@ -74,7 +79,14 @@ const DEFAULT_TRACKS: Track[] = [
   { id: 'track-audio-2', name: 'Sound FX', type: 'audio', isVisible: true, isMuted: false },
 ];
 
+const getInitialTheme = (): ThemeMode => {
+  const saved = typeof window !== 'undefined' ? localStorage.getItem('freecut_theme') : null;
+  if (saved === 'light' || saved === 'dark') return saved;
+  return 'dark'; // Pure dark default
+};
+
 export const useEditorStore = create<EditorState>((set, get) => ({
+  theme: getInitialTheme(),
   projectTitle: 'Cyberpunk Trailer Project',
   aspectRatio: '16:9',
   tracks: DEFAULT_TRACKS,
@@ -88,9 +100,26 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   isSnapping: true,
   activeSidebarTab: 'media',
   activeTool: 'select',
-  canvasZoom: 0, // 0 = Fit
+  canvasZoom: 0,
   showGrid: false,
   history: { past: [], future: [] },
+
+  setTheme: (theme) => {
+    if (typeof document !== 'undefined') {
+      if (theme === 'dark') {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+      localStorage.setItem('freecut_theme', theme);
+    }
+    set({ theme });
+  },
+
+  toggleTheme: () => {
+    const nextTheme = get().theme === 'dark' ? 'light' : 'dark';
+    get().setTheme(nextTheme);
+  },
 
   setProjectTitle: (title) => set({ projectTitle: title }),
   setAspectRatio: (aspect) => set({ aspectRatio: aspect }),

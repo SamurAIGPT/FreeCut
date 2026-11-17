@@ -46,8 +46,8 @@ class CanvasCompositor {
       canvas.height = height;
     }
 
-    // 1. Dark letterbox background
-    ctx.fillStyle = '#06070a';
+    // 1. Pure Obsidian Black letterbox background
+    ctx.fillStyle = '#000000';
     ctx.fillRect(0, 0, width, height);
 
     // 2. Filter visible tracks

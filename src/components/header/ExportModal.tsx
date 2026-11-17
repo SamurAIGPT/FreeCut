@@ -35,7 +35,6 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose }) => 
         (p) => setProgress(p)
       );
 
-      // Trigger browser download
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -55,72 +54,72 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose }) => 
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-      <div className="w-full max-w-md rounded-xl border border-border bg-surface p-6 shadow-2xl">
-        <div className="flex items-center justify-between border-b border-border pb-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm">
+      <div className="w-full max-w-md rounded-2xl border border-app-border bg-app-surface p-6 shadow-2xl">
+        <div className="flex items-center justify-between border-b border-app-border pb-4">
           <div className="flex items-center gap-2">
-            <Film className="h-5 w-5 text-primary" />
-            <h2 className="text-lg font-semibold text-white">Export Video</h2>
+            <Film className="h-5 w-5 text-app-text" />
+            <h2 className="text-base font-bold text-app-text">Export Video</h2>
           </div>
           {!isExporting && (
             <button
               onClick={onClose}
-              className="rounded-lg p-1.5 text-slate-400 hover:bg-surface-elevated hover:text-white"
+              className="rounded-lg p-1 text-app-text-muted hover:bg-app-elevated hover:text-app-text transition"
             >
               <X className="h-5 w-5" />
             </button>
           )}
         </div>
 
-        <div className="mt-5 space-y-4">
+        <div className="mt-5 space-y-4 text-xs">
           <div>
-            <label className="text-xs font-medium text-slate-400">Project Name</label>
-            <div className="mt-1 rounded-lg border border-border bg-[#0d0f12] px-3 py-2 text-sm text-slate-200">
+            <label className="text-app-text-muted font-medium">Project Name</label>
+            <div className="mt-1 rounded-lg border border-app-border bg-app-elevated px-3 py-2 text-sm text-app-text font-medium">
               {projectTitle}
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 text-xs">
-            <div className="rounded-lg border border-border bg-[#0d0f12] p-3">
-              <span className="text-slate-400">Aspect Ratio</span>
-              <p className="mt-1 text-sm font-semibold text-white">{aspect}</p>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-lg border border-app-border bg-app-elevated p-3">
+              <span className="text-app-text-muted">Aspect Ratio</span>
+              <p className="mt-1 text-sm font-bold text-app-text">{aspect}</p>
             </div>
-            <div className="rounded-lg border border-border bg-[#0d0f12] p-3">
-              <span className="text-slate-400">Duration</span>
-              <p className="mt-1 text-sm font-semibold text-white">{duration.toFixed(1)}s</p>
+            <div className="rounded-lg border border-app-border bg-app-elevated p-3">
+              <span className="text-app-text-muted">Duration</span>
+              <p className="mt-1 text-sm font-bold text-app-text">{duration.toFixed(1)}s</p>
             </div>
           </div>
 
           {isExporting && progress && (
             <div className="space-y-2 pt-2">
-              <div className="flex items-center justify-between text-xs text-slate-300">
+              <div className="flex items-center justify-between text-app-text font-medium">
                 <span>Rendering frames...</span>
                 <span>{Math.round(progress.progress * 100)}%</span>
               </div>
-              <div className="h-2 w-full overflow-hidden rounded-full bg-border">
+              <div className="h-2 w-full overflow-hidden rounded-full bg-app-elevated">
                 <div
-                  className="h-full bg-primary transition-all duration-100"
+                  className="h-full bg-neutral-900 dark:bg-neutral-100 transition-all duration-100"
                   style={{ width: `${progress.progress * 100}%` }}
                 />
               </div>
-              <p className="text-center text-xs text-slate-400">
+              <p className="text-center text-[11px] text-app-text-muted">
                 Processed {progress.currentSecond.toFixed(1)}s of {progress.totalSeconds.toFixed(1)}s
               </p>
             </div>
           )}
 
-          <div className="mt-6 flex justify-end gap-3 pt-3">
+          <div className="mt-6 flex justify-end gap-2.5 pt-3">
             {!isExporting ? (
               <>
                 <button
                   onClick={onClose}
-                  className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-slate-300 hover:bg-surface-elevated"
+                  className="rounded-lg border border-app-border px-4 py-2 font-medium text-app-text hover:bg-app-elevated transition"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleStartExport}
-                  className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white shadow-lg shadow-blue-500/20 hover:bg-primary-hover"
+                  className="flex items-center gap-2 rounded-lg bg-neutral-900 dark:bg-neutral-100 px-4 py-2 font-semibold text-white dark:text-neutral-900 shadow-sm hover:opacity-90 active:scale-95 transition"
                 >
                   <Download className="h-4 w-4" />
                   Render & Download
@@ -129,10 +128,10 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose }) => 
             ) : (
               <button
                 disabled
-                className="flex items-center gap-2 rounded-lg bg-primary/70 px-4 py-2 text-sm font-medium text-white"
+                className="flex items-center gap-2 rounded-lg bg-neutral-900/70 dark:bg-neutral-100/70 px-4 py-2 font-medium text-white dark:text-neutral-900"
               >
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Rendering Video...
+                Rendering...
               </button>
             )}
           </div>

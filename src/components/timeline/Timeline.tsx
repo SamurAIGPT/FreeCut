@@ -1,7 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { 
-  Magnet, Plus, Scissors, Trash2, ZoomIn, ZoomOut, MousePointer, 
-  Maximize2, Film, Music, Type 
+  Magnet, Plus, Scissors, Trash2, ZoomIn, ZoomOut, MousePointer 
 } from 'lucide-react';
 import { useEditorStore } from '@/store/useEditorStore';
 import { TrackHeader } from './TrackHeader';
@@ -34,9 +33,9 @@ export const Timeline: React.FC = () => {
   const timelineHeight = tracks.length * 64 + 28;
 
   return (
-    <div className="flex h-80 w-full flex-col border-t border-[#1f242e] bg-[#090b0e]">
+    <div className="flex h-80 w-full flex-col border-t border-app-border bg-app-bg select-none transition-colors duration-200">
       {/* Timeline Control Bar */}
-      <div className="flex h-11 w-full items-center justify-between border-b border-[#1f242e] bg-[#12141a] px-3">
+      <div className="flex h-11 w-full items-center justify-between border-b border-app-border bg-app-surface px-3">
         {/* Editing Tools (Selection, Razor, Split, Delete, Snapping) */}
         <div className="flex items-center gap-1.5">
           {/* Select Tool */}
@@ -45,8 +44,8 @@ export const Timeline: React.FC = () => {
             title="Selection Tool (V)"
             className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium transition ${
               activeTool === 'select'
-                ? 'border-blue-500 bg-blue-600/20 text-blue-400'
-                : 'border-[#232938] bg-[#0c0e12] text-slate-400 hover:text-white'
+                ? 'border-neutral-900 bg-neutral-900 text-white dark:border-neutral-100 dark:bg-neutral-100 dark:text-black font-semibold'
+                : 'border-app-border bg-app-elevated text-app-text-muted hover:text-app-text'
             }`}
           >
             <MousePointer className="h-3.5 w-3.5" />
@@ -59,8 +58,8 @@ export const Timeline: React.FC = () => {
             title="Razor Tool (Click clip to cut)"
             className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium transition ${
               activeTool === 'razor'
-                ? 'border-red-500 bg-red-600/20 text-red-400'
-                : 'border-[#232938] bg-[#0c0e12] text-slate-400 hover:text-white'
+                ? 'border-red-500 bg-red-500/15 text-red-500 font-semibold'
+                : 'border-app-border bg-app-elevated text-app-text-muted hover:text-app-text'
             }`}
           >
             <Scissors className="h-3.5 w-3.5" />
@@ -71,7 +70,7 @@ export const Timeline: React.FC = () => {
             onClick={() => selectedClipId && splitClip(selectedClipId)}
             disabled={!selectedClipId}
             title="Split Clip at Playhead (S)"
-            className="flex items-center gap-1 rounded-lg border border-[#232938] bg-[#0c0e12] px-2.5 py-1 text-xs font-medium text-slate-300 hover:bg-[#1a1f2b] hover:text-white disabled:opacity-30 transition"
+            className="flex items-center gap-1 rounded-lg border border-app-border bg-app-elevated px-2.5 py-1 text-xs font-medium text-app-text hover:bg-app-surface disabled:opacity-30 transition"
           >
             <span>Cut at Needle</span>
           </button>
@@ -80,13 +79,13 @@ export const Timeline: React.FC = () => {
             onClick={() => selectedClipId && deleteClip(selectedClipId)}
             disabled={!selectedClipId}
             title="Delete Selected Clip (Del)"
-            className="flex items-center gap-1 rounded-lg border border-[#232938] bg-[#0c0e12] px-2.5 py-1 text-xs font-medium text-slate-300 hover:bg-red-500/10 hover:text-red-400 disabled:opacity-30 transition"
+            className="flex items-center gap-1 rounded-lg border border-app-border bg-app-elevated px-2.5 py-1 text-xs font-medium text-app-text hover:bg-red-500/15 hover:text-red-500 disabled:opacity-30 transition"
           >
-            <Trash2 className="h-3.5 w-3.5 text-red-400" />
+            <Trash2 className="h-3.5 w-3.5 text-red-500" />
             <span>Delete</span>
           </button>
 
-          <div className="mx-1 h-4 w-px bg-[#232938]" />
+          <div className="mx-1 h-4 w-px bg-app-border" />
 
           {/* Magnet Snapping */}
           <button
@@ -94,8 +93,8 @@ export const Timeline: React.FC = () => {
             title="Toggle Magnet Snapping"
             className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium transition ${
               isSnapping
-                ? 'border-blue-500/50 bg-blue-500/15 text-blue-400'
-                : 'border-[#232938] bg-[#0c0e12] text-slate-500 hover:text-slate-300'
+                ? 'border-neutral-900 bg-neutral-900 text-white dark:border-neutral-100 dark:bg-neutral-100 dark:text-black font-semibold'
+                : 'border-app-border bg-app-elevated text-app-text-muted hover:text-app-text'
             }`}
           >
             <Magnet className="h-3.5 w-3.5" />
@@ -106,16 +105,16 @@ export const Timeline: React.FC = () => {
           <div className="flex items-center gap-1 pl-2">
             <button
               onClick={() => addTrack('video')}
-              className="flex items-center gap-1 rounded-md border border-[#232938] bg-[#0c0e12] px-2 py-0.5 text-[11px] text-slate-300 hover:border-blue-500/50 hover:text-white"
+              className="flex items-center gap-1 rounded-md border border-app-border bg-app-elevated px-2 py-0.5 text-[11px] text-app-text hover:bg-app-surface"
             >
-              <Plus className="h-3 w-3 text-blue-400" />
+              <Plus className="h-3 w-3" />
               <span>Video</span>
             </button>
             <button
               onClick={() => addTrack('audio')}
-              className="flex items-center gap-1 rounded-md border border-[#232938] bg-[#0c0e12] px-2 py-0.5 text-[11px] text-slate-300 hover:border-emerald-500/50 hover:text-white"
+              className="flex items-center gap-1 rounded-md border border-app-border bg-app-elevated px-2 py-0.5 text-[11px] text-app-text hover:bg-app-surface"
             >
-              <Plus className="h-3 w-3 text-emerald-400" />
+              <Plus className="h-3 w-3" />
               <span>Audio</span>
             </button>
           </div>
@@ -126,7 +125,7 @@ export const Timeline: React.FC = () => {
           <button
             onClick={() => setZoom(zoom - 20)}
             title="Zoom Out"
-            className="text-slate-400 hover:text-white"
+            className="text-app-text-muted hover:text-app-text"
           >
             <ZoomOut className="h-3.5 w-3.5" />
           </button>
@@ -136,12 +135,12 @@ export const Timeline: React.FC = () => {
             max={250}
             value={zoom}
             onChange={(e) => setZoom(Number(e.target.value))}
-            className="w-24 accent-blue-500"
+            className="w-24 accent-neutral-800 dark:accent-neutral-200"
           />
           <button
             onClick={() => setZoom(zoom + 20)}
             title="Zoom In"
-            className="text-slate-400 hover:text-white"
+            className="text-app-text-muted hover:text-app-text"
           >
             <ZoomIn className="h-3.5 w-3.5" />
           </button>
@@ -151,8 +150,8 @@ export const Timeline: React.FC = () => {
       {/* Tracks & Ruler Grid */}
       <div className="flex flex-1 overflow-hidden">
         {/* Left Track Headers */}
-        <div className="flex w-60 shrink-0 flex-col border-r border-[#1f242e] bg-[#0c0e12]">
-          <div className="h-7 border-b border-[#1f242e] bg-[#0c0e12] flex items-center px-3 text-[10px] font-semibold tracking-wider text-slate-500 uppercase">
+        <div className="flex w-60 shrink-0 flex-col border-r border-app-border bg-app-surface">
+          <div className="h-7 border-b border-app-border bg-app-surface flex items-center px-3 text-[10px] font-semibold tracking-wider text-app-text-muted uppercase">
             Tracks
           </div>
           <div className="flex-1 overflow-y-auto">
@@ -167,7 +166,7 @@ export const Timeline: React.FC = () => {
           id="timeline-tracks-container"
           ref={containerRef}
           onScroll={handleScroll}
-          className="relative flex-1 overflow-x-auto overflow-y-auto bg-[#07080b]"
+          className="relative flex-1 overflow-x-auto overflow-y-auto bg-app-bg"
         >
           {/* Time Ruler */}
           <TimeRuler scrollLeft={scrollLeft} />
@@ -182,7 +181,7 @@ export const Timeline: React.FC = () => {
               return (
                 <div
                   key={track.id}
-                  className="relative h-16 border-b border-[#181c24] bg-[#090b0e]/70 hover:bg-[#0c0e14] transition"
+                  className="relative h-16 border-b border-app-border/60 bg-app-surface/40 hover:bg-app-surface/70 transition"
                 >
                   {trackClips.map((clip) => (
                     <ClipItem key={clip.id} clip={clip} isLocked={track.isLocked} />

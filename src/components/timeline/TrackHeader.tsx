@@ -15,16 +15,16 @@ export const TrackHeader: React.FC<TrackHeaderProps> = ({ track }) => {
   const isPlaying = useEditorStore((s) => s.isPlaying);
 
   return (
-    <div className="flex h-16 w-60 shrink-0 items-center justify-between border-b border-[#1f242e] bg-[#0c0e12] px-3 transition hover:bg-[#11141a]">
+    <div className="flex h-16 w-60 shrink-0 items-center justify-between border-b border-app-border bg-app-surface px-3 select-none transition-colors duration-200">
       {/* Track Label */}
       <div className="flex items-center gap-2 overflow-hidden">
         <div
-          className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg ${
+          className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border border-app-border bg-app-elevated ${
             track.type === 'video'
-              ? 'bg-blue-600/15 text-blue-400'
+              ? 'text-blue-500'
               : track.type === 'audio'
-              ? 'bg-emerald-600/15 text-emerald-400'
-              : 'bg-amber-600/15 text-amber-400'
+              ? 'text-emerald-500'
+              : 'text-amber-500'
           }`}
         >
           {track.type === 'video' ? (
@@ -36,7 +36,7 @@ export const TrackHeader: React.FC<TrackHeaderProps> = ({ track }) => {
           )}
         </div>
         <div className="overflow-hidden">
-          <span className="truncate text-xs font-semibold text-slate-200 block">{track.name}</span>
+          <span className="truncate text-xs font-semibold text-app-text block">{track.name}</span>
           {/* Animated Mini VU meter when playing */}
           {track.type !== 'text' && !track.isMuted && (
             <div className="flex items-center gap-0.5 mt-0.5 h-1.5 w-16">
@@ -47,7 +47,7 @@ export const TrackHeader: React.FC<TrackHeaderProps> = ({ track }) => {
                     height: isPlaying ? `${h * 100}%` : '25%',
                   }}
                   className={`w-1 rounded-sm transition-all duration-150 ${
-                    i > 3 ? 'bg-amber-400' : 'bg-emerald-400'
+                    i > 3 ? 'bg-amber-500' : 'bg-emerald-500'
                   }`}
                 />
               ))}
@@ -65,7 +65,7 @@ export const TrackHeader: React.FC<TrackHeaderProps> = ({ track }) => {
           className={`h-5 w-5 rounded text-[10px] font-bold transition ${
             track.isSolo
               ? 'bg-amber-500 text-black'
-              : 'text-slate-500 hover:bg-[#1c212b] hover:text-slate-300'
+              : 'text-app-text-muted hover:bg-app-elevated hover:text-app-text'
           }`}
         >
           S
@@ -77,7 +77,7 @@ export const TrackHeader: React.FC<TrackHeaderProps> = ({ track }) => {
             onClick={() => toggleTrackMute(track.id)}
             title={track.isMuted ? 'Unmute' : 'Mute'}
             className={`rounded p-1 transition ${
-              track.isMuted ? 'bg-red-500/20 text-red-400' : 'text-slate-500 hover:text-white'
+              track.isMuted ? 'bg-red-500/20 text-red-500' : 'text-app-text-muted hover:text-app-text'
             }`}
           >
             {track.isMuted ? <VolumeX className="h-3 w-3" /> : <Volume2 className="h-3 w-3" />}
@@ -89,7 +89,7 @@ export const TrackHeader: React.FC<TrackHeaderProps> = ({ track }) => {
           onClick={() => toggleTrackVisibility(track.id)}
           title={track.isVisible ? 'Hide' : 'Show'}
           className={`rounded p-1 transition ${
-            track.isVisible === false ? 'bg-red-500/20 text-red-400' : 'text-slate-500 hover:text-white'
+            track.isVisible === false ? 'bg-red-500/20 text-red-500' : 'text-app-text-muted hover:text-app-text'
           }`}
         >
           {track.isVisible === false ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
@@ -100,7 +100,7 @@ export const TrackHeader: React.FC<TrackHeaderProps> = ({ track }) => {
           onClick={() => toggleTrackLock(track.id)}
           title={track.isLocked ? 'Unlock' : 'Lock'}
           className={`rounded p-1 transition ${
-            track.isLocked ? 'bg-amber-500/20 text-amber-400' : 'text-slate-500 hover:text-white'
+            track.isLocked ? 'bg-amber-500/20 text-amber-500' : 'text-app-text-muted hover:text-app-text'
           }`}
         >
           {track.isLocked ? <Lock className="h-3 w-3" /> : <Unlock className="h-3 w-3" />}

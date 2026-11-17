@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { 
   Move, RotateCw, Volume2, Type, Sliders, Trash2, Gauge, 
-  Palette, Eye, Sparkles, Layers, RefreshCw 
+  Palette, Layers, RefreshCw 
 } from 'lucide-react';
 import { useEditorStore } from '@/store/useEditorStore';
 
@@ -21,13 +21,13 @@ export const InspectorPanel: React.FC = () => {
 
   if (!clip) {
     return (
-      <aside className="flex h-full w-80 flex-col border-l border-[#1f242e] bg-[#12141a] p-6 text-center">
-        <div className="flex flex-1 flex-col items-center justify-center text-slate-500">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-[#232938] bg-[#0c0e12] text-slate-500 shadow-inner">
-            <Sliders className="h-7 w-7" />
+      <aside className="flex h-full w-80 flex-col border-l border-app-border bg-app-surface p-6 text-center select-none transition-colors duration-200">
+        <div className="flex flex-1 flex-col items-center justify-center text-app-text-muted">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-app-border bg-app-elevated text-app-text-muted shadow-sm">
+            <Sliders className="h-6 w-6" />
           </div>
-          <h3 className="mt-4 text-xs font-semibold text-slate-200">No Clip Selected</h3>
-          <p className="mt-1 text-xs text-slate-500 max-w-[200px]">
+          <h3 className="mt-3 text-xs font-semibold text-app-text">No Clip Selected</h3>
+          <p className="mt-1 text-xs text-app-text-muted max-w-[200px]">
             Click any clip on the timeline to customize motion transforms, audio mix, color grading, and text.
           </p>
         </div>
@@ -41,30 +41,30 @@ export const InspectorPanel: React.FC = () => {
   const filter = clip.filter || { brightness: 1, contrast: 1, saturation: 1, blur: 0 };
 
   return (
-    <aside className="flex h-full w-80 flex-col border-l border-[#1f242e] bg-[#12141a]">
+    <aside className="flex h-full w-80 flex-col border-l border-app-border bg-app-surface select-none transition-colors duration-200">
       {/* Top Header */}
-      <div className="flex items-center justify-between border-b border-[#1f242e] p-3">
+      <div className="flex items-center justify-between border-b border-app-border p-3">
         <div className="flex items-center gap-2 overflow-hidden">
-          <div className="flex h-6 w-6 items-center justify-center rounded bg-blue-500/10 text-blue-400 shrink-0">
+          <div className="flex h-6 w-6 items-center justify-center rounded bg-app-elevated text-app-text shrink-0">
             <Layers className="h-3.5 w-3.5" />
           </div>
-          <span className="truncate text-xs font-semibold text-white">{clip.name}</span>
+          <span className="truncate text-xs font-semibold text-app-text">{clip.name}</span>
         </div>
         <button
           onClick={() => deleteClip(clip.id)}
           title="Delete Clip"
-          className="rounded-lg p-1.5 text-slate-500 hover:bg-red-500/15 hover:text-red-400 transition"
+          className="rounded-lg p-1.5 text-app-text-muted hover:bg-red-500/15 hover:text-red-400 transition"
         >
           <Trash2 className="h-4 w-4" />
         </button>
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-[#1f242e] bg-[#0c0e12] px-2 text-xs">
+      <div className="flex border-b border-app-border bg-app-elevated px-2 text-xs">
         <button
           onClick={() => setActiveTab('basic')}
           className={`flex items-center gap-1.5 border-b-2 py-2.5 px-3 font-medium transition ${
-            activeTab === 'basic' ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-400 hover:text-white'
+            activeTab === 'basic' ? 'border-neutral-900 dark:border-neutral-100 text-app-text' : 'border-transparent text-app-text-muted hover:text-app-text'
           }`}
         >
           <Move className="h-3.5 w-3.5" />
@@ -75,7 +75,7 @@ export const InspectorPanel: React.FC = () => {
           <button
             onClick={() => setActiveTab('text')}
             className={`flex items-center gap-1.5 border-b-2 py-2.5 px-3 font-medium transition ${
-              activeTab === 'text' ? 'border-amber-500 text-amber-400' : 'border-transparent text-slate-400 hover:text-white'
+              activeTab === 'text' ? 'border-amber-500 text-amber-500 font-semibold' : 'border-transparent text-app-text-muted hover:text-app-text'
             }`}
           >
             <Type className="h-3.5 w-3.5" />
@@ -87,7 +87,7 @@ export const InspectorPanel: React.FC = () => {
           <button
             onClick={() => setActiveTab('audio')}
             className={`flex items-center gap-1.5 border-b-2 py-2.5 px-3 font-medium transition ${
-              activeTab === 'audio' ? 'border-emerald-500 text-emerald-400' : 'border-transparent text-slate-400 hover:text-white'
+              activeTab === 'audio' ? 'border-emerald-500 text-emerald-500 font-semibold' : 'border-transparent text-app-text-muted hover:text-app-text'
             }`}
           >
             <Volume2 className="h-3.5 w-3.5" />
@@ -98,7 +98,7 @@ export const InspectorPanel: React.FC = () => {
         <button
           onClick={() => setActiveTab('color')}
           className={`flex items-center gap-1.5 border-b-2 py-2.5 px-3 font-medium transition ${
-            activeTab === 'color' ? 'border-purple-500 text-purple-400' : 'border-transparent text-slate-400 hover:text-white'
+            activeTab === 'color' ? 'border-purple-500 text-purple-500 font-semibold' : 'border-transparent text-app-text-muted hover:text-app-text'
           }`}
         >
           <Palette className="h-3.5 w-3.5" />
@@ -108,7 +108,7 @@ export const InspectorPanel: React.FC = () => {
         <button
           onClick={() => setActiveTab('speed')}
           className={`flex items-center gap-1.5 border-b-2 py-2.5 px-3 font-medium transition ${
-            activeTab === 'speed' ? 'border-cyan-500 text-cyan-400' : 'border-transparent text-slate-400 hover:text-white'
+            activeTab === 'speed' ? 'border-cyan-500 text-cyan-500 font-semibold' : 'border-transparent text-app-text-muted hover:text-app-text'
           }`}
         >
           <Gauge className="h-3.5 w-3.5" />
@@ -123,33 +123,33 @@ export const InspectorPanel: React.FC = () => {
           <>
             {/* Position */}
             <div className="space-y-2">
-              <div className="flex justify-between items-center text-slate-400 font-semibold">
+              <div className="flex justify-between items-center text-app-text-muted font-semibold">
                 <span>POSITION (X, Y)</span>
                 <button
                   onClick={() => updateClipTransform(clip.id, { x: 0, y: 0 })}
                   title="Reset Position"
-                  className="text-slate-500 hover:text-white"
+                  className="text-app-text-muted hover:text-app-text"
                 >
                   <RefreshCw className="h-3 w-3" />
                 </button>
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <div className="flex items-center rounded-lg border border-[#232938] bg-[#0c0e12] px-2 py-1.5">
-                  <span className="text-[10px] text-slate-500 mr-2">X</span>
+                <div className="flex items-center rounded-lg border border-app-border bg-app-elevated px-2 py-1.5">
+                  <span className="text-[10px] text-app-text-muted mr-2">X</span>
                   <input
                     type="number"
                     value={clip.transform.x}
                     onChange={(e) => updateClipTransform(clip.id, { x: Number(e.target.value) })}
-                    className="w-full bg-transparent font-mono text-white focus:outline-none"
+                    className="w-full bg-transparent font-mono text-app-text focus:outline-none"
                   />
                 </div>
-                <div className="flex items-center rounded-lg border border-[#232938] bg-[#0c0e12] px-2 py-1.5">
-                  <span className="text-[10px] text-slate-500 mr-2">Y</span>
+                <div className="flex items-center rounded-lg border border-app-border bg-app-elevated px-2 py-1.5">
+                  <span className="text-[10px] text-app-text-muted mr-2">Y</span>
                   <input
                     type="number"
                     value={clip.transform.y}
                     onChange={(e) => updateClipTransform(clip.id, { y: Number(e.target.value) })}
-                    className="w-full bg-transparent font-mono text-white focus:outline-none"
+                    className="w-full bg-transparent font-mono text-app-text focus:outline-none"
                   />
                 </div>
               </div>
@@ -157,9 +157,9 @@ export const InspectorPanel: React.FC = () => {
 
             {/* Scale */}
             <div className="space-y-1.5">
-              <div className="flex justify-between text-slate-400 font-semibold">
+              <div className="flex justify-between text-app-text-muted font-semibold">
                 <span>SCALE</span>
-                <span className="font-mono text-white">{(clip.transform.scale * 100).toFixed(0)}%</span>
+                <span className="font-mono text-app-text">{(clip.transform.scale * 100).toFixed(0)}%</span>
               </div>
               <input
                 type="range"
@@ -168,15 +168,15 @@ export const InspectorPanel: React.FC = () => {
                 step={0.05}
                 value={clip.transform.scale}
                 onChange={(e) => updateClipTransform(clip.id, { scale: Number(e.target.value) })}
-                className="w-full accent-blue-500"
+                className="w-full accent-neutral-800 dark:accent-neutral-200"
               />
             </div>
 
             {/* Rotation */}
             <div className="space-y-1.5">
-              <div className="flex justify-between text-slate-400 font-semibold">
+              <div className="flex justify-between text-app-text-muted font-semibold">
                 <span>ROTATION</span>
-                <span className="font-mono text-white">{clip.transform.rotation}°</span>
+                <span className="font-mono text-app-text">{clip.transform.rotation}°</span>
               </div>
               <input
                 type="range"
@@ -185,15 +185,15 @@ export const InspectorPanel: React.FC = () => {
                 step={1}
                 value={clip.transform.rotation}
                 onChange={(e) => updateClipTransform(clip.id, { rotation: Number(e.target.value) })}
-                className="w-full accent-blue-500"
+                className="w-full accent-neutral-800 dark:accent-neutral-200"
               />
             </div>
 
             {/* Opacity */}
             <div className="space-y-1.5">
-              <div className="flex justify-between text-slate-400 font-semibold">
+              <div className="flex justify-between text-app-text-muted font-semibold">
                 <span>OPACITY</span>
-                <span className="font-mono text-white">{Math.round(clip.transform.opacity * 100)}%</span>
+                <span className="font-mono text-app-text">{Math.round(clip.transform.opacity * 100)}%</span>
               </div>
               <input
                 type="range"
@@ -202,17 +202,17 @@ export const InspectorPanel: React.FC = () => {
                 step={0.02}
                 value={clip.transform.opacity}
                 onChange={(e) => updateClipTransform(clip.id, { opacity: Number(e.target.value) })}
-                className="w-full accent-blue-500"
+                className="w-full accent-neutral-800 dark:accent-neutral-200"
               />
             </div>
 
             {/* Blend Mode */}
-            <div className="space-y-1.5 pt-2 border-t border-[#1f242e]">
-              <span className="text-slate-400 font-semibold">COMPOSITING BLEND MODE</span>
+            <div className="space-y-1.5 pt-2 border-t border-app-border">
+              <span className="text-app-text-muted font-semibold">COMPOSITING BLEND MODE</span>
               <select
                 value={clip.blendMode || 'source-over'}
                 onChange={(e) => updateClip(clip.id, { blendMode: e.target.value as GlobalCompositeOperation })}
-                className="w-full rounded-lg border border-[#232938] bg-[#0c0e12] p-2 text-white focus:outline-none"
+                className="w-full rounded-lg border border-app-border bg-app-elevated p-2 text-app-text focus:outline-none"
               >
                 <option value="source-over">Normal</option>
                 <option value="screen">Screen (Lighten)</option>
@@ -229,45 +229,45 @@ export const InspectorPanel: React.FC = () => {
         {activeTab === 'text' && isTextAvailable && (
           <div className="space-y-4">
             <div>
-              <label className="text-slate-400 font-semibold">TEXT STRING</label>
+              <label className="text-app-text-muted font-semibold">TEXT STRING</label>
               <textarea
                 rows={3}
                 value={clip.text || ''}
                 onChange={(e) => updateClip(clip.id, { text: e.target.value })}
-                className="mt-1 w-full rounded-lg border border-[#232938] bg-[#0c0e12] p-2.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="mt-1 w-full rounded-lg border border-app-border bg-app-elevated p-2.5 text-xs text-app-text focus:outline-none focus:ring-1 focus:ring-neutral-400"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="text-slate-400">Font Size (px)</label>
+                <label className="text-app-text-muted">Font Size (px)</label>
                 <input
                   type="number"
                   min={12}
                   max={200}
                   value={clip.fontSize || 54}
                   onChange={(e) => updateClip(clip.id, { fontSize: Number(e.target.value) })}
-                  className="mt-1 w-full rounded-lg border border-[#232938] bg-[#0c0e12] p-2 text-white"
+                  className="mt-1 w-full rounded-lg border border-app-border bg-app-elevated p-2 text-app-text"
                 />
               </div>
 
               <div>
-                <label className="text-slate-400">Text Color</label>
-                <div className="mt-1 flex items-center gap-2 rounded-lg border border-[#232938] bg-[#0c0e12] p-1.5">
+                <label className="text-app-text-muted">Text Color</label>
+                <div className="mt-1 flex items-center gap-2 rounded-lg border border-app-border bg-app-elevated p-1.5">
                   <input
                     type="color"
                     value={clip.fontColor || '#ffffff'}
                     onChange={(e) => updateClip(clip.id, { fontColor: e.target.value })}
                     className="h-6 w-6 cursor-pointer rounded border-none bg-transparent"
                   />
-                  <span className="font-mono text-slate-300">{clip.fontColor}</span>
+                  <span className="font-mono text-app-text">{clip.fontColor}</span>
                 </div>
               </div>
             </div>
 
             <div>
-              <label className="text-slate-400">Background Badge Color</label>
-              <div className="mt-1 flex items-center gap-2 rounded-lg border border-[#232938] bg-[#0c0e12] p-2">
+              <label className="text-app-text-muted">Background Badge Color</label>
+              <div className="mt-1 flex items-center gap-2 rounded-lg border border-app-border bg-app-elevated p-2">
                 <input
                   type="color"
                   value={clip.backgroundColor && clip.backgroundColor !== 'transparent' ? clip.backgroundColor : '#000000'}
@@ -276,7 +276,7 @@ export const InspectorPanel: React.FC = () => {
                 />
                 <button
                   onClick={() => updateClip(clip.id, { backgroundColor: 'transparent' })}
-                  className="rounded bg-[#1a1f2b] px-2 py-1 text-[10px] text-slate-400 hover:text-white"
+                  className="rounded bg-app-surface border border-app-border px-2 py-1 text-[10px] text-app-text-muted hover:text-app-text"
                 >
                   Clear Background
                 </button>
@@ -289,9 +289,9 @@ export const InspectorPanel: React.FC = () => {
         {activeTab === 'audio' && isAudioAvailable && (
           <div className="space-y-4">
             <div className="space-y-1.5">
-              <div className="flex justify-between text-slate-400 font-semibold">
+              <div className="flex justify-between text-app-text-muted font-semibold">
                 <span>MASTER VOLUME</span>
-                <span className="font-mono text-emerald-400">{Math.round(clip.volume * 100)}%</span>
+                <span className="font-mono text-emerald-500 font-bold">{Math.round(clip.volume * 100)}%</span>
               </div>
               <input
                 type="range"
@@ -310,9 +310,9 @@ export const InspectorPanel: React.FC = () => {
         {activeTab === 'color' && (
           <div className="space-y-4">
             <div className="space-y-1.5">
-              <div className="flex justify-between text-slate-400 font-semibold">
+              <div className="flex justify-between text-app-text-muted font-semibold">
                 <span>BRIGHTNESS</span>
-                <span className="font-mono text-white">{(filter.brightness * 100).toFixed(0)}%</span>
+                <span className="font-mono text-app-text">{(filter.brightness * 100).toFixed(0)}%</span>
               </div>
               <input
                 type="range"
@@ -321,14 +321,14 @@ export const InspectorPanel: React.FC = () => {
                 step={0.05}
                 value={filter.brightness}
                 onChange={(e) => updateClipFilter(clip.id, { brightness: Number(e.target.value) })}
-                className="w-full accent-purple-500"
+                className="w-full accent-neutral-800 dark:accent-neutral-200"
               />
             </div>
 
             <div className="space-y-1.5">
-              <div className="flex justify-between text-slate-400 font-semibold">
+              <div className="flex justify-between text-app-text-muted font-semibold">
                 <span>CONTRAST</span>
-                <span className="font-mono text-white">{(filter.contrast * 100).toFixed(0)}%</span>
+                <span className="font-mono text-app-text">{(filter.contrast * 100).toFixed(0)}%</span>
               </div>
               <input
                 type="range"
@@ -337,14 +337,14 @@ export const InspectorPanel: React.FC = () => {
                 step={0.05}
                 value={filter.contrast}
                 onChange={(e) => updateClipFilter(clip.id, { contrast: Number(e.target.value) })}
-                className="w-full accent-purple-500"
+                className="w-full accent-neutral-800 dark:accent-neutral-200"
               />
             </div>
 
             <div className="space-y-1.5">
-              <div className="flex justify-between text-slate-400 font-semibold">
+              <div className="flex justify-between text-app-text-muted font-semibold">
                 <span>SATURATION</span>
-                <span className="font-mono text-white">{(filter.saturation * 100).toFixed(0)}%</span>
+                <span className="font-mono text-app-text">{(filter.saturation * 100).toFixed(0)}%</span>
               </div>
               <input
                 type="range"
@@ -353,14 +353,14 @@ export const InspectorPanel: React.FC = () => {
                 step={0.05}
                 value={filter.saturation}
                 onChange={(e) => updateClipFilter(clip.id, { saturation: Number(e.target.value) })}
-                className="w-full accent-purple-500"
+                className="w-full accent-neutral-800 dark:accent-neutral-200"
               />
             </div>
 
             <div className="space-y-1.5">
-              <div className="flex justify-between text-slate-400 font-semibold">
+              <div className="flex justify-between text-app-text-muted font-semibold">
                 <span>SOFT BLUR</span>
-                <span className="font-mono text-white">{filter.blur}px</span>
+                <span className="font-mono text-app-text">{filter.blur}px</span>
               </div>
               <input
                 type="range"
@@ -369,7 +369,7 @@ export const InspectorPanel: React.FC = () => {
                 step={0.5}
                 value={filter.blur}
                 onChange={(e) => updateClipFilter(clip.id, { blur: Number(e.target.value) })}
-                className="w-full accent-purple-500"
+                className="w-full accent-neutral-800 dark:accent-neutral-200"
               />
             </div>
           </div>
@@ -379,9 +379,9 @@ export const InspectorPanel: React.FC = () => {
         {activeTab === 'speed' && (
           <div className="space-y-4">
             <div className="space-y-1.5">
-              <div className="flex justify-between text-slate-400 font-semibold">
+              <div className="flex justify-between text-app-text-muted font-semibold">
                 <span>PLAYBACK SPEED</span>
-                <span className="font-mono text-cyan-400">{(clip.speed || 1).toFixed(2)}x</span>
+                <span className="font-mono text-app-text font-bold">{(clip.speed || 1).toFixed(2)}x</span>
               </div>
               <input
                 type="range"
@@ -390,7 +390,7 @@ export const InspectorPanel: React.FC = () => {
                 step={0.25}
                 value={clip.speed || 1}
                 onChange={(e) => updateClip(clip.id, { speed: Number(e.target.value) })}
-                className="w-full accent-cyan-500"
+                className="w-full accent-neutral-800 dark:accent-neutral-200"
               />
             </div>
 
@@ -401,8 +401,8 @@ export const InspectorPanel: React.FC = () => {
                   onClick={() => updateClip(clip.id, { speed: val })}
                   className={`rounded-lg border py-1.5 font-mono text-xs ${
                     (clip.speed || 1) === val
-                      ? 'border-cyan-500 bg-cyan-500/20 text-cyan-400'
-                      : 'border-[#232938] bg-[#0c0e12] text-slate-400 hover:text-white'
+                      ? 'border-neutral-900 bg-neutral-900 text-white dark:border-neutral-100 dark:bg-neutral-100 dark:text-black font-semibold'
+                      : 'border-app-border bg-app-elevated text-app-text hover:bg-app-surface'
                   }`}
                 >
                   {val}x

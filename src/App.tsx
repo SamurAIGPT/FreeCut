@@ -13,12 +13,19 @@ export const App: React.FC = () => {
   useKeyboardShortcuts();
   useAnimationLoop();
 
+  const theme = useEditorStore((s) => s.theme);
+  const setTheme = useEditorStore((s) => s.setTheme);
   const assets = useEditorStore((s) => s.assets);
   const addAsset = useEditorStore((s) => s.addAsset);
   const addClip = useEditorStore((s) => s.addClip);
   const tracks = useEditorStore((s) => s.tracks);
 
-  // Auto-seed rich sequence on first visit
+  // Sync theme with document element on startup
+  useEffect(() => {
+    setTheme(theme);
+  }, []);
+
+  // Auto-seed sequence on first visit
   useEffect(() => {
     if (assets.length === 0) {
       const initSamples = async () => {
@@ -47,7 +54,7 @@ export const App: React.FC = () => {
               trimEnd: 5,
               transform: { x: 0, y: 0, scale: 1, rotation: 0, opacity: 1 },
               volume: 1,
-              color: '#3b82f6',
+              color: '#2563eb',
             });
           }
 
@@ -62,9 +69,9 @@ export const App: React.FC = () => {
               duration: 3,
               trimStart: 2,
               trimEnd: 5,
-              transform: { x: 380, y: -190, scale: 0.35, rotation: -2, opacity: 0.95 },
+              transform: { x: 380, y: -190, scale: 0.35, rotation: 0, opacity: 0.95 },
               volume: 0,
-              color: '#6366f1',
+              color: '#4f46e5',
             });
           }
 
@@ -81,7 +88,7 @@ export const App: React.FC = () => {
               trimEnd: 5,
               transform: { x: 0, y: 0, scale: 1, rotation: 0, opacity: 1 },
               volume: 0.85,
-              color: '#10b981',
+              color: '#059669',
             });
           }
 
@@ -89,12 +96,12 @@ export const App: React.FC = () => {
           if (textTrack) {
             addClip({
               trackId: textTrack.id,
-              name: 'Cyberpunk Title',
+              name: 'Obsidian Title',
               type: 'text',
-              text: 'FREECUT STUDIO',
+              text: 'FREECUT PRO',
               fontSize: 56,
-              fontColor: '#38bdf8',
-              backgroundColor: 'rgba(9, 11, 14, 0.85)',
+              fontColor: '#ffffff',
+              backgroundColor: 'rgba(0, 0, 0, 0.85)',
               fontFamily: 'Inter, system-ui',
               start: 0.5,
               duration: 4.5,
@@ -102,7 +109,7 @@ export const App: React.FC = () => {
               trimEnd: 4.5,
               transform: { x: 0, y: 160, scale: 1, rotation: 0, opacity: 1 },
               volume: 0,
-              color: '#f59e0b',
+              color: '#d97706',
             });
           }
         } catch (err) {
@@ -115,7 +122,7 @@ export const App: React.FC = () => {
   }, []);
 
   return (
-    <div className="flex h-screen w-screen flex-col overflow-hidden bg-[#090b0e] text-slate-100 select-none">
+    <div className="flex h-screen w-screen flex-col overflow-hidden bg-app-bg text-app-text select-none transition-colors duration-200">
       {/* Top Application Header */}
       <Header />
 

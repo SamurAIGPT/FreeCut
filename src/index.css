@@ -2,31 +2,51 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Light Theme Variables */
 :root {
-  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-  color-scheme: dark;
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color-scheme: light;
+  --app-bg: #f2f2f5;
+  --app-surface: #ffffff;
+  --app-elevated: #eaeaea;
+  --app-border: #dcdce0;
+  --app-muted: #e5e5ea;
+  --app-text: #111113;
+  --app-text-muted: #6e6e73;
 }
 
-/* Custom scrollbars */
+/* Pure Neutral Dark Theme Variables (Zero Blue Tint, True Obsidian) */
+.dark {
+  color-scheme: dark;
+  --app-bg: #000000;
+  --app-surface: #0c0c0d;
+  --app-elevated: #161618;
+  --app-border: #242426;
+  --app-muted: #1c1c1e;
+  --app-text: #f4f4f5;
+  --app-text-muted: #8e8e93;
+}
+
+/* Custom Scrollbars */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #0d0f12;
+  background: var(--app-bg);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #2a303c;
+  background: var(--app-border);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #3b4252;
+  background: #52525b;
 }
 
-/* Timeline scrubber needle */
+/* Playhead Scrubber needle */
 .playhead-needle {
   transform: translateX(-50%);
   pointer-events: none;

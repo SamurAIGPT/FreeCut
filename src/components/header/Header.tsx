@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Download, Redo2, Scissors, Undo2, Film, Sparkles } from 'lucide-react';
+import { Download, Redo2, Scissors, Undo2, Sun, Moon } from 'lucide-react';
 import { useEditorStore } from '@/store/useEditorStore';
 import { formatTimecode } from '@/utils/time';
 import { ExportModal } from './ExportModal';
@@ -7,6 +7,8 @@ import { ExportModal } from './ExportModal';
 export const Header: React.FC = () => {
   const [isExportOpen, setIsExportOpen] = useState(false);
 
+  const theme = useEditorStore((s) => s.theme);
+  const toggleTheme = useEditorStore((s) => s.toggleTheme);
   const projectTitle = useEditorStore((s) => s.projectTitle);
   const setProjectTitle = useEditorStore((s) => s.setProjectTitle);
   const playhead = useEditorStore((s) => s.playhead);
@@ -17,39 +19,39 @@ export const Header: React.FC = () => {
 
   return (
     <>
-      <header className="flex h-13 w-full items-center justify-between border-b border-[#1f242e] bg-[#0c0e12] px-4 py-2 select-none">
+      <header className="flex h-12 w-full items-center justify-between border-b border-app-border bg-app-surface px-4 py-2 select-none transition-colors duration-200">
         {/* Left: Brand & Title */}
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-tr from-cyan-500 via-blue-600 to-indigo-600 shadow-md shadow-blue-500/25">
-              <Scissors className="h-4 w-4 text-white" />
+          <div className="flex items-center gap-2">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-neutral-900 dark:bg-neutral-100 text-white dark:text-black font-bold shadow-sm">
+              <Scissors className="h-3.5 w-3.5" />
             </div>
-            <span className="text-sm font-bold tracking-tight text-white">
-              Free<span className="bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">Cut</span>
-              <span className="ml-1.5 rounded-full border border-blue-500/30 bg-blue-500/10 px-1.5 py-0.2 text-[9px] font-semibold text-blue-400">
-                STUDIO
+            <span className="text-sm font-bold tracking-tight text-app-text">
+              FreeCut
+              <span className="ml-1.5 rounded border border-neutral-300 dark:border-neutral-700 bg-neutral-200/50 dark:bg-neutral-800/80 px-1.5 py-0.2 text-[9px] font-semibold text-app-text-muted">
+                PRO
               </span>
             </span>
           </div>
 
-          <div className="h-4 w-px bg-[#232938]" />
+          <div className="h-4 w-px bg-app-border" />
 
           <input
             type="text"
             value={projectTitle}
             onChange={(e) => setProjectTitle(e.target.value)}
-            className="rounded-lg border border-transparent px-2.5 py-1 text-xs font-semibold text-slate-200 hover:border-[#232938] hover:bg-[#12141a] focus:border-blue-500/50 focus:bg-[#12141a] focus:outline-none transition"
+            className="rounded-md border border-transparent px-2 py-0.5 text-xs font-medium text-app-text hover:border-app-border hover:bg-app-elevated focus:border-neutral-400 dark:focus:border-neutral-600 focus:bg-app-elevated focus:outline-none transition"
           />
         </div>
 
         {/* Center: Playhead Timecode & Undo/Redo */}
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1 rounded-xl border border-[#232938] bg-[#090b0e] p-0.5">
+          <div className="flex items-center gap-0.5 rounded-lg border border-app-border bg-app-elevated p-0.5">
             <button
               onClick={undo}
               disabled={!canUndo}
               title="Undo (Ctrl+Z)"
-              className="rounded-lg p-1 text-slate-400 hover:bg-[#181c24] hover:text-white disabled:opacity-30 transition"
+              className="rounded p-1 text-app-text-muted hover:bg-app-surface hover:text-app-text disabled:opacity-30 transition"
             >
               <Undo2 className="h-3.5 w-3.5" />
             </button>
@@ -57,28 +59,48 @@ export const Header: React.FC = () => {
               onClick={redo}
               disabled={!canRedo}
               title="Redo (Ctrl+Y)"
-              className="rounded-lg p-1 text-slate-400 hover:bg-[#181c24] hover:text-white disabled:opacity-30 transition"
+              className="rounded p-1 text-app-text-muted hover:bg-app-surface hover:text-app-text disabled:opacity-30 transition"
             >
               <Redo2 className="h-3.5 w-3.5" />
             </button>
           </div>
 
-          <div className="flex items-center gap-2 rounded-xl border border-[#232938] bg-[#090b0e] px-3 py-1 shadow-inner">
-            <span className="h-1.5 w-1.5 rounded-full bg-cyan-400 animate-pulse" />
-            <span className="font-mono text-xs font-bold tracking-widest text-cyan-400">
+          <div className="flex items-center gap-2 rounded-lg border border-app-border bg-app-bg px-3 py-1">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="font-mono text-xs font-bold tracking-widest text-app-text">
               {formatTimecode(playhead)}
             </span>
           </div>
         </div>
 
-        {/* Right: Actions */}
-        <div className="flex items-center gap-3">
+        {/* Right: Theme Toggle & Export Button */}
+        <div className="flex items-center gap-2">
+          {/* Light / Dark Mode Toggle */}
+          <button
+            onClick={toggleTheme}
+            title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            className="flex items-center gap-1.5 rounded-lg border border-app-border bg-app-elevated px-2.5 py-1.5 text-xs font-medium text-app-text hover:bg-app-surface transition"
+          >
+            {theme === 'dark' ? (
+              <>
+                <Sun className="h-3.5 w-3.5 text-amber-400" />
+                <span className="text-[11px]">Light</span>
+              </>
+            ) : (
+              <>
+                <Moon className="h-3.5 w-3.5 text-neutral-700" />
+                <span className="text-[11px]">Dark</span>
+              </>
+            )}
+          </button>
+
+          {/* Export Button */}
           <button
             onClick={() => setIsExportOpen(true)}
-            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-1.5 text-xs font-semibold text-white shadow-lg shadow-blue-500/25 hover:from-blue-500 hover:to-indigo-500 active:scale-95 transition"
+            className="flex items-center gap-1.5 rounded-lg bg-neutral-900 dark:bg-neutral-100 px-3.5 py-1.5 text-xs font-semibold text-white dark:text-neutral-900 shadow-sm hover:opacity-90 active:scale-95 transition"
           >
             <Download className="h-3.5 w-3.5" />
-            <span>Export Video</span>
+            <span>Export</span>
           </button>
         </div>
       </header>
