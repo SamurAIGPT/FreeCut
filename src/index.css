@@ -2,29 +2,39 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Light Theme Variables */
+/* Light Theme Variables (Modern Clean Studio Light) */
 :root {
   font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   color-scheme: light;
-  --app-bg: #f2f2f5;
+  --app-bg: #ececf0;
   --app-surface: #ffffff;
-  --app-elevated: #eaeaea;
-  --app-border: #dcdce0;
-  --app-muted: #e5e5ea;
-  --app-text: #111113;
-  --app-text-muted: #6e6e73;
+  --app-elevated: #e2e2e8;
+  --app-border: #d0d0d8;
+  --app-muted: #dadade;
+  --app-text: #111114;
+  --app-text-muted: #666670;
 }
 
-/* Pure Neutral Dark Theme Variables (Zero Blue Tint, True Obsidian) */
+/* Pure Neutral Dark Theme Variables (True Obsidian 100% Zero-Blue) */
 .dark {
   color-scheme: dark;
   --app-bg: #000000;
-  --app-surface: #0c0c0d;
-  --app-elevated: #161618;
-  --app-border: #242426;
-  --app-muted: #1c1c1e;
+  --app-surface: #0a0a0a;
+  --app-elevated: #151515;
+  --app-border: #262626;
+  --app-muted: #1c1c1c;
   --app-text: #f4f4f5;
-  --app-text-muted: #8e8e93;
+  --app-text-muted: #888888;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  background-color: var(--app-bg);
+  color: var(--app-text);
+  overflow: hidden;
 }
 
 /* Custom Scrollbars */
@@ -43,7 +53,7 @@
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #52525b;
+  background: #71717a;
 }
 
 /* Playhead Scrubber needle */

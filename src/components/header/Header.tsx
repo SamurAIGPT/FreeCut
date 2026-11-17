@@ -8,6 +8,7 @@ export const Header: React.FC = () => {
   const [isExportOpen, setIsExportOpen] = useState(false);
 
   const theme = useEditorStore((s) => s.theme);
+  const setTheme = useEditorStore((s) => s.setTheme);
   const toggleTheme = useEditorStore((s) => s.toggleTheme);
   const projectTitle = useEditorStore((s) => s.projectTitle);
   const setProjectTitle = useEditorStore((s) => s.setProjectTitle);
@@ -75,24 +76,33 @@ export const Header: React.FC = () => {
 
         {/* Right: Theme Toggle & Export Button */}
         <div className="flex items-center gap-2">
-          {/* Light / Dark Mode Toggle */}
-          <button
-            onClick={toggleTheme}
-            title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-            className="flex items-center gap-1.5 rounded-lg border border-app-border bg-app-elevated px-2.5 py-1.5 text-xs font-medium text-app-text hover:bg-app-surface transition"
-          >
-            {theme === 'dark' ? (
-              <>
-                <Sun className="h-3.5 w-3.5 text-amber-400" />
-                <span className="text-[11px]">Light</span>
-              </>
-            ) : (
-              <>
-                <Moon className="h-3.5 w-3.5 text-neutral-700" />
-                <span className="text-[11px]">Dark</span>
-              </>
-            )}
-          </button>
+          {/* Dual Theme Switcher (Obsidian Dark & Studio Light) */}
+          <div className="flex items-center rounded-lg border border-app-border bg-app-elevated p-0.5">
+            <button
+              onClick={() => setTheme('dark')}
+              title="Obsidian Dark Mode"
+              className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold transition ${
+                theme === 'dark'
+                  ? 'bg-neutral-900 text-white shadow-sm'
+                  : 'text-app-text-muted hover:text-app-text'
+              }`}
+            >
+              <Moon className="h-3.5 w-3.5" />
+              <span className="text-[11px]">Dark</span>
+            </button>
+            <button
+              onClick={() => setTheme('light')}
+              title="Studio Light Mode"
+              className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold transition ${
+                theme === 'light'
+                  ? 'bg-white text-neutral-900 shadow-sm border border-neutral-300'
+                  : 'text-app-text-muted hover:text-app-text'
+              }`}
+            >
+              <Sun className="h-3.5 w-3.5 text-amber-500" />
+              <span className="text-[11px]">Light</span>
+            </button>
+          </div>
 
           {/* Export Button */}
           <button

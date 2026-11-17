@@ -271,7 +271,7 @@ export const SidebarContent: React.FC = () => {
                               });
                             }
                           }}
-                          className="rounded p-1 text-app-text-muted hover:bg-neutral-800 hover:text-white"
+                          className="rounded p-1 text-app-text-muted hover:bg-app-surface hover:text-app-text transition"
                           title="Insert at Playhead"
                         >
                           <Plus className="h-3.5 w-3.5" />
@@ -357,7 +357,7 @@ export const SidebarContent: React.FC = () => {
                       });
                     }}
                     title="Add sound effect"
-                    className="flex h-7 w-7 items-center justify-center rounded-lg bg-app-surface text-app-text hover:bg-neutral-800 hover:text-white transition"
+                    className="flex h-7 w-7 items-center justify-center rounded-lg bg-app-surface text-app-text hover:bg-app-elevated transition"
                   >
                     <Plus className="h-3.5 w-3.5" />
                   </button>
