@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { AspectRatio, Clip, MediaAsset, Track, TrackType, Transform } from '@/types/editor';
+import { AspectRatio, Clip, ColorFilter, MediaAsset, SidebarTab, Track, TrackType, Transform } from '@/types/editor';
 
 interface HistorySnapshot {
   tracks: Track[];
@@ -16,8 +16,12 @@ interface EditorState {
   duration: number;
   isPlaying: boolean;
   selectedClipId: string | null;
-  zoom: number; // Pixels per second (e.g. 60)
+  zoom: number; // Pixels per second (e.g. 80)
   isSnapping: boolean;
+  activeSidebarTab: SidebarTab;
+  activeTool: 'select' | 'razor';
+  canvasZoom: number; // 100%, 75%, 50%, or 0 for Fit
+  showGrid: boolean;
 
   // History
   history: {
@@ -34,6 +38,10 @@ interface EditorState {
   setSelectedClipId: (id: string | null) => void;
   setZoom: (zoom: number) => void;
   toggleSnapping: () => void;
+  setActiveSidebarTab: (tab: SidebarTab) => void;
+  setActiveTool: (tool: 'select' | 'razor') => void;
+  setCanvasZoom: (zoom: number) => void;
+  toggleShowGrid: () => void;
   
   // Asset Management
   addAsset: (asset: MediaAsset) => void;
@@ -43,11 +51,13 @@ interface EditorState {
   toggleTrackMute: (trackId: string) => void;
   toggleTrackLock: (trackId: string) => void;
   toggleTrackVisibility: (trackId: string) => void;
+  toggleTrackSolo: (trackId: string) => void;
 
   // Clip Operations
   addClip: (clipData: Omit<Clip, 'id'>) => string;
   updateClip: (id: string, updates: Partial<Clip>) => void;
   updateClipTransform: (id: string, updates: Partial<Transform>) => void;
+  updateClipFilter: (id: string, updates: Partial<ColorFilter>) => void;
   splitClip: (clipId: string, splitTime?: number) => void;
   deleteClip: (clipId: string) => void;
 
@@ -57,23 +67,29 @@ interface EditorState {
 }
 
 const DEFAULT_TRACKS: Track[] = [
-  { id: 'track-text-1', name: 'Text / Overlays', type: 'text', isVisible: true },
-  { id: 'track-video-1', name: 'Main Video', type: 'video', isVisible: true },
-  { id: 'track-audio-1', name: 'Audio Track', type: 'audio', isVisible: true, isMuted: false },
+  { id: 'track-text-1', name: 'Text & Titles', type: 'text', isVisible: true },
+  { id: 'track-video-2', name: 'Overlay B-Roll', type: 'video', isVisible: true },
+  { id: 'track-video-1', name: 'Main Track', type: 'video', isVisible: true },
+  { id: 'track-audio-1', name: 'Soundtrack', type: 'audio', isVisible: true, isMuted: false },
+  { id: 'track-audio-2', name: 'Sound FX', type: 'audio', isVisible: true, isMuted: false },
 ];
 
 export const useEditorStore = create<EditorState>((set, get) => ({
-  projectTitle: 'My FreeCut Project',
+  projectTitle: 'Cyberpunk Trailer Project',
   aspectRatio: '16:9',
   tracks: DEFAULT_TRACKS,
   clips: [],
   assets: [],
   playhead: 0,
-  duration: 15, // Default empty timeline is 15s
+  duration: 15,
   isPlaying: false,
   selectedClipId: null,
-  zoom: 80, // 80px per second
+  zoom: 80,
   isSnapping: true,
+  activeSidebarTab: 'media',
+  activeTool: 'select',
+  canvasZoom: 0, // 0 = Fit
+  showGrid: false,
   history: { past: [], future: [] },
 
   setProjectTitle: (title) => set({ projectTitle: title }),
@@ -89,8 +105,12 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   togglePlay: () => set((state) => ({ isPlaying: !state.isPlaying })),
 
   setSelectedClipId: (id) => set({ selectedClipId: id }),
-  setZoom: (zoom) => set({ zoom: Math.max(20, Math.min(zoom, 300)) }),
+  setZoom: (zoom) => set({ zoom: Math.max(25, Math.min(zoom, 300)) }),
   toggleSnapping: () => set((state) => ({ isSnapping: !state.isSnapping })),
+  setActiveSidebarTab: (tab) => set({ activeSidebarTab: tab }),
+  setActiveTool: (tool) => set({ activeTool: tool }),
+  setCanvasZoom: (zoom) => set({ canvasZoom: zoom }),
+  toggleShowGrid: () => set((state) => ({ showGrid: !state.showGrid })),
 
   addAsset: (asset) => set((state) => ({ assets: [...state.assets, asset] })),
 
@@ -101,7 +121,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       type,
       isVisible: true,
     };
-    set((state) => ({ tracks: [...state.tracks, newTrack] }));
+    set((state) => ({ tracks: [newTrack, ...state.tracks] }));
   },
 
   toggleTrackMute: (trackId) =>
@@ -119,15 +139,21 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       tracks: state.tracks.map((t) => (t.id === trackId ? { ...t, isVisible: !t.isVisible } : t)),
     })),
 
+  toggleTrackSolo: (trackId) =>
+    set((state) => ({
+      tracks: state.tracks.map((t) => (t.id === trackId ? { ...t, isSolo: !t.isSolo } : t)),
+    })),
+
   addClip: (clipData) => {
     const state = get();
     const newId = `clip-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
     const newClip: Clip = {
       ...clipData,
       id: newId,
+      filter: clipData.filter || { brightness: 1, contrast: 1, saturation: 1, blur: 0 },
+      speed: clipData.speed || 1,
     };
 
-    // Calculate new total duration if this clip extends beyond current duration
     const clipEnd = newClip.start + newClip.duration;
     const newDuration = Math.max(state.duration, clipEnd + 5);
 
@@ -146,9 +172,6 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   updateClip: (id, updates) => {
     const state = get();
-    const currentClip = state.clips.find((c) => c.id === id);
-    if (!currentClip) return;
-
     const updatedClips = state.clips.map((c) => (c.id === id ? { ...c, ...updates } : c));
     const maxEnd = Math.max(...updatedClips.map((c) => c.start + c.duration), 15);
 
@@ -172,19 +195,31 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     });
   },
 
+  updateClipFilter: (id, updates) => {
+    const state = get();
+    set({
+      clips: state.clips.map((c) =>
+        c.id === id
+          ? {
+              ...c,
+              filter: { ...(c.filter || { brightness: 1, contrast: 1, saturation: 1, blur: 0 }), ...updates },
+            }
+          : c
+      ),
+    });
+  },
+
   splitClip: (clipId, customSplitTime) => {
     const state = get();
     const clip = state.clips.find((c) => c.id === clipId);
     if (!clip) return;
 
     const splitAt = customSplitTime ?? state.playhead;
-    // Check if playhead is strictly inside the clip
     if (splitAt <= clip.start || splitAt >= clip.start + clip.duration) return;
 
     const firstDuration = splitAt - clip.start;
     const secondDuration = clip.duration - firstDuration;
 
-    // Snapshot history
     const past = [...state.history.past, { tracks: state.tracks, clips: state.clips }];
 
     const firstClip: Clip = {
@@ -196,7 +231,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const secondClip: Clip = {
       ...clip,
       id: `clip-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-      name: `${clip.name} (Split)`,
+      name: `${clip.name} (Cut)`,
       start: splitAt,
       duration: secondDuration,
       trimStart: clip.trimStart + firstDuration,

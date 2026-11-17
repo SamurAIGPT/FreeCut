@@ -1,5 +1,5 @@
 import React from 'react';
-import { Play, Pause, SkipBack, SkipForward, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, ChevronLeft, ChevronRight, Repeat } from 'lucide-react';
 import { useEditorStore } from '@/store/useEditorStore';
 import { formatTimecode } from '@/utils/time';
 
@@ -15,28 +15,28 @@ export const TransportBar: React.FC = () => {
   };
 
   return (
-    <div className="flex h-12 w-full items-center justify-between border-t border-border bg-[#0d0f12] px-4">
-      {/* Left: Time counter */}
-      <div className="font-mono text-xs text-slate-400">
+    <div className="flex h-12 w-full items-center justify-between border-t border-[#1f242e] bg-[#0c0e12] px-4 select-none">
+      {/* Left: Time indicator */}
+      <div className="flex items-center gap-1.5 font-mono text-xs">
         <span className="font-semibold text-white">{formatTimecode(playhead)}</span>
-        <span className="mx-1 text-slate-600">/</span>
-        <span>{formatTimecode(duration)}</span>
+        <span className="text-slate-600">/</span>
+        <span className="text-slate-500">{formatTimecode(duration)}</span>
       </div>
 
-      {/* Center: Playback Controls */}
-      <div className="flex items-center gap-1">
+      {/* Center: Transport Controls */}
+      <div className="flex items-center gap-1.5">
         <button
           onClick={() => setPlayhead(0)}
           title="Jump to Start"
-          className="rounded p-1.5 text-slate-400 hover:bg-surface-elevated hover:text-white"
+          className="rounded-lg p-1.5 text-slate-400 hover:bg-[#181c24] hover:text-white transition"
         >
           <SkipBack className="h-4 w-4" />
         </button>
 
         <button
           onClick={() => stepFrame(-1)}
-          title="Step Backward 1 Frame (Left Arrow)"
-          className="rounded p-1.5 text-slate-400 hover:bg-surface-elevated hover:text-white"
+          title="Step 1 Frame Back (Left Arrow)"
+          className="rounded-lg p-1.5 text-slate-400 hover:bg-[#181c24] hover:text-white transition"
         >
           <ChevronLeft className="h-4 w-4" />
         </button>
@@ -44,7 +44,7 @@ export const TransportBar: React.FC = () => {
         <button
           onClick={togglePlay}
           title="Play / Pause (Space)"
-          className="mx-1 flex h-8 w-8 items-center justify-center rounded-full bg-primary text-white shadow-md shadow-blue-500/20 hover:bg-primary-hover active:scale-95"
+          className="mx-1.5 flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/30 hover:from-blue-500 hover:to-indigo-500 active:scale-95 transition"
         >
           {isPlaying ? (
             <Pause className="h-4 w-4 fill-white" />
@@ -55,8 +55,8 @@ export const TransportBar: React.FC = () => {
 
         <button
           onClick={() => stepFrame(1)}
-          title="Step Forward 1 Frame (Right Arrow)"
-          className="rounded p-1.5 text-slate-400 hover:bg-surface-elevated hover:text-white"
+          title="Step 1 Frame Forward (Right Arrow)"
+          className="rounded-lg p-1.5 text-slate-400 hover:bg-[#181c24] hover:text-white transition"
         >
           <ChevronRight className="h-4 w-4" />
         </button>
@@ -64,22 +64,25 @@ export const TransportBar: React.FC = () => {
         <button
           onClick={() => setPlayhead(duration)}
           title="Jump to End"
-          className="rounded p-1.5 text-slate-400 hover:bg-surface-elevated hover:text-white"
+          className="rounded-lg p-1.5 text-slate-400 hover:bg-[#181c24] hover:text-white transition"
         >
           <SkipForward className="h-4 w-4" />
         </button>
       </div>
 
-      {/* Right: Shortcuts helper */}
-      <div className="text-[11px] text-slate-500">
-        <kbd className="rounded bg-surface-elevated px-1.5 py-0.5 font-mono text-[10px] text-slate-300">
-          Space
-        </kbd>{' '}
-        to play •{' '}
-        <kbd className="rounded bg-surface-elevated px-1.5 py-0.5 font-mono text-[10px] text-slate-300">
-          S
-        </kbd>{' '}
-        to split
+      {/* Right: Shortcuts Guide */}
+      <div className="flex items-center gap-2 text-[11px] text-slate-500">
+        <span>
+          <kbd className="rounded bg-[#1a1f2b] px-1.5 py-0.5 font-mono text-[10px] text-slate-300">Space</kbd> Play
+        </span>
+        <span>•</span>
+        <span>
+          <kbd className="rounded bg-[#1a1f2b] px-1.5 py-0.5 font-mono text-[10px] text-slate-300">S</kbd> Cut
+        </span>
+        <span>•</span>
+        <span>
+          <kbd className="rounded bg-[#1a1f2b] px-1.5 py-0.5 font-mono text-[10px] text-slate-300">Del</kbd> Remove
+        </span>
       </div>
     </div>
   );
