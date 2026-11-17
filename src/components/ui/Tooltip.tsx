@@ -10,9 +10,9 @@ function setActiveTooltip(id: string | null) {
   tooltipListeners.forEach((listener) => listener(id));
 }
 
-// Global click listener to close active tooltip on any click
+// Global click listener to close active tooltip on click
 if (typeof window !== 'undefined') {
-  window.addEventListener('mousedown', () => {
+  window.addEventListener('click', () => {
     if (activeTooltipId !== null) {
       setActiveTooltip(null);
     }
@@ -227,7 +227,7 @@ export const Tooltip: React.FC<TooltipProps> = ({
         className={`relative inline-flex items-center justify-center ${className}`}
         onMouseEnter={showTooltip}
         onMouseLeave={hideTooltip}
-        onMouseDown={hideTooltip}
+        onClick={hideTooltip}
       >
         {children}
       </div>
