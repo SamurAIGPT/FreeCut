@@ -136,27 +136,27 @@ export const Tooltip: React.FC<TooltipProps> = ({
               transform: coords.transform,
               zIndex: 99999,
             }}
-            className="pointer-events-none flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-neutral-700/80 bg-neutral-900 px-2.5 py-1 text-xs font-semibold text-white shadow-2xl backdrop-blur-md dark:border-neutral-800 dark:bg-black transition-opacity duration-150 animate-in fade-in zoom-in-95"
+            className="pointer-events-none flex items-center gap-2 whitespace-nowrap rounded-lg border border-neutral-700/80 bg-neutral-900 px-2.5 py-1.5 text-xs font-medium text-neutral-100 shadow-2xl backdrop-blur-md dark:border-neutral-700/60 dark:bg-[#1a1a1e] dark:text-neutral-200 ring-1 ring-white/10 transition-opacity duration-150 animate-in fade-in zoom-in-95"
           >
             <span>{content}</span>
             {shortcut && (
-              <kbd className="rounded bg-neutral-800 px-1.5 py-0.2 font-mono text-[9px] text-neutral-300 border border-neutral-700/60 shadow-xs">
+              <kbd className="rounded bg-neutral-800 px-1.5 py-0.5 font-mono text-[9px] font-semibold text-neutral-300 border border-neutral-600/60 shadow-xs dark:bg-neutral-800/80 dark:border-neutral-600/70 dark:text-neutral-300">
                 {shortcut}
               </kbd>
             )}
 
             {/* Directional Arrow Pointers */}
             {side === 'right' && (
-              <span className="absolute -left-1 top-1/2 -translate-y-1/2 border-y-[4px] border-r-[4px] border-y-transparent border-r-neutral-900 dark:border-r-black" />
+              <span className="absolute -left-1 top-1/2 -translate-y-1/2 border-y-[4px] border-r-[4px] border-y-transparent border-r-neutral-900 dark:border-r-[#1a1a1e]" />
             )}
             {side === 'left' && (
-              <span className="absolute -right-1 top-1/2 -translate-y-1/2 border-y-[4px] border-l-[4px] border-y-transparent border-l-neutral-900 dark:border-l-black" />
+              <span className="absolute -right-1 top-1/2 -translate-y-1/2 border-y-[4px] border-l-[4px] border-y-transparent border-l-neutral-900 dark:border-l-[#1a1a1e]" />
             )}
             {side === 'top' && (
-              <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 border-x-[4px] border-t-[4px] border-x-transparent border-t-neutral-900 dark:border-t-black" />
+              <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 border-x-[4px] border-t-[4px] border-x-transparent border-t-neutral-900 dark:border-t-[#1a1a1e]" />
             )}
             {side === 'bottom' && (
-              <span className="absolute -top-1 left-1/2 -translate-x-1/2 border-x-[4px] border-b-[4px] border-x-transparent border-b-neutral-900 dark:border-b-black" />
+              <span className="absolute -top-1 left-1/2 -translate-x-1/2 border-x-[4px] border-b-[4px] border-x-transparent border-b-neutral-900 dark:border-b-[#1a1a1e]" />
             )}
           </div>,
           document.body

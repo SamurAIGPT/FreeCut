@@ -242,30 +242,30 @@ export const ClipItem: React.FC<ClipItemProps> = ({ clip, isLocked }) => {
     switch (clip.type) {
       case 'audio':
         return {
-          bg: 'bg-emerald-600/90 dark:bg-emerald-950/80',
-          border: 'border-emerald-500/80 dark:border-emerald-700',
-          text: 'text-white dark:text-emerald-100',
-          badge: 'bg-emerald-500 text-white',
-          waveform: 'bg-emerald-300 dark:bg-emerald-400',
+          bg: 'bg-emerald-600 dark:bg-emerald-600/90 hover:bg-emerald-500 dark:hover:bg-emerald-500',
+          border: 'border-emerald-400/90 dark:border-emerald-400',
+          text: 'text-white',
+          badge: 'bg-emerald-800 text-white border border-emerald-400/50',
+          waveform: 'bg-emerald-100 dark:bg-emerald-200',
           icon: Music,
         };
       case 'text':
         return {
-          bg: 'bg-amber-600/90 dark:bg-amber-950/80',
-          border: 'border-amber-500/80 dark:border-amber-700',
-          text: 'text-white dark:text-amber-100',
-          badge: 'bg-amber-500 text-white',
-          waveform: 'bg-amber-300 dark:bg-amber-400',
+          bg: 'bg-amber-600 dark:bg-amber-600/90 hover:bg-amber-500 dark:hover:bg-amber-500',
+          border: 'border-amber-400/90 dark:border-amber-400',
+          text: 'text-white',
+          badge: 'bg-amber-800 text-white border border-amber-400/50',
+          waveform: 'bg-amber-100 dark:bg-amber-200',
           icon: Type,
         };
       case 'video':
       default:
         return {
-          bg: 'bg-blue-600/90 dark:bg-neutral-900/90',
-          border: 'border-blue-500/80 dark:border-neutral-600',
-          text: 'text-white dark:text-neutral-100',
-          badge: 'bg-blue-500 dark:bg-neutral-700 text-white',
-          waveform: 'bg-blue-300 dark:bg-neutral-400',
+          bg: 'bg-blue-600 dark:bg-blue-600/90 hover:bg-blue-500 dark:hover:bg-blue-500',
+          border: 'border-blue-400/90 dark:border-blue-400',
+          text: 'text-white',
+          badge: 'bg-blue-800 text-white border border-blue-400/50',
+          waveform: 'bg-blue-100 dark:bg-blue-200',
           icon: Film,
         };
     }
@@ -280,12 +280,12 @@ export const ClipItem: React.FC<ClipItemProps> = ({ clip, isLocked }) => {
         style={{ left: `${leftPos}px`, width: `${clipWidth}px` }}
         onMouseDown={handleMouseDown}
         onContextMenu={handleContextMenu}
-        className={`group absolute top-1.5 bottom-1.5 flex cursor-grab active:cursor-grabbing items-center justify-between rounded-lg border backdrop-blur-md select-none transition-shadow ${
+        className={`group absolute top-1.5 bottom-1.5 flex cursor-grab active:cursor-grabbing items-center justify-between rounded-lg border shadow-md select-none transition-all duration-150 ${
           theme.bg
         } ${theme.border} ${
           isSelected
-            ? 'ring-2 ring-neutral-900 dark:ring-white ring-offset-2 ring-offset-app-bg shadow-xl z-20'
-            : 'hover:border-neutral-400 dark:hover:border-neutral-400 z-10'
+            ? 'ring-2 ring-white ring-offset-2 ring-offset-black shadow-2xl z-20 brightness-110'
+            : 'hover:brightness-105 z-10'
         } ${clip.isMuted ? 'opacity-50' : ''}`}
       >
         {/* Left Trim Handle */}
@@ -306,7 +306,7 @@ export const ClipItem: React.FC<ClipItemProps> = ({ clip, isLocked }) => {
         <div className="relative flex flex-1 items-center overflow-hidden px-2 h-full">
           {/* Audio Waveform Canvas/Bars */}
           {clip.type === 'audio' && (
-            <div className="pointer-events-none absolute inset-x-2 inset-y-1 flex items-center justify-between opacity-50">
+            <div className="pointer-events-none absolute inset-x-2 inset-y-1 flex items-center justify-between opacity-80">
               {Array.from({ length: Math.min(80, Math.floor(clipWidth / 4)) }).map((_, i) => {
                 const h = 25 + Math.sin(i * 0.5) * 45 + Math.cos(i * 1.2) * 25 + (i % 4) * 8;
                 return (
@@ -322,24 +322,24 @@ export const ClipItem: React.FC<ClipItemProps> = ({ clip, isLocked }) => {
 
           {/* Video Filmstrip frame indicators */}
           {clip.type === 'video' && (
-            <div className="pointer-events-none absolute inset-x-1 inset-y-1 flex items-center gap-6 opacity-30 overflow-hidden">
+            <div className="pointer-events-none absolute inset-x-1 inset-y-1 flex items-center gap-6 opacity-45 overflow-hidden">
               {/* Film Sprocket Perforations Top & Bottom */}
               <div className="absolute top-0 inset-x-0 flex justify-between px-1">
                 {Array.from({ length: Math.min(25, Math.floor(clipWidth / 24)) }).map((_, i) => (
-                  <div key={i} className="h-1 w-1.5 rounded-[1px] bg-white/40" />
+                  <div key={i} className="h-1 w-1.5 rounded-[1px] bg-white/60" />
                 ))}
               </div>
               <div className="absolute bottom-0 inset-x-0 flex justify-between px-1">
                 {Array.from({ length: Math.min(25, Math.floor(clipWidth / 24)) }).map((_, i) => (
-                  <div key={i} className="h-1 w-1.5 rounded-[1px] bg-white/40" />
+                  <div key={i} className="h-1 w-1.5 rounded-[1px] bg-white/60" />
                 ))}
               </div>
 
               {/* Sample Film Frame Thumbnails */}
               {Array.from({ length: Math.min(15, Math.floor(clipWidth / 48)) }).map((_, i) => (
                 <div key={i} className="flex flex-col items-center gap-1 shrink-0">
-                  <div className="h-6 w-9 rounded border border-white/20 bg-black/40 flex items-center justify-center">
-                    <Film className="h-3 w-3 text-white/40" />
+                  <div className="h-6 w-9 rounded border border-white/30 bg-black/40 flex items-center justify-center">
+                    <Film className="h-3.5 w-3.5 text-white/70" />
                   </div>
                 </div>
               ))}

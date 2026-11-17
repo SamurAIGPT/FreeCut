@@ -270,7 +270,7 @@ export const Timeline: React.FC = () => {
       {/* Tracks & Ruler Grid Workspace */}
       <div className="flex flex-1 overflow-hidden">
         {/* Left Track Headers Column */}
-        <div className="flex w-60 shrink-0 flex-col border-r border-app-border bg-app-surface">
+        <div className="flex w-72 shrink-0 flex-col border-r border-app-border bg-app-surface">
           <div className="h-8 border-b border-app-border bg-app-surface flex items-center justify-between px-3 text-[10px] font-semibold tracking-wider text-app-text-muted uppercase">
             <div className="flex items-center gap-1.5">
               <Layers className="h-3.5 w-3.5" />
@@ -323,17 +323,17 @@ export const Timeline: React.FC = () => {
                 <div
                   key={track.id}
                   data-track-id={track.id}
-                  className={`relative h-16 border-b border-app-border/60 transition ${
+                  className={`relative h-16 border-b border-app-border/80 transition-colors ${
                     track.type === 'video'
-                      ? 'bg-blue-500/[0.02] hover:bg-blue-500/[0.05]'
+                      ? 'bg-blue-500/[0.03] dark:bg-blue-950/[0.12] hover:bg-blue-500/[0.06] dark:hover:bg-blue-950/[0.18]'
                       : track.type === 'audio'
-                      ? 'bg-emerald-500/[0.02] hover:bg-emerald-500/[0.05]'
-                      : 'bg-amber-500/[0.02] hover:bg-amber-500/[0.05]'
+                      ? 'bg-emerald-500/[0.03] dark:bg-emerald-950/[0.12] hover:bg-emerald-500/[0.06] dark:hover:bg-emerald-950/[0.18]'
+                      : 'bg-amber-500/[0.03] dark:bg-amber-950/[0.12] hover:bg-amber-500/[0.06] dark:hover:bg-amber-950/[0.18]'
                   }`}
                 >
                   {/* Empty Track Dashed Dropzone */}
                   {isTrackEmpty && (
-                    <div className="pointer-events-none absolute inset-x-3 inset-y-2 flex items-center justify-center rounded-lg border border-dashed border-app-border/40 text-[10px] text-app-text-muted/60">
+                    <div className="pointer-events-none absolute inset-x-3 inset-y-2 flex items-center justify-center rounded-lg border border-dashed border-app-border/60 dark:border-neutral-800 text-[10px] font-medium text-app-text-muted/60 dark:text-neutral-500 bg-app-surface/20 dark:bg-neutral-900/10">
                       Empty {track.type} track — Drag clips here or add from left panel
                     </div>
                   )}
