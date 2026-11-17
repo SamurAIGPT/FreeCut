@@ -138,7 +138,7 @@ export const TimeRuler: React.FC<TimeRulerProps> = ({ scrollLeft }) => {
 
             {/* Hover Tooltip */}
             {isHovered && (
-              <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1 rounded bg-neutral-900 px-2 py-0.5 text-[9px] font-semibold text-white shadow-lg pointer-events-none whitespace-nowrap">
+              <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1 rounded-sm border border-neutral-300 bg-white px-2 py-0.5 text-[9px] font-semibold text-neutral-900 shadow-md pointer-events-none whitespace-nowrap dark:border-[#2e2e34] dark:bg-[#18181b] dark:text-[#f4f4f5]">
                 <span>{marker.label}</span>
                 <span className="opacity-70 font-mono">({formatShortTime(marker.time)})</span>
               </div>

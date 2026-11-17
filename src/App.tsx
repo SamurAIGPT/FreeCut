@@ -20,8 +20,16 @@ export const App: React.FC = () => {
   const addClip = useEditorStore((s) => s.addClip);
   const tracks = useEditorStore((s) => s.tracks);
 
-  // Sync theme with document element on startup
+  // Sync theme with query param or store on startup
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const queryTheme = urlParams.get('theme');
+      if (queryTheme === 'light' || queryTheme === 'dark') {
+        setTheme(queryTheme);
+        return;
+      }
+    }
     setTheme(theme);
   }, []);
 

@@ -242,21 +242,21 @@ export const ClipItem: React.FC<ClipItemProps> = ({ clip, isLocked }) => {
     switch (clip.type) {
       case 'audio':
         return {
-          bg: 'bg-[#8F5DBA] hover:bg-[#9b6bcc]',
+          bg: 'bg-[#8F5DBA] hover:bg-[#9b6bcc] text-white',
           border: 'border-[#a273cf]',
           icon: Music,
         };
       case 'text':
         return {
-          bg: 'bg-[#5DBAA0] hover:bg-[#68c7ae]',
+          bg: 'bg-[#5DBAA0] hover:bg-[#68c7ae] text-white',
           border: 'border-[#70cbb2]',
           icon: Type,
         };
       case 'video':
       default:
         return {
-          bg: 'bg-[#24252a] hover:bg-[#2c2d34]',
-          border: 'border-[#3a3c46]',
+          bg: 'bg-slate-200 hover:bg-slate-100 text-slate-800 dark:bg-[#24252a] dark:hover:bg-[#2c2d34] dark:text-white',
+          border: 'border-slate-300 dark:border-[#3a3c46]',
           icon: Film,
         };
     }
@@ -283,11 +283,11 @@ export const ClipItem: React.FC<ClipItemProps> = ({ clip, isLocked }) => {
         <div
           onMouseDown={handleTrimLeft}
           title="Drag to trim start"
-          className="relative h-full w-2 shrink-0 cursor-col-resize rounded-l-sm hover:bg-white/40 active:bg-white/60 transition flex items-center justify-center z-20"
+          className="relative h-full w-2 shrink-0 cursor-col-resize rounded-l-sm hover:bg-neutral-500/20 active:bg-neutral-500/40 dark:hover:bg-white/40 dark:active:bg-white/60 transition flex items-center justify-center z-20"
         >
-          <div className="h-3 w-0.5 rounded-full bg-white/40" />
+          <div className="h-3 w-0.5 rounded-full bg-neutral-400 dark:bg-white/40" />
           {trimTooltip && trimTooltip.side === 'left' && (
-            <div className="absolute -top-7 left-0 z-30 rounded-sm bg-[#18181b] border border-[#2e2e34] px-1.5 py-0.5 text-[9px] font-mono text-white shadow-md pointer-events-none whitespace-nowrap">
+            <div className="absolute -top-7 left-0 z-30 rounded-sm bg-white text-neutral-900 border border-neutral-300 px-1.5 py-0.5 text-[9px] font-mono shadow-md pointer-events-none whitespace-nowrap dark:bg-[#18181b] dark:text-white dark:border-[#2e2e34]">
               {trimTooltip.text}
             </div>
           )}
@@ -297,12 +297,22 @@ export const ClipItem: React.FC<ClipItemProps> = ({ clip, isLocked }) => {
         <div className="relative flex flex-1 size-full overflow-hidden">
           {/* Top Header Label Bar (Video & Audio) */}
           {clip.type !== 'text' && (
-            <div className="absolute top-0 inset-x-0 flex h-5 items-center px-2 bg-gradient-to-b from-black/50 to-transparent z-10">
-              <Icon className="h-3 w-3 text-white/70 mr-1.5 shrink-0" />
-              <span className="truncate text-[11px] font-medium text-white/95 leading-tight">
+            <div className={`absolute top-0 inset-x-0 flex h-5 items-center px-2 z-10 ${
+              clip.type === 'video'
+                ? 'bg-gradient-to-b from-slate-300/80 to-transparent dark:from-black/60 dark:to-transparent'
+                : 'bg-gradient-to-b from-black/40 to-transparent'
+            }`}>
+              <Icon className={`h-3 w-3 mr-1.5 shrink-0 ${
+                clip.type === 'video' ? 'text-slate-700 dark:text-white/70' : 'text-white/80'
+              }`} />
+              <span className={`truncate text-[11px] font-medium leading-tight ${
+                clip.type === 'video' ? 'text-slate-900 dark:text-white/95' : 'text-white'
+              }`}>
                 {clip.name}
               </span>
-              <span className="shrink-0 font-mono text-[9px] text-white/50 ml-auto pl-1">
+              <span className={`shrink-0 font-mono text-[9px] ml-auto pl-1 ${
+                clip.type === 'video' ? 'text-slate-600 dark:text-white/50' : 'text-white/60'
+              }`}>
                 {clip.duration.toFixed(1)}s
               </span>
             </div>
@@ -311,11 +321,11 @@ export const ClipItem: React.FC<ClipItemProps> = ({ clip, isLocked }) => {
           {/* Text Clip Content (Centered vertically) */}
           {clip.type === 'text' && (
             <div className="flex size-full items-center px-2.5 z-10">
-              <Type className="h-3.5 w-3.5 text-white/80 mr-1.5 shrink-0" />
-              <span className="truncate text-xs font-medium text-white leading-none">
+              <Type className="h-3.5 w-3.5 text-white/90 mr-1.5 shrink-0" />
+              <span className="truncate text-xs font-semibold text-white leading-none">
                 {clip.name}
               </span>
-              <span className="shrink-0 font-mono text-[9px] text-white/60 ml-auto pl-1">
+              <span className="shrink-0 font-mono text-[9px] text-white/70 ml-auto pl-1">
                 {clip.duration.toFixed(1)}s
               </span>
             </div>
@@ -330,7 +340,7 @@ export const ClipItem: React.FC<ClipItemProps> = ({ clip, isLocked }) => {
                   <div
                     key={i}
                     style={{ height: `${Math.max(15, Math.min(95, h))}%` }}
-                    className="w-0.5 rounded-full bg-white/70"
+                    className="w-0.5 rounded-full bg-white/80"
                   />
                 );
               })}
@@ -339,10 +349,10 @@ export const ClipItem: React.FC<ClipItemProps> = ({ clip, isLocked }) => {
 
           {/* Video Filmstrip frame indicators */}
           {clip.type === 'video' && (
-            <div className="pointer-events-none absolute inset-x-0 top-5 bottom-0 flex items-center gap-1.5 px-2 opacity-25 overflow-hidden">
+            <div className="pointer-events-none absolute inset-x-0 top-5 bottom-0 flex items-center gap-1.5 px-2 overflow-hidden opacity-30 dark:opacity-25">
               {Array.from({ length: Math.min(15, Math.floor(clipWidth / 56)) }).map((_, i) => (
-                <div key={i} className="h-8 w-12 rounded-xs border border-white/20 bg-black/50 flex items-center justify-center shrink-0">
-                  <Film className="h-3.5 w-3.5 text-white/50" />
+                <div key={i} className="h-8 w-12 rounded-xs border border-slate-400/40 bg-white/60 flex items-center justify-center shrink-0 dark:border-white/20 dark:bg-black/50">
+                  <Film className="h-3.5 w-3.5 text-slate-500 dark:text-white/50" />
                 </div>
               ))}
             </div>
@@ -352,7 +362,7 @@ export const ClipItem: React.FC<ClipItemProps> = ({ clip, isLocked }) => {
           {clip.type === 'audio' && (
             <div
               style={{ bottom: `${(clip.volume || 1) * 60}%` }}
-              className="pointer-events-none absolute inset-x-0 h-px bg-white/30 border-t border-dashed border-white/50"
+              className="pointer-events-none absolute inset-x-0 h-px bg-white/40 border-t border-dashed border-white/60"
             />
           )}
         </div>
@@ -361,11 +371,11 @@ export const ClipItem: React.FC<ClipItemProps> = ({ clip, isLocked }) => {
         <div
           onMouseDown={handleTrimRight}
           title="Drag to trim end"
-          className="relative h-full w-2 shrink-0 cursor-col-resize rounded-r-sm hover:bg-white/40 active:bg-white/60 transition flex items-center justify-center z-20"
+          className="relative h-full w-2 shrink-0 cursor-col-resize rounded-r-sm hover:bg-neutral-500/20 active:bg-neutral-500/40 dark:hover:bg-white/40 dark:active:bg-white/60 transition flex items-center justify-center z-20"
         >
-          <div className="h-3 w-0.5 rounded-full bg-white/40" />
+          <div className="h-3 w-0.5 rounded-full bg-neutral-400 dark:bg-white/40" />
           {trimTooltip && trimTooltip.side === 'right' && (
-            <div className="absolute -top-7 right-0 z-30 rounded-sm bg-[#18181b] border border-[#2e2e34] px-1.5 py-0.5 text-[9px] font-mono text-white shadow-md pointer-events-none whitespace-nowrap">
+            <div className="absolute -top-7 right-0 z-30 rounded-sm bg-white text-neutral-900 border border-neutral-300 px-1.5 py-0.5 text-[9px] font-mono shadow-md pointer-events-none whitespace-nowrap dark:bg-[#18181b] dark:text-white dark:border-[#2e2e34]">
               {trimTooltip.text}
             </div>
           )}
@@ -377,9 +387,9 @@ export const ClipItem: React.FC<ClipItemProps> = ({ clip, isLocked }) => {
         <div
           ref={contextMenuRef}
           style={{ top: `${contextMenu.y}px`, left: `${contextMenu.x}px` }}
-          className="fixed z-50 min-w-[190px] rounded-xl border border-app-border bg-app-surface p-1 shadow-2xl backdrop-blur-md text-xs text-app-text select-none animate-in fade-in zoom-in-95 duration-100"
+          className="fixed z-50 min-w-[190px] rounded-xl border border-neutral-200 bg-white p-1 shadow-2xl backdrop-blur-md text-xs text-neutral-900 select-none animate-in fade-in zoom-in-95 duration-100 dark:border-[#2e2e34] dark:bg-[#18181b] dark:text-[#f4f4f5]"
         >
-          <div className="px-2.5 py-1 text-[10px] font-semibold text-app-text-muted border-b border-app-border mb-1 truncate">
+          <div className="px-2.5 py-1 text-[10px] font-semibold text-neutral-500 dark:text-neutral-400 border-b border-neutral-200 dark:border-[#2e2e34] mb-1 truncate">
             {clip.name}
           </div>
 

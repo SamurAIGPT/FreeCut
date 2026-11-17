@@ -11,7 +11,9 @@
     <script>
       (function() {
         try {
-          var saved = localStorage.getItem('freecut_theme');
+          var params = new URLSearchParams(window.location.search);
+          var qTheme = params.get('theme');
+          var saved = qTheme || localStorage.getItem('freecut_theme');
           if (saved === 'light') {
             document.documentElement.classList.remove('dark');
           } else {

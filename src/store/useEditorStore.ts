@@ -153,8 +153,13 @@ const DEFAULT_CLIPS: Clip[] = [
 ];
 
 const getInitialTheme = (): ThemeMode => {
-  const saved = typeof window !== 'undefined' ? localStorage.getItem('freecut_theme') : null;
-  if (saved === 'light' || saved === 'dark') return saved;
+  if (typeof window !== 'undefined') {
+    const params = new URLSearchParams(window.location.search);
+    const qTheme = params.get('theme');
+    if (qTheme === 'light' || qTheme === 'dark') return qTheme;
+    const saved = localStorage.getItem('freecut_theme');
+    if (saved === 'light' || saved === 'dark') return saved;
+  }
   return 'dark'; // Pure dark default
 };
 

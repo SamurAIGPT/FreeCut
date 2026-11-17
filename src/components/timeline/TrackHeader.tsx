@@ -27,7 +27,7 @@ export const TrackHeader: React.FC<TrackHeaderProps> = ({ track, index, totalTra
     <div 
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      className="group relative flex h-16 w-80 shrink-0 items-center justify-between border-b border-app-border bg-app-surface px-3 select-none transition-colors duration-200"
+      className="group relative flex h-16 w-80 shrink-0 items-center justify-between border-b border-neutral-200 bg-white dark:border-[#262626] dark:bg-[#0a0a0a] px-3 select-none transition-colors duration-200"
     >
       {/* Track Info (Reorder + Type Icon + Title + VU Meter) */}
       <div className="flex items-center gap-2 overflow-hidden flex-1 min-w-0 mr-2">
@@ -37,7 +37,7 @@ export const TrackHeader: React.FC<TrackHeaderProps> = ({ track, index, totalTra
             onClick={() => moveTrack(track.id, 'up')}
             disabled={index === 0}
             title="Move Track Up"
-            className="rounded p-0.5 text-app-text-muted hover:bg-app-elevated hover:text-app-text disabled:opacity-20 transition cursor-pointer"
+            className="rounded p-0.5 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-900 dark:hover:bg-neutral-800 dark:hover:text-white disabled:opacity-20 transition cursor-pointer"
           >
             <ChevronUp className="h-3 w-3" />
           </button>
@@ -45,7 +45,7 @@ export const TrackHeader: React.FC<TrackHeaderProps> = ({ track, index, totalTra
             onClick={() => moveTrack(track.id, 'down')}
             disabled={index === totalTracks - 1}
             title="Move Track Down"
-            className="rounded p-0.5 text-app-text-muted hover:bg-app-elevated hover:text-app-text disabled:opacity-20 transition cursor-pointer"
+            className="rounded p-0.5 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-900 dark:hover:bg-neutral-800 dark:hover:text-white disabled:opacity-20 transition cursor-pointer"
           >
             <ChevronDown className="h-3 w-3" />
           </button>
@@ -53,12 +53,12 @@ export const TrackHeader: React.FC<TrackHeaderProps> = ({ track, index, totalTra
 
         {/* Track Type Icon */}
         <div
-          className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-app-border bg-app-elevated shadow-xs ${
+          className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-neutral-200 bg-neutral-100 dark:border-[#262626] dark:bg-[#151515] shadow-xs ${
             track.type === 'video'
-              ? 'text-blue-500'
+              ? 'text-blue-600 dark:text-blue-400'
               : track.type === 'audio'
-              ? 'text-emerald-500'
-              : 'text-amber-500'
+              ? 'text-emerald-600 dark:text-emerald-400'
+              : 'text-amber-600 dark:text-amber-400'
           }`}
         >
           {track.type === 'video' ? (
@@ -71,7 +71,7 @@ export const TrackHeader: React.FC<TrackHeaderProps> = ({ track, index, totalTra
         </div>
 
         <div className="overflow-hidden min-w-0 flex-1">
-          <span className="truncate text-xs font-semibold text-app-text block leading-snug" title={track.name}>
+          <span className="truncate text-xs font-semibold text-neutral-900 dark:text-neutral-100 block leading-snug" title={track.name}>
             {track.name}
           </span>
 
@@ -95,7 +95,7 @@ export const TrackHeader: React.FC<TrackHeaderProps> = ({ track, index, totalTra
       </div>
 
       {/* Track Actions */}
-      <div className="flex items-center gap-1 shrink-0 bg-app-elevated/40 dark:bg-neutral-900/60 p-1 rounded-lg border border-app-border/40">
+      <div className="flex items-center gap-1 shrink-0 bg-neutral-100 border border-neutral-200 dark:bg-[#151515] dark:border-[#262626] p-1 rounded-lg">
         {/* Solo */}
         <button
           onClick={() => toggleTrackSolo(track.id)}
@@ -103,7 +103,7 @@ export const TrackHeader: React.FC<TrackHeaderProps> = ({ track, index, totalTra
           className={`h-5 w-5 rounded text-[10px] font-bold transition flex items-center justify-center cursor-pointer ${
             track.isSolo
               ? 'bg-amber-500 text-black shadow-xs'
-              : 'text-app-text-muted hover:bg-app-elevated hover:text-app-text'
+              : 'text-neutral-500 hover:bg-white hover:text-neutral-900 dark:text-neutral-400 dark:hover:bg-[#202020] dark:hover:text-white'
           }`}
         >
           S
@@ -115,7 +115,7 @@ export const TrackHeader: React.FC<TrackHeaderProps> = ({ track, index, totalTra
             onClick={() => toggleTrackMute(track.id)}
             title={track.isMuted ? 'Unmute Track' : 'Mute Track'}
             className={`h-5 w-5 rounded flex items-center justify-center transition cursor-pointer ${
-              track.isMuted ? 'bg-red-500/20 text-red-500' : 'text-app-text-muted hover:bg-app-elevated hover:text-app-text'
+              track.isMuted ? 'bg-red-500/20 text-red-500' : 'text-neutral-500 hover:bg-white hover:text-neutral-900 dark:text-neutral-400 dark:hover:bg-[#202020] dark:hover:text-white'
             }`}
           >
             {track.isMuted ? <VolumeX className="h-3 w-3" /> : <Volume2 className="h-3 w-3" />}
@@ -127,7 +127,7 @@ export const TrackHeader: React.FC<TrackHeaderProps> = ({ track, index, totalTra
           onClick={() => toggleTrackVisibility(track.id)}
           title={track.isVisible === false ? 'Show Track' : 'Hide Track'}
           className={`h-5 w-5 rounded flex items-center justify-center transition cursor-pointer ${
-            track.isVisible === false ? 'bg-red-500/20 text-red-500' : 'text-app-text-muted hover:bg-app-elevated hover:text-app-text'
+            track.isVisible === false ? 'bg-red-500/20 text-red-500' : 'text-neutral-500 hover:bg-white hover:text-neutral-900 dark:text-neutral-400 dark:hover:bg-[#202020] dark:hover:text-white'
           }`}
         >
           {track.isVisible === false ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
@@ -138,7 +138,7 @@ export const TrackHeader: React.FC<TrackHeaderProps> = ({ track, index, totalTra
           onClick={() => toggleTrackLock(track.id)}
           title={track.isLocked ? 'Unlock Track' : 'Lock Track'}
           className={`h-5 w-5 rounded flex items-center justify-center transition cursor-pointer ${
-            track.isLocked ? 'bg-amber-500/20 text-amber-500' : 'text-app-text-muted hover:bg-app-elevated hover:text-app-text'
+            track.isLocked ? 'bg-amber-500/20 text-amber-500' : 'text-neutral-500 hover:bg-white hover:text-neutral-900 dark:text-neutral-400 dark:hover:bg-[#202020] dark:hover:text-white'
           }`}
         >
           {track.isLocked ? <Lock className="h-3 w-3" /> : <Unlock className="h-3 w-3" />}
@@ -149,7 +149,7 @@ export const TrackHeader: React.FC<TrackHeaderProps> = ({ track, index, totalTra
           <button
             onClick={() => deleteTrack(track.id)}
             title="Delete Track"
-            className="h-5 w-5 rounded flex items-center justify-center text-app-text-muted hover:bg-red-500/20 hover:text-red-500 opacity-0 group-hover:opacity-100 transition cursor-pointer"
+            className="h-5 w-5 rounded flex items-center justify-center text-neutral-400 hover:bg-red-500/20 hover:text-red-500 opacity-0 group-hover:opacity-100 transition cursor-pointer"
           >
             <Trash2 className="h-3 w-3" />
           </button>
