@@ -1,9 +1,27 @@
 import React, { useState } from 'react';
 import { 
   Move, RotateCw, Volume2, Type, Sliders, Trash2, Gauge, 
-  Palette, Layers, RefreshCw 
+  Palette, Layers, RefreshCw, Blend, CaseSensitive 
 } from 'lucide-react';
 import { useEditorStore } from '@/store/useEditorStore';
+import { CustomSelect, SelectOption } from '@/components/ui/CustomSelect';
+
+const BLEND_MODE_OPTIONS: SelectOption<GlobalCompositeOperation>[] = [
+  { value: 'source-over', label: 'Normal', description: 'Standard layer opacity' },
+  { value: 'screen', label: 'Screen (Lighten)', description: 'Best for fire, lens flares, explosions' },
+  { value: 'multiply', label: 'Multiply (Darken)', description: 'Best for textures and shadows' },
+  { value: 'overlay', label: 'Overlay', description: 'Dynamic contrast blending' },
+  { value: 'lighter', label: 'Add / Glow', description: 'Vibrant luminescent glow effect' },
+  { value: 'difference', label: 'Invert Difference', description: 'High-contrast inverted stylization' },
+];
+
+const FONT_OPTIONS: SelectOption<string>[] = [
+  { value: 'Inter, system-ui', label: 'Inter Sans', description: 'Clean modern sans-serif' },
+  { value: 'JetBrains Mono, monospace', label: 'JetBrains Mono', description: 'Technical monospace code' },
+  { value: 'Impact, sans-serif', label: 'Impact Display', description: 'Punchy heavy titles' },
+  { value: 'Georgia, serif', label: 'Georgia Serif', description: 'Classic editorial serif' },
+  { value: 'system-ui, sans-serif', label: 'System Default', description: 'Native operating system' },
+];
 
 type InspectorTab = 'basic' | 'audio' | 'color' | 'speed' | 'text';
 
@@ -209,18 +227,13 @@ export const InspectorPanel: React.FC = () => {
             {/* Blend Mode */}
             <div className="space-y-1.5 pt-2 border-t border-app-border">
               <span className="text-app-text-muted font-semibold">COMPOSITING BLEND MODE</span>
-              <select
+              <CustomSelect<GlobalCompositeOperation>
                 value={clip.blendMode || 'source-over'}
-                onChange={(e) => updateClip(clip.id, { blendMode: e.target.value as GlobalCompositeOperation })}
-                className="w-full rounded-lg border border-app-border bg-app-elevated p-2 text-app-text focus:outline-none"
-              >
-                <option value="source-over">Normal</option>
-                <option value="screen">Screen (Lighten)</option>
-                <option value="multiply">Multiply (Darken)</option>
-                <option value="overlay">Overlay</option>
-                <option value="lighter">Add / Glow</option>
-                <option value="difference">Invert Difference</option>
-              </select>
+                onChange={(val) => updateClip(clip.id, { blendMode: val })}
+                options={BLEND_MODE_OPTIONS}
+                icon={<Blend className="h-3.5 w-3.5" />}
+                className="w-full"
+              />
             </div>
           </>
         )}
@@ -235,6 +248,18 @@ export const InspectorPanel: React.FC = () => {
                 value={clip.text || ''}
                 onChange={(e) => updateClip(clip.id, { text: e.target.value })}
                 className="mt-1 w-full rounded-lg border border-app-border bg-app-elevated p-2.5 text-xs text-app-text focus:outline-none focus:ring-1 focus:ring-neutral-400"
+              />
+            </div>
+
+            {/* Font Family Custom Select */}
+            <div className="space-y-1">
+              <label className="text-app-text-muted font-semibold">FONT FAMILY</label>
+              <CustomSelect<string>
+                value={clip.fontFamily || 'Inter, system-ui'}
+                onChange={(val) => updateClip(clip.id, { fontFamily: val })}
+                options={FONT_OPTIONS}
+                icon={<CaseSensitive className="h-3.5 w-3.5" />}
+                className="w-full"
               />
             </div>
 

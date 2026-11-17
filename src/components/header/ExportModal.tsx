@@ -1,7 +1,25 @@
 import React, { useState } from 'react';
-import { Download, Film, Loader2, X } from 'lucide-react';
+import { Download, Film, Loader2, X, Monitor, Video, Gauge } from 'lucide-react';
 import { useEditorStore } from '@/store/useEditorStore';
 import { exportTimelineVideo, ExportProgress } from '@/engine/exporter';
+import { CustomSelect, SelectOption } from '@/components/ui/CustomSelect';
+
+const RESOLUTION_OPTIONS: SelectOption<string>[] = [
+  { value: '1080p', label: '1080p Full HD', description: 'Standard high-definition web export' },
+  { value: '720p', label: '720p HD', description: 'Fast render & smaller file size' },
+  { value: '4k', label: '4K Ultra HD', description: 'Maximum crisp detail (3840×2160)' },
+];
+
+const FORMAT_OPTIONS: SelectOption<string>[] = [
+  { value: 'webm', label: 'WebM Video', description: 'VP9 codec with high web compression' },
+  { value: 'mp4', label: 'MP4 Video', description: 'Universal compatibility format' },
+];
+
+const FPS_OPTIONS: SelectOption<number>[] = [
+  { value: 30, label: '30 FPS', description: 'Standard web & social video' },
+  { value: 60, label: '60 FPS', description: 'Silky smooth high motion' },
+  { value: 24, label: '24 FPS', description: 'Cinematic film cadence' },
+];
 
 interface ExportModalProps {
   isOpen: boolean;
@@ -11,6 +29,9 @@ interface ExportModalProps {
 export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose }) => {
   const [isExporting, setIsExporting] = useState(false);
   const [progress, setProgress] = useState<ExportProgress | null>(null);
+  const [resolution, setResolution] = useState('1080p');
+  const [format, setFormat] = useState('webm');
+  const [fps, setFps] = useState(30);
 
   const tracks = useEditorStore((s) => s.tracks);
   const clips = useEditorStore((s) => s.clips);
@@ -38,7 +59,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose }) => 
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${projectTitle.toLowerCase().replace(/\s+/g, '_')}_export.webm`;
+      a.download = `${projectTitle.toLowerCase().replace(/\s+/g, '_')}_${resolution}.${format}`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -87,6 +108,44 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose }) => 
             <div className="rounded-lg border border-app-border bg-app-elevated p-3">
               <span className="text-app-text-muted">Duration</span>
               <p className="mt-1 text-sm font-bold text-app-text">{duration.toFixed(1)}s</p>
+            </div>
+          </div>
+
+          {/* Export Settings Dropdowns */}
+          <div className="space-y-3 pt-1">
+            <div className="space-y-1">
+              <label className="text-app-text-muted font-medium">Export Resolution</label>
+              <CustomSelect<string>
+                value={resolution}
+                onChange={(val) => setResolution(val)}
+                options={RESOLUTION_OPTIONS}
+                icon={<Monitor className="h-3.5 w-3.5" />}
+                className="w-full"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="text-app-text-muted font-medium">Container Format</label>
+                <CustomSelect<string>
+                  value={format}
+                  onChange={(val) => setFormat(val)}
+                  options={FORMAT_OPTIONS}
+                  icon={<Video className="h-3.5 w-3.5" />}
+                  className="w-full"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-app-text-muted font-medium">Frame Rate</label>
+                <CustomSelect<number>
+                  value={fps}
+                  onChange={(val) => setFps(val)}
+                  options={FPS_OPTIONS}
+                  icon={<Gauge className="h-3.5 w-3.5" />}
+                  className="w-full"
+                />
+              </div>
             </div>
           </div>
 

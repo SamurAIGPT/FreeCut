@@ -1,9 +1,25 @@
 import React, { useEffect, useRef } from 'react';
-import { Grid, Maximize, ZoomIn } from 'lucide-react';
+import { Grid, Maximize, ZoomIn, Film } from 'lucide-react';
 import { useEditorStore } from '@/store/useEditorStore';
 import { compositor } from '@/engine/compositor';
 import { AspectRatio } from '@/types/editor';
 import { TransportBar } from './TransportBar';
+import { CustomSelect, SelectOption } from '@/components/ui/CustomSelect';
+
+const ASPECT_OPTIONS: SelectOption<AspectRatio>[] = [
+  { value: '16:9', label: '16:9 Landscape', description: 'YouTube & Desktop standard' },
+  { value: '9:16', label: '9:16 Shorts / Reels', description: 'TikTok, Reels, Shorts' },
+  { value: '1:1', label: '1:1 Square', description: 'Instagram Feed' },
+  { value: '4:5', label: '4:5 Portrait', description: 'Social Feed' },
+  { value: '21:9', label: '21:9 UltraWide', description: 'Cinematic CinemaScope' },
+];
+
+const ZOOM_OPTIONS: SelectOption<number>[] = [
+  { value: 0, label: 'Fit' },
+  { value: 50, label: '50%' },
+  { value: 75, label: '75%' },
+  { value: 100, label: '100%' },
+];
 
 export const PreviewCanvas: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -58,37 +74,29 @@ export const PreviewCanvas: React.FC = () => {
     >
       {/* Floating Viewport HUD */}
       <div className="absolute top-3 left-4 right-4 z-20 flex items-center justify-between pointer-events-none">
-        {/* Aspect Ratio Pill */}
-        <div className="pointer-events-auto flex items-center gap-1.5 rounded-xl border border-app-border bg-app-surface/90 px-2.5 py-1 text-xs text-app-text backdrop-blur-md shadow-sm">
-          <span className="text-[10px] text-app-text-muted font-medium">Ratio:</span>
-          <select
+        {/* Aspect Ratio Custom Select */}
+        <div className="pointer-events-auto">
+          <CustomSelect<AspectRatio>
             value={aspect}
-            onChange={(e) => setAspectRatio(e.target.value as AspectRatio)}
-            className="bg-transparent font-medium text-app-text focus:outline-none cursor-pointer"
-          >
-            <option value="16:9" className="bg-app-surface">16:9 Landscape</option>
-            <option value="9:16" className="bg-app-surface">9:16 Shorts/Reels</option>
-            <option value="1:1" className="bg-app-surface">1:1 Square</option>
-            <option value="4:5" className="bg-app-surface">4:5 Portrait</option>
-            <option value="21:9" className="bg-app-surface">21:9 UltraWide</option>
-          </select>
+            onChange={(val) => setAspectRatio(val)}
+            options={ASPECT_OPTIONS}
+            size="sm"
+            prefix="Ratio:"
+            icon={<Film className="h-3 w-3" />}
+            className="w-44"
+          />
         </div>
 
         {/* Viewport Scale & Grid & Fullscreen */}
         <div className="pointer-events-auto flex items-center gap-1 rounded-xl border border-app-border bg-app-surface/90 p-1 text-xs text-app-text backdrop-blur-md shadow-sm">
-          <div className="flex items-center gap-1 px-1.5">
-            <ZoomIn className="h-3.5 w-3.5 text-app-text-muted" />
-            <select
-              value={canvasZoom}
-              onChange={(e) => setCanvasZoom(Number(e.target.value))}
-              className="bg-transparent text-[11px] font-medium text-app-text focus:outline-none cursor-pointer"
-            >
-              <option value={0} className="bg-app-surface">Fit</option>
-              <option value={50} className="bg-app-surface">50%</option>
-              <option value={75} className="bg-app-surface">75%</option>
-              <option value={100} className="bg-app-surface">100%</option>
-            </select>
-          </div>
+          <CustomSelect<number>
+            value={canvasZoom}
+            onChange={(val) => setCanvasZoom(val)}
+            options={ZOOM_OPTIONS}
+            size="sm"
+            icon={<ZoomIn className="h-3 w-3" />}
+            className="w-24"
+          />
 
           <div className="h-3.5 w-px bg-app-border" />
 
