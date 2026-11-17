@@ -208,7 +208,7 @@ export const Timeline: React.FC = () => {
             <Tooltip content="Add Video Track" side="top">
               <button
                 onClick={() => addTrack('video')}
-                className="flex items-center gap-1 rounded-lg border border-neutral-300 bg-neutral-100 px-3 h-8.5 text-xs font-semibold text-blue-600 hover:bg-blue-500/10 transition cursor-pointer dark:border-[#27272a] dark:bg-[#18181b] dark:text-blue-400 dark:hover:bg-blue-500/15"
+                className="flex items-center gap-1.5 rounded-lg border border-neutral-300 bg-neutral-100 px-3.5 py-1.5 h-8.5 text-xs font-semibold text-blue-600 hover:bg-blue-500/10 transition cursor-pointer dark:border-[#27272a] dark:bg-[#18181b] dark:text-blue-400 dark:hover:bg-blue-500/15"
               >
                 <Plus className="h-3.5 w-3.5" />
                 <span>Video</span>
@@ -218,7 +218,7 @@ export const Timeline: React.FC = () => {
             <Tooltip content="Add Audio Track" side="top">
               <button
                 onClick={() => addTrack('audio')}
-                className="flex items-center gap-1 rounded-lg border border-neutral-300 bg-neutral-100 px-3 h-8.5 text-xs font-semibold text-emerald-600 hover:bg-emerald-500/10 transition cursor-pointer dark:border-[#27272a] dark:bg-[#18181b] dark:text-emerald-400 dark:hover:bg-emerald-500/15"
+                className="flex items-center gap-1.5 rounded-lg border border-neutral-300 bg-neutral-100 px-3.5 py-1.5 h-8.5 text-xs font-semibold text-emerald-600 hover:bg-emerald-500/10 transition cursor-pointer dark:border-[#27272a] dark:bg-[#18181b] dark:text-emerald-400 dark:hover:bg-emerald-500/15"
               >
                 <Plus className="h-3.5 w-3.5" />
                 <span>Audio</span>
@@ -228,7 +228,7 @@ export const Timeline: React.FC = () => {
             <Tooltip content="Add Text Track" side="top">
               <button
                 onClick={() => addTrack('text')}
-                className="flex items-center gap-1 rounded-lg border border-neutral-300 bg-neutral-100 px-3 h-8.5 text-xs font-semibold text-amber-600 hover:bg-amber-500/10 transition cursor-pointer dark:border-[#27272a] dark:bg-[#18181b] dark:text-amber-400 dark:hover:bg-amber-500/15"
+                className="flex items-center gap-1.5 rounded-lg border border-neutral-300 bg-neutral-100 px-3.5 py-1.5 h-8.5 text-xs font-semibold text-amber-600 hover:bg-amber-500/10 transition cursor-pointer dark:border-[#27272a] dark:bg-[#18181b] dark:text-amber-400 dark:hover:bg-amber-500/15"
               >
                 <Plus className="h-3.5 w-3.5" />
                 <span>Text</span>
