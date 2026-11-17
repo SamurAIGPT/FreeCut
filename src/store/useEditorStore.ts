@@ -96,6 +96,62 @@ const DEFAULT_TRACKS: Track[] = [
   { id: 'track-audio-2', name: 'Sound FX', type: 'audio', isVisible: true, isMuted: false },
 ];
 
+const DEFAULT_CLIPS: Clip[] = [
+  {
+    id: 'clip-text-1',
+    trackId: 'track-text-1',
+    name: 'Cyberpunk Master Cut',
+    type: 'text',
+    text: 'CYBERPUNK MASTER CUT',
+    fontSize: 48,
+    fontColor: '#ffffff',
+    backgroundColor: '#000000',
+    fontFamily: 'Inter, system-ui',
+    start: 0.8,
+    duration: 4.5,
+    trimStart: 0,
+    trimEnd: 4.5,
+    transform: { x: 0, y: -80, scale: 1, rotation: 0, opacity: 1 },
+    volume: 0,
+  },
+  {
+    id: 'clip-video-2',
+    trackId: 'track-video-2',
+    name: 'Picture-in-Picture.webm',
+    type: 'video',
+    start: 2.2,
+    duration: 3.5,
+    trimStart: 0,
+    trimEnd: 3.5,
+    transform: { x: 180, y: -100, scale: 0.45, rotation: 0, opacity: 1 },
+    volume: 0.7,
+  },
+  {
+    id: 'clip-video-1',
+    trackId: 'track-video-1',
+    name: 'Cinematic Countdown.webm',
+    type: 'video',
+    start: 0,
+    duration: 6.8,
+    trimStart: 0,
+    trimEnd: 6.8,
+    transform: { x: 0, y: 0, scale: 1, rotation: 0, opacity: 1 },
+    volume: 1,
+  },
+  {
+    id: 'clip-audio-1',
+    trackId: 'track-audio-1',
+    name: 'Lo-Fi Ambient Beat.wav',
+    type: 'audio',
+    start: 0,
+    duration: 8.5,
+    trimStart: 0,
+    trimEnd: 8.5,
+    transform: { x: 0, y: 0, scale: 1, rotation: 0, opacity: 1 },
+    volume: 0.85,
+  },
+];
+
 const getInitialTheme = (): ThemeMode => {
   const saved = typeof window !== 'undefined' ? localStorage.getItem('freecut_theme') : null;
   if (saved === 'light' || saved === 'dark') return saved;
@@ -107,7 +163,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   projectTitle: 'Cyberpunk Trailer Project',
   aspectRatio: '16:9',
   tracks: DEFAULT_TRACKS,
-  clips: [],
+  clips: DEFAULT_CLIPS,
   assets: [],
   playhead: 0,
   duration: 15,
