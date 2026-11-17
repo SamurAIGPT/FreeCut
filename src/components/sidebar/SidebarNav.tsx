@@ -25,8 +25,8 @@ export const SidebarNav: React.FC = () => {
   const setActiveTab = useEditorStore((s) => s.setActiveSidebarTab);
 
   return (
-    <nav className="flex h-full w-16 shrink-0 flex-col items-center border-r border-app-border bg-app-surface py-2 select-none overflow-y-auto overflow-x-hidden transition-colors duration-200">
-      <div className="flex flex-col items-center gap-1.5 w-full px-1.5 pb-3">
+    <nav className="flex h-full w-12 shrink-0 flex-col items-center border-r border-app-border bg-app-surface py-2.5 select-none overflow-y-auto overflow-x-hidden scrollbar-hidden transition-colors duration-200">
+      <div className="flex flex-col items-center gap-2 w-full px-1.5 pb-3">
         {NAV_ITEMS.map((item) => {
           const Icon = item.icon;
           const isActive = activeTab === item.id;
@@ -35,26 +35,19 @@ export const SidebarNav: React.FC = () => {
               key={item.id}
               content={item.label}
               side="right"
-              delay={60}
+              delay={40}
               className="w-full flex justify-center"
             >
               <button
                 onClick={() => setActiveTab(item.id)}
                 aria-label={item.label}
-                className={`relative flex w-full flex-col items-center justify-center rounded-xl py-2 px-1 transition duration-150 cursor-pointer ${
+                className={`relative flex p-2 items-center justify-center rounded-md transition duration-150 cursor-pointer ${
                   isActive
-                    ? 'bg-neutral-200 text-neutral-900 font-semibold shadow-xs dark:bg-neutral-800 dark:text-white'
+                    ? 'bg-neutral-800 text-white font-bold shadow-xs dark:bg-neutral-200 dark:text-neutral-900'
                     : 'text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-800/60 dark:hover:text-white'
                 }`}
               >
-                {/* Active Indicator Bar on the left */}
-                {isActive && (
-                  <span className="absolute -left-1.5 top-1/2 -translate-y-1/2 h-5 w-1 rounded-r-full bg-neutral-900 dark:bg-white" />
-                )}
-                <Icon className="h-5 w-5 stroke-[1.8]" />
-                <span className="mt-1 text-[10px] font-medium leading-none tracking-tight">
-                  {item.label}
-                </span>
+                <Icon className="h-5 w-5 stroke-[1.9]" />
               </button>
             </Tooltip>
           );
