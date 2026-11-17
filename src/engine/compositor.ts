@@ -1,4 +1,5 @@
 import { AspectRatio, Clip, MediaAsset, Track } from '@/types/editor';
+import { useEditorStore } from '@/store/useEditorStore';
 
 class CanvasCompositor {
   private videoCache = new Map<string, HTMLVideoElement>();
@@ -46,8 +47,9 @@ class CanvasCompositor {
       canvas.height = height;
     }
 
-    // 1. Pure Obsidian Black letterbox background
-    ctx.fillStyle = '#000000';
+    // 1. Canvas letterbox background (customizable from Settings or default Obsidian Black)
+    const canvasBg = useEditorStore.getState().canvasBg;
+    ctx.fillStyle = canvasBg || '#000000';
     ctx.fillRect(0, 0, width, height);
 
     // 2. Filter visible tracks

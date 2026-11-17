@@ -28,6 +28,8 @@ interface EditorState {
   markers: TimelineMarker[];
   snapGuideX: number | null;
   isRippleMode: boolean;
+  canvasBg: string;
+  fps: number;
 
   // History
   history: {
@@ -52,6 +54,8 @@ interface EditorState {
   setCanvasZoom: (zoom: number) => void;
   toggleShowGrid: () => void;
   setSnapGuideX: (x: number | null) => void;
+  setCanvasBg: (bg: string) => void;
+  setFps: (fps: number) => void;
   
   // Markers
   addMarker: (time?: number, label?: string, color?: string) => void;
@@ -186,6 +190,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   ],
   snapGuideX: null,
   isRippleMode: false,
+  canvasBg: '#000000',
+  fps: 30,
   history: { past: [], future: [] },
 
   setTheme: (theme) => {
@@ -226,6 +232,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   setCanvasZoom: (zoom) => set({ canvasZoom: zoom }),
   toggleShowGrid: () => set((state) => ({ showGrid: !state.showGrid })),
   setSnapGuideX: (x) => set({ snapGuideX: x }),
+  setCanvasBg: (bg) => set({ canvasBg: bg }),
+  setFps: (fps) => set({ fps }),
 
   addMarker: (time, label, color) => {
     const state = get();

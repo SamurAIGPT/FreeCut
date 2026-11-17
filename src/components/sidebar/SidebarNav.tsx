@@ -1,5 +1,8 @@
 import React from 'react';
-import { Film, Music, Type, Sparkles, Wand2, Smile, Palette } from 'lucide-react';
+import { 
+  Film, Music, Type, Smile, Sparkles, Wand2, 
+  Subtitles, SlidersHorizontal, Settings 
+} from 'lucide-react';
 import { useEditorStore } from '@/store/useEditorStore';
 import { SidebarTab } from '@/types/editor';
 import { Tooltip } from '@/components/ui/Tooltip';
@@ -12,12 +15,14 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { id: 'media', label: 'Media', icon: Film },
-  { id: 'audio', label: 'Audio', icon: Music },
+  { id: 'audio', label: 'Sounds', icon: Music },
   { id: 'text', label: 'Text', icon: Type },
   { id: 'stickers', label: 'Stickers', icon: Smile },
   { id: 'effects', label: 'Effects', icon: Sparkles },
   { id: 'transitions', label: 'Transitions', icon: Wand2 },
-  { id: 'filters', label: 'Filters', icon: Palette },
+  { id: 'captions', label: 'Captions', icon: Subtitles },
+  { id: 'adjustment', label: 'Adjustment', icon: SlidersHorizontal },
+  { id: 'settings', label: 'Settings', icon: Settings },
 ];
 
 export const SidebarNav: React.FC = () => {

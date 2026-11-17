@@ -1,7 +1,16 @@
 export type TrackType = 'video' | 'audio' | 'text';
 export type ClipType = 'video' | 'audio' | 'image' | 'text';
 
-export type SidebarTab = 'media' | 'audio' | 'text' | 'effects' | 'transitions' | 'stickers' | 'filters';
+export type SidebarTab = 
+  | 'media' 
+  | 'audio' 
+  | 'text' 
+  | 'stickers' 
+  | 'effects' 
+  | 'transitions' 
+  | 'captions' 
+  | 'adjustment' 
+  | 'settings';
 
 export interface Transform {
   x: number;          // Offset in px from center
