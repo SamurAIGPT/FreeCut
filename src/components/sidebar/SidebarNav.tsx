@@ -46,10 +46,10 @@ export const SidebarNav: React.FC = () => {
               <button
                 onClick={() => setActiveTab(item.id)}
                 aria-label={item.label}
-                className={`relative flex p-2 items-center justify-center rounded-md transition duration-150 cursor-pointer ${
+                className={`relative flex h-9 w-9 items-center justify-center rounded-lg transition duration-150 cursor-pointer ${
                   isActive
-                    ? 'bg-neutral-800 text-white font-bold shadow-xs dark:bg-neutral-200 dark:text-neutral-900'
-                    : 'text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-800/60 dark:hover:text-white'
+                    ? 'bg-neutral-950 text-white font-bold shadow-sm dark:bg-white dark:text-neutral-950'
+                    : 'text-neutral-500 hover:bg-neutral-200 hover:text-neutral-950 dark:text-neutral-400 dark:hover:bg-neutral-800/70 dark:hover:text-white'
                 }`}
               >
                 <Icon className="h-5 w-5 stroke-[1.9]" />

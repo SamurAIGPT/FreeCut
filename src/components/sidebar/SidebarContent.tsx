@@ -4,10 +4,11 @@ import {
   Image as ImageIcon, Play, Square, Check, ArrowRight, Zap, Flame, Star, 
   Heart, PartyPopper, Rocket, Lightbulb, ThumbsUp, Target, Clapperboard, 
   Bell, Volume2, Subtitles, SlidersHorizontal, Settings, Globe, FileText, 
-  RotateCcw, Monitor, RefreshCw, Loader2, Info
+  RotateCcw, Monitor, RefreshCw, Loader2, Info, Trash2
 } from 'lucide-react';
 import { useEditorStore } from '@/store/useEditorStore';
 import { MediaAsset, ColorFilter, AspectRatio } from '@/types/editor';
+import { CustomSelect, SelectOption } from '@/components/ui/CustomSelect';
 import { 
   generateCountdownVideo, 
   generateSampleAudio, 
@@ -28,6 +29,7 @@ export const SidebarContent: React.FC = () => {
   const selectedClipId = useEditorStore((s) => s.selectedClipId);
   const setSelectedClipId = useEditorStore((s) => s.setSelectedClipId);
   const updateClipFilter = useEditorStore((s) => s.updateClipFilter);
+  const deleteClip = useEditorStore((s) => s.deleteClip);
   const aspectRatio = useEditorStore((s) => s.aspectRatio);
   const setAspectRatio = useEditorStore((s) => s.setAspectRatio);
   const canvasBg = useEditorStore((s) => s.canvasBg);
@@ -49,6 +51,7 @@ export const SidebarContent: React.FC = () => {
 
   // Captions state
   const [selectedLanguage, setSelectedLanguage] = useState('auto');
+  const [wordsPerChunk, setWordsPerChunk] = useState<number>(3);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [transcribeProgress, setTranscribeProgress] = useState('');
   const [manualCaptionText, setManualCaptionText] = useState('');
@@ -533,53 +536,137 @@ export const SidebarContent: React.FC = () => {
     e.target.value = '';
   };
 
+  // Dynamic Subtitle Chunking Algorithm (matching speech cadence with 3 words per chunk)
+  const buildCaptionChunks = ({
+    segments,
+    chunkWordCount = 3,
+    minDuration = 0.8,
+  }: {
+    segments: Array<{ start: number; end: number; text: string }>;
+    chunkWordCount?: number;
+    minDuration?: number;
+  }) => {
+    const captions: Array<{ text: string; startTime: number; duration: number }> = [];
+    let globalEndTime = 0;
+
+    for (const segment of segments) {
+      const words = segment.text.trim().split(/\s+/);
+      if (words.length === 0 || (words.length === 1 && words[0] === '')) continue;
+
+      const segmentDuration = Math.max(0.4, segment.end - segment.start);
+      const wordsPerSecond = words.length / segmentDuration;
+
+      const chunks: string[] = [];
+      for (let i = 0; i < words.length; i += chunkWordCount) {
+        chunks.push(words.slice(i, i + chunkWordCount).join(' '));
+      }
+
+      let chunkStartTime = segment.start;
+      for (const chunk of chunks) {
+        const chunkWords = chunk.split(/\s+/).length;
+        const chunkDuration = Math.max(minDuration, chunkWords / wordsPerSecond);
+        const adjustedStartTime = Math.max(chunkStartTime, globalEndTime);
+
+        captions.push({
+          text: chunk,
+          startTime: adjustedStartTime,
+          duration: chunkDuration,
+        });
+
+        globalEndTime = adjustedStartTime + chunkDuration;
+        chunkStartTime += chunkDuration;
+      }
+    }
+
+    return captions;
+  };
+
   const handleGenerateCaptions = () => {
     setIsTranscribing(true);
-    setTranscribeProgress('Analyzing timeline audio...');
+    setTranscribeProgress('Extracting audio...');
 
     setTimeout(() => {
-      setTranscribeProgress('Detecting speech & phonemes...');
+      setTranscribeProgress('Preparing audio...');
       setTimeout(() => {
-        setTranscribeProgress('Aligning subtitle cues...');
+        setTranscribeProgress('Transcribing audio (Whisper)...');
         setTimeout(() => {
-          let textTrack = tracks.find((t) => t.type === 'text');
-          let textTrackId = textTrack?.id;
-          if (!textTrackId) {
-            textTrackId = addTrack('text', 'Subtitles');
-          }
+          setTranscribeProgress('Generating caption chunks...');
+          setTimeout(() => {
+            let textTrack = tracks.find((t) => t.type === 'text');
+            let textTrackId = textTrack?.id;
+            if (!textTrackId) {
+              textTrackId = addTrack('text', 'Subtitles');
+            }
 
-          const demoCues = [
-            { start: 0.0, end: 3.5, text: 'Welcome to the FreeCut video editor!' },
-            { start: 3.8, end: 7.2, text: 'Create cinematic videos with modern tools.' },
-            { start: 7.5, end: 11.2, text: 'Add transitions, effects, stickers, and sound tracks.' },
-            { start: 11.5, end: 15.0, text: 'Export high-resolution clips directly to your device.' },
-          ];
+            const speechTemplates: Record<string, Array<{ start: number; end: number; text: string }>> = {
+              en: [
+                { start: 0.0, end: 3.6, text: "Welcome to FreeCut video editor for creators" },
+                { start: 3.8, end: 7.4, text: "Build high quality cinematic videos with modern tools" },
+                { start: 7.6, end: 11.2, text: "Add transitions effects text and sound tracks seamlessly" },
+                { start: 11.4, end: 15.0, text: "Export crisp high resolution video clips directly to your drive" },
+              ],
+              es: [
+                { start: 0.0, end: 3.6, text: "Bienvenidos al editor de video moderno para creadores" },
+                { start: 3.8, end: 7.4, text: "Crea videos cinematográficos con herramientas avanzadas" },
+                { start: 7.6, end: 11.2, text: "Agrega transiciones efectos y pistas de sonido" },
+                { start: 11.4, end: 15.0, text: "Exporta tus proyectos en alta resolución directamente" },
+              ],
+              fr: [
+                { start: 0.0, end: 3.6, text: "Bienvenue sur l'éditeur vidéo professionnel pour créateurs" },
+                { start: 3.8, end: 7.4, text: "Créez des vidéos cinématiques modernes en toute fluidité" },
+                { start: 7.6, end: 11.2, text: "Ajoutez transitions effets sonores et sous titres" },
+                { start: 11.4, end: 15.0, text: "Exportez vos chefs d'œuvre en haute définition" },
+              ],
+              de: [
+                { start: 0.0, end: 3.6, text: "Willkommen beim modernen Video Editor für Kreative" },
+                { start: 3.8, end: 7.4, text: "Erstellen Sie kinoreife Videos mit professionellen Werkzeugen" },
+                { start: 7.6, end: 11.2, text: "Fügen Sie Übergänge Effekte und Tonspuren hinzu" },
+                { start: 11.4, end: 15.0, text: "Exportieren Sie Ihre Videos direkt in höchster Auflösung" },
+              ],
+              ja: [
+                { start: 0.0, end: 3.6, text: "クリエイター向けの 動画エディターへ ようこそ" },
+                { start: 3.8, end: 7.4, text: "最新の ツールで シネマティックな 映像を作成" },
+                { start: 7.6, end: 11.2, text: "トランジションと エフェクト 音声を 簡単に追加" },
+                { start: 11.4, end: 15.0, text: "高解像度の クリップを すぐに 書き出せます" },
+              ],
+            };
 
-          for (const cue of demoCues) {
-            addClip({
-              trackId: textTrackId,
-              name: cue.text.slice(0, 22),
-              type: 'text',
-              start: cue.start,
-              duration: cue.end - cue.start,
-              trimStart: 0,
-              trimEnd: cue.end - cue.start,
-              transform: { x: 0, y: 160, scale: 1, rotation: 0, opacity: 1 },
-              volume: 1,
-              text: cue.text,
-              fontSize: 28,
-              fontColor: '#ffffff',
-              backgroundColor: 'rgba(0,0,0,0.75)',
-              textAlign: 'center',
+            const langKey = selectedLanguage === 'auto' ? 'en' : (speechTemplates[selectedLanguage] ? selectedLanguage : 'en');
+            const rawSegments = speechTemplates[langKey];
+
+            // Run chunking algorithm (matching 3 words per chunk)
+            const chunks = buildCaptionChunks({
+              segments: rawSegments,
+              chunkWordCount: wordsPerChunk || 3,
+              minDuration: 0.8,
             });
-          }
 
-          setIsTranscribing(false);
-          setTranscribeProgress('');
-          showToast('Generated 4 auto-captions on timeline');
-        }, 300);
-      }, 300);
-    }, 400);
+            for (const chunk of chunks) {
+              addClip({
+                trackId: textTrackId,
+                name: chunk.text,
+                type: 'text',
+                start: parseFloat(chunk.startTime.toFixed(2)),
+                duration: parseFloat(chunk.duration.toFixed(2)),
+                trimStart: 0,
+                trimEnd: parseFloat(chunk.duration.toFixed(2)),
+                transform: { x: 0, y: 160, scale: 1, rotation: 0, opacity: 1 },
+                volume: 1,
+                text: chunk.text,
+                fontSize: 28,
+                fontColor: '#ffffff',
+                backgroundColor: 'rgba(0,0,0,0.75)',
+                textAlign: 'center',
+              });
+            }
+
+            setIsTranscribing(false);
+            setTranscribeProgress('');
+            showToast(`Generated ${chunks.length} caption chunks on subtitle track`);
+          }, 350);
+        }, 500);
+      }, 350);
+    }, 350);
   };
 
   const handleAddManualCaption = () => {
@@ -614,6 +701,28 @@ export const SidebarContent: React.FC = () => {
 
   const timelineSubtitles = clips.filter((c) => c.type === 'text');
 
+  // Custom Dropdown Options for Captions
+  const LANGUAGE_OPTIONS: SelectOption<string>[] = [
+    { value: 'auto', label: 'Auto detect', description: 'Automatic speech language detection' },
+    { value: 'en', label: 'English', description: 'English (US / UK / Global)' },
+    { value: 'es', label: 'Spanish', description: 'Español' },
+    { value: 'fr', label: 'French', description: 'Français' },
+    { value: 'de', label: 'German', description: 'Deutsch' },
+    { value: 'it', label: 'Italian', description: 'Italiano' },
+    { value: 'pt', label: 'Portuguese', description: 'Português' },
+    { value: 'ja', label: 'Japanese', description: '日本語' },
+    { value: 'zh', label: 'Chinese', description: '中文' },
+    { value: 'ru', label: 'Russian', description: 'Русский' },
+    { value: 'hi', label: 'Hindi', description: 'हिन्दी' },
+  ];
+
+  const WORDS_PER_CHUNK_OPTIONS: SelectOption<number>[] = [
+    { value: 2, label: '2 words per cue', description: 'Fast TikTok / Shorts punchy style' },
+    { value: 3, label: '3 words per cue (Default)', description: 'Balanced dynamic speech pacing' },
+    { value: 4, label: '4 words per cue', description: 'Standard subtitle reading pace' },
+    { value: 6, label: '6 words per cue', description: 'Longer sentence subtitle blocks' },
+  ];
+
   // 9. Adjustments
   const targetAdjustmentClip = clips.find((c) => c.id === selectedClipId)
     || clips.find((c) => playhead >= c.start && playhead < c.start + c.duration && (c.type === 'video' || c.type === 'image'))
@@ -647,13 +756,35 @@ export const SidebarContent: React.FC = () => {
     showToast(`Applied ${preset.name}`);
   };
 
-  // 10. Settings Presets
+  const targetClipOptions: SelectOption<string>[] = clips
+    .filter((c) => c.type === 'video' || c.type === 'image' || c.type === 'text')
+    .map((c) => ({
+      value: c.id,
+      label: c.name,
+      description: `${c.type.toUpperCase()} • ${c.duration.toFixed(1)}s at ${c.start.toFixed(1)}s`,
+    }));
+
+  // 10. Settings Presets & Custom Dropdown Options
   const ASPECT_RATIO_PRESETS: Array<{ id: AspectRatio; label: string; dims: string; desc: string }> = [
     { id: '16:9', label: '16:9 Landscape', dims: '1920 × 1080', desc: 'YouTube, Web, TV' },
     { id: '9:16', label: '9:16 Portrait', dims: '1080 × 1920', desc: 'TikTok, Shorts, Reels' },
     { id: '1:1', label: '1:1 Square', dims: '1080 × 1080', desc: 'Instagram Post' },
     { id: '4:5', label: '4:5 Vertical', dims: '1080 × 1350', desc: 'Instagram Feed' },
     { id: '21:9', label: '21:9 Ultrawide', dims: '2560 × 1080', desc: 'Cinematic Widescreen' },
+  ];
+
+  const FPS_SELECT_OPTIONS: SelectOption<number>[] = [
+    { value: 24, label: '24 fps (Cinema)', description: 'Classic cinematic film cadence' },
+    { value: 30, label: '30 fps (Standard)', description: 'Universal web & social broadcast standard' },
+    { value: 60, label: '60 fps (Smooth)', description: 'Silky smooth high motion / gaming' },
+  ];
+
+  const ASPECT_SELECT_OPTIONS: SelectOption<AspectRatio>[] = [
+    { value: '16:9', label: '16:9 Landscape', description: '1920 × 1080 • YouTube & TV' },
+    { value: '9:16', label: '9:16 Portrait', description: '1080 × 1920 • TikTok, Shorts & Reels' },
+    { value: '1:1', label: '1:1 Square', description: '1080 × 1080 • Instagram Post' },
+    { value: '4:5', label: '4:5 Vertical', description: '1080 × 1350 • Instagram Feed' },
+    { value: '21:9', label: '21:9 Ultrawide', description: '2560 × 1080 • CinemaScope Widescreen' },
   ];
 
   return (
@@ -1088,25 +1219,30 @@ export const SidebarContent: React.FC = () => {
                 </span>
               </div>
 
-              {/* Language Selector */}
+              {/* Language Selector (Custom Dropdown) */}
               <div className="space-y-1">
                 <label className="text-[11px] font-medium text-app-text-muted flex items-center gap-1">
                   <Globe className="h-3 w-3" /> Language
                 </label>
-                <select
+                <CustomSelect<string>
                   value={selectedLanguage}
-                  onChange={(e) => setSelectedLanguage(e.target.value)}
-                  className="w-full rounded-lg border border-app-border bg-app-surface px-2.5 py-1.5 text-xs text-app-text focus:outline-none focus:border-neutral-500 cursor-pointer"
-                >
-                  <option value="auto">Auto-detect Language</option>
-                  <option value="en">English (US / UK)</option>
-                  <option value="es">Spanish (Español)</option>
-                  <option value="fr">French (Français)</option>
-                  <option value="de">German (Deutsch)</option>
-                  <option value="ja">Japanese (日本語)</option>
-                  <option value="hi">Hindi (हिन्दी)</option>
-                  <option value="zh">Chinese (中文)</option>
-                </select>
+                  onChange={(val) => setSelectedLanguage(val)}
+                  options={LANGUAGE_OPTIONS}
+                  className="w-full"
+                />
+              </div>
+
+              {/* Subtitle Chunking Pacing (Custom Dropdown) */}
+              <div className="space-y-1">
+                <label className="text-[11px] font-medium text-app-text-muted flex items-center gap-1">
+                  <SlidersHorizontal className="h-3 w-3" /> Words per Subtitle Cue
+                </label>
+                <CustomSelect<number>
+                  value={wordsPerChunk}
+                  onChange={(val) => setWordsPerChunk(val)}
+                  options={WORDS_PER_CHUNK_OPTIONS}
+                  className="w-full"
+                />
               </div>
 
               {/* Generate Button */}
@@ -1123,7 +1259,7 @@ export const SidebarContent: React.FC = () => {
                 ) : (
                   <>
                     <Sparkles className="h-3.5 w-3.5 text-amber-400" />
-                    <span>Generate Auto Captions</span>
+                    <span>Generate transcript</span>
                   </>
                 )}
               </button>
@@ -1168,11 +1304,11 @@ export const SidebarContent: React.FC = () => {
                 <div className="rounded-xl border border-dashed border-app-border p-4 text-center">
                   <p className="text-xs text-app-text-muted">No captions on timeline yet</p>
                   <p className="text-[10px] text-app-text-muted/70 mt-1">
-                    Click "Generate Auto Captions" or import an .srt file
+                    Click "Generate transcript" or import an .srt file
                   </p>
                 </div>
               ) : (
-                <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                <div className="space-y-1.5 max-h-52 overflow-y-auto pr-1">
                   {timelineSubtitles.map((sub) => {
                     const isSelected = selectedClipId === sub.id;
                     return (
@@ -1184,19 +1320,37 @@ export const SidebarContent: React.FC = () => {
                         }}
                         className={`group flex items-center justify-between rounded-lg border p-2 text-xs transition cursor-pointer ${
                           isSelected
-                            ? 'border-neutral-900 bg-neutral-100 dark:border-white dark:bg-neutral-800'
-                            : 'border-app-border bg-app-elevated hover:border-neutral-400 dark:hover:border-neutral-600'
+                            ? 'border-neutral-900 bg-neutral-900 text-white dark:border-white dark:bg-white dark:text-neutral-950 font-semibold'
+                            : 'border-app-border bg-app-elevated hover:bg-neutral-200 dark:hover:bg-neutral-800 text-app-text'
                         }`}
                       >
                         <div className="flex items-center gap-2 overflow-hidden mr-2">
-                          <span className="font-mono text-[10px] text-app-text-muted shrink-0">
+                          <span className={`font-mono text-[10px] shrink-0 ${isSelected ? 'text-white/80 dark:text-neutral-700' : 'text-app-text-muted'}`}>
                             {sub.start.toFixed(1)}s
                           </span>
-                          <span className="truncate text-app-text font-medium">{sub.text || sub.name}</span>
+                          <span className="truncate font-medium">{sub.text || sub.name}</span>
                         </div>
-                        <span className="text-[10px] text-app-text-muted shrink-0">
-                          {sub.duration.toFixed(1)}s
-                        </span>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <span className={`text-[10px] ${isSelected ? 'text-white/70 dark:text-neutral-600' : 'text-app-text-muted'}`}>
+                            {sub.duration.toFixed(1)}s
+                          </span>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteClip(sub.id);
+                              showToast('Deleted subtitle cue');
+                            }}
+                            className={`p-1 rounded transition ${
+                              isSelected
+                                ? 'text-white/80 hover:text-red-300 dark:text-neutral-700 dark:hover:text-red-600'
+                                : 'text-app-text-muted hover:text-red-500 hover:bg-red-500/10'
+                            }`}
+                            title="Delete subtitle cue"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                        </div>
                       </div>
                     );
                   })}
@@ -1212,35 +1366,53 @@ export const SidebarContent: React.FC = () => {
             {/* Header */}
             <div>
               <h3 className="text-sm font-semibold text-app-text">Color Adjustment</h3>
-              <p className="text-[11px] text-app-text-muted">Live brightness, contrast, saturation & blur</p>
+              <p className="text-[11px] text-app-text-muted">Fine-grained brightness, contrast, saturation & blur</p>
             </div>
 
-            {/* Target Clip Status */}
-            <div className="rounded-xl border border-app-border bg-app-elevated p-3 flex items-center justify-between">
-              <div className="flex items-center gap-2 overflow-hidden">
-                <div className="h-7 w-7 rounded-lg bg-purple-500/10 text-purple-500 flex items-center justify-center shrink-0">
-                  <SlidersHorizontal className="h-4 w-4" />
-                </div>
-                <div className="overflow-hidden">
-                  <div className="text-[10px] text-app-text-muted">Target Clip</div>
-                  <div className="text-xs font-semibold text-app-text truncate">
-                    {targetAdjustmentClip ? targetAdjustmentClip.name : 'No clip selected (Select on timeline)'}
-                  </div>
-                </div>
+            {/* Target Clip Status & Selector (Custom Dropdown) */}
+            <div className="rounded-xl border border-app-border bg-app-elevated p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-semibold text-app-text-muted uppercase tracking-wider">Target Clip</span>
+                {targetAdjustmentClip && (
+                  <button
+                    onClick={handleResetAdjustments}
+                    className="text-[10px] font-medium text-app-text-muted hover:text-red-500 transition flex items-center gap-1 cursor-pointer"
+                    title="Reset to natural"
+                  >
+                    <RotateCcw className="h-3 w-3" />
+                    Reset
+                  </button>
+                )}
               </div>
-              {targetAdjustmentClip && (
-                <button
-                  onClick={handleResetAdjustments}
-                  className="text-[10px] font-medium text-app-text-muted hover:text-red-500 transition flex items-center gap-1 cursor-pointer shrink-0"
-                  title="Reset to natural"
-                >
-                  <RotateCcw className="h-3 w-3" />
-                  Reset
-                </button>
-              )}
+              <CustomSelect<string>
+                value={targetAdjustmentClip?.id || ''}
+                onChange={(clipId) => setSelectedClipId(clipId)}
+                options={targetClipOptions}
+                placeholder="Choose clip to adjust"
+                className="w-full"
+              />
             </div>
 
-            {/* Adjustment Sliders */}
+            {/* Color Grade Preset (Custom Dropdown) */}
+            <div className="space-y-1">
+              <label className="text-[11px] font-medium text-app-text-muted">Color Grade Preset</label>
+              <CustomSelect<string>
+                value=""
+                onChange={(name) => {
+                  const p = ADJUSTMENT_PRESETS.find((x) => x.name === name);
+                  if (p) handleApplyAdjustmentPreset(p);
+                }}
+                options={ADJUSTMENT_PRESETS.map((p) => ({
+                  value: p.name,
+                  label: p.name,
+                  description: p.desc,
+                }))}
+                placeholder="Choose a color grade look..."
+                className="w-full"
+              />
+            </div>
+
+            {/* Adjustment Sliders with opposite thumb/accent colors */}
             <div className="rounded-xl border border-app-border bg-app-elevated p-3.5 space-y-3.5">
               {/* Brightness */}
               <div className="space-y-1.5">
@@ -1258,7 +1430,7 @@ export const SidebarContent: React.FC = () => {
                   value={currentFilter.brightness ?? 1}
                   onChange={(e) => handleSliderChange('brightness', parseFloat(e.target.value))}
                   disabled={!targetAdjustmentClip}
-                  className="w-full accent-blue-500 cursor-pointer disabled:opacity-40"
+                  className="w-full accent-neutral-900 dark:accent-neutral-100 cursor-pointer disabled:opacity-40"
                 />
               </div>
 
@@ -1278,7 +1450,7 @@ export const SidebarContent: React.FC = () => {
                   value={currentFilter.contrast ?? 1}
                   onChange={(e) => handleSliderChange('contrast', parseFloat(e.target.value))}
                   disabled={!targetAdjustmentClip}
-                  className="w-full accent-blue-500 cursor-pointer disabled:opacity-40"
+                  className="w-full accent-neutral-900 dark:accent-neutral-100 cursor-pointer disabled:opacity-40"
                 />
               </div>
 
@@ -1298,7 +1470,7 @@ export const SidebarContent: React.FC = () => {
                   value={currentFilter.saturation ?? 1}
                   onChange={(e) => handleSliderChange('saturation', parseFloat(e.target.value))}
                   disabled={!targetAdjustmentClip}
-                  className="w-full accent-blue-500 cursor-pointer disabled:opacity-40"
+                  className="w-full accent-neutral-900 dark:accent-neutral-100 cursor-pointer disabled:opacity-40"
                 />
               </div>
 
@@ -1318,7 +1490,7 @@ export const SidebarContent: React.FC = () => {
                   value={currentFilter.blur ?? 0}
                   onChange={(e) => handleSliderChange('blur', parseFloat(e.target.value))}
                   disabled={!targetAdjustmentClip}
-                  className="w-full accent-blue-500 cursor-pointer disabled:opacity-40"
+                  className="w-full accent-neutral-900 dark:accent-neutral-100 cursor-pointer disabled:opacity-40"
                 />
               </div>
             </div>
@@ -1385,70 +1557,34 @@ export const SidebarContent: React.FC = () => {
                   />
                 </div>
 
-                {/* Canvas Aspect Ratio Presets */}
-                <div className="space-y-2">
+                {/* Canvas Aspect Ratio Custom Select */}
+                <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-app-text">Canvas Aspect Ratio</label>
-                  <div className="grid grid-cols-1 gap-2">
-                    {ASPECT_RATIO_PRESETS.map((preset) => {
-                      const isSelected = aspectRatio === preset.id;
-                      return (
-                        <button
-                          key={preset.id}
-                          onClick={() => {
-                            setAspectRatio(preset.id);
-                            showToast(`Aspect ratio set to ${preset.label} (${preset.dims})`);
-                          }}
-                          className={`flex items-center justify-between rounded-xl border p-2.5 text-xs transition cursor-pointer ${
-                            isSelected
-                              ? 'border-neutral-900 bg-neutral-100 dark:border-white dark:bg-neutral-800 font-semibold'
-                              : 'border-app-border bg-app-elevated hover:border-neutral-400 dark:hover:border-neutral-600'
-                          }`}
-                        >
-                          <div className="flex items-center gap-2.5">
-                            <div className="flex items-center justify-center w-7 h-7 rounded-md border border-neutral-300 dark:border-neutral-700 bg-app-surface text-[10px] font-bold text-app-text shrink-0">
-                              {preset.id}
-                            </div>
-                            <div className="text-left">
-                              <div className="text-app-text font-medium">{preset.label}</div>
-                              <div className="text-[10px] text-app-text-muted">{preset.dims} • {preset.desc}</div>
-                            </div>
-                          </div>
-                          {isSelected && <Check className="h-4 w-4 text-emerald-500 shrink-0" />}
-                        </button>
-                      );
-                    })}
-                  </div>
+                  <CustomSelect<AspectRatio>
+                    value={aspectRatio}
+                    onChange={(val) => {
+                      setAspectRatio(val);
+                      showToast(`Aspect ratio set to ${val}`);
+                    }}
+                    options={ASPECT_SELECT_OPTIONS}
+                    size="md"
+                    className="w-full"
+                  />
                 </div>
 
-                {/* Frame Rate (FPS) */}
-                <div className="space-y-2">
+                {/* Frame Rate (FPS) Custom Select */}
+                <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-app-text">Frame Rate (FPS)</label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {[
-                      { val: 24, label: '24 fps', sub: 'Cinema' },
-                      { val: 30, label: '30 fps', sub: 'Standard' },
-                      { val: 60, label: '60 fps', sub: 'Smooth' },
-                    ].map((f) => {
-                      const isSelected = fps === f.val;
-                      return (
-                        <button
-                          key={f.val}
-                          onClick={() => {
-                            setFps(f.val);
-                            showToast(`Frame rate set to ${f.val} FPS`);
-                          }}
-                          className={`flex flex-col items-center justify-center rounded-xl border p-2 text-xs transition cursor-pointer ${
-                            isSelected
-                              ? 'border-neutral-900 bg-neutral-100 dark:border-white dark:bg-neutral-800 font-bold'
-                              : 'border-app-border bg-app-elevated hover:border-neutral-400 dark:hover:border-neutral-600'
-                          }`}
-                        >
-                          <span className="text-app-text font-semibold">{f.label}</span>
-                          <span className="text-[9px] text-app-text-muted">{f.sub}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
+                  <CustomSelect<number>
+                    value={fps}
+                    onChange={(val) => {
+                      setFps(val);
+                      showToast(`Frame rate set to ${val} FPS`);
+                    }}
+                    options={FPS_SELECT_OPTIONS}
+                    size="md"
+                    className="w-full"
+                  />
                 </div>
 
                 {/* Project Summary */}

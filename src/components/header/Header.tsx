@@ -83,7 +83,7 @@ export const Header: React.FC = () => {
               title="Obsidian Dark Mode"
               className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold transition ${
                 theme === 'dark'
-                  ? 'bg-neutral-900 text-white shadow-sm'
+                  ? 'bg-neutral-800 text-white shadow-sm border border-neutral-700 font-bold'
                   : 'text-app-text-muted hover:text-app-text'
               }`}
             >

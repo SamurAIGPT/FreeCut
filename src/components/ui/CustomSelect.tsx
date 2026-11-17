@@ -93,21 +93,21 @@ export function CustomSelect<T extends string | number>({
         type="button"
         disabled={disabled}
         onClick={() => setIsOpen((prev) => !prev)}
-        className={`flex w-full items-center justify-between rounded-lg border border-app-border bg-app-elevated font-medium text-app-text transition-all duration-150 hover:bg-app-surface hover:border-neutral-400 dark:hover:border-neutral-600 focus:outline-none focus:ring-1 focus:ring-neutral-400 disabled:opacity-40 disabled:cursor-not-allowed ${sizeClasses}`}
+        className={`flex w-full items-center justify-between rounded-lg border border-neutral-300 dark:border-neutral-800 bg-neutral-100 dark:bg-[#141417] font-medium text-neutral-900 dark:text-neutral-100 transition-all duration-150 hover:bg-white dark:hover:bg-[#1a1a1f] hover:border-neutral-400 dark:hover:border-neutral-700 focus:outline-none focus:ring-1 focus:ring-neutral-400 disabled:opacity-40 disabled:cursor-not-allowed ${sizeClasses}`}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
       >
         <div className="flex items-center gap-1.5 overflow-hidden truncate">
-          {icon && <span className="shrink-0 text-app-text-muted">{icon}</span>}
-          {prefix && <span className="shrink-0 text-[10px] text-app-text-muted font-normal">{prefix}</span>}
+          {icon && <span className="shrink-0 text-neutral-500 dark:text-neutral-400">{icon}</span>}
+          {prefix && <span className="shrink-0 text-[10px] text-neutral-500 dark:text-neutral-400 font-normal">{prefix}</span>}
           <span className="truncate">
             {selectedOption ? selectedOption.label : placeholder}
           </span>
         </div>
 
         <ChevronDown
-          className={`h-3.5 w-3.5 shrink-0 text-app-text-muted transition-transform duration-200 ${
-            isOpen ? 'rotate-180 text-app-text' : ''
+          className={`h-3.5 w-3.5 shrink-0 text-neutral-500 dark:text-neutral-400 transition-transform duration-200 ${
+            isOpen ? 'rotate-180 text-neutral-900 dark:text-white' : ''
           }`}
         />
       </button>
@@ -117,7 +117,7 @@ export function CustomSelect<T extends string | number>({
         <div
           role="listbox"
           tabIndex={-1}
-          className={`absolute z-50 mt-1.5 min-w-[140px] max-h-60 overflow-y-auto rounded-xl border border-app-border bg-app-surface p-1 shadow-2xl backdrop-blur-md transition-all ${
+          className={`absolute z-50 mt-1.5 min-w-[140px] max-h-60 overflow-y-auto rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-[#111114] p-1 shadow-2xl backdrop-blur-md transition-all ${
             align === 'right' ? 'right-0' : 'left-0'
           } ${menuClassName}`}
           style={{ minWidth: 'max(100%, 140px)' }}
@@ -134,8 +134,8 @@ export function CustomSelect<T extends string | number>({
                   option.disabled
                     ? 'opacity-40 cursor-not-allowed'
                     : isSelected
-                    ? 'bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900 font-semibold shadow-sm'
-                    : 'text-app-text hover:bg-app-elevated'
+                    ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 font-semibold shadow-xs'
+                    : 'text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800/70 hover:text-neutral-950 dark:hover:text-white'
                 }`}
               >
                 <div className="flex items-center gap-2 overflow-hidden truncate">
@@ -144,7 +144,7 @@ export function CustomSelect<T extends string | number>({
                       className={`shrink-0 ${
                         isSelected
                           ? 'text-white dark:text-neutral-900'
-                          : 'text-app-text-muted group-hover:text-app-text'
+                          : 'text-neutral-500 dark:text-neutral-400 group-hover:text-neutral-900 dark:group-hover:text-white'
                       }`}
                     >
                       {option.icon}
@@ -156,8 +156,8 @@ export function CustomSelect<T extends string | number>({
                       <span
                         className={`text-[10px] ${
                           isSelected
-                            ? 'text-white/80 dark:text-neutral-700'
-                            : 'text-app-text-muted'
+                            ? 'text-white/80 dark:text-neutral-600'
+                            : 'text-neutral-500 dark:text-neutral-400'
                         }`}
                       >
                         {option.description}

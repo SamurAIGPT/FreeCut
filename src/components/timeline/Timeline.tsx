@@ -64,7 +64,7 @@ export const Timeline: React.FC = () => {
           <Tooltip content="Selection Tool" shortcut="V" side="top">
             <button
               onClick={() => setActiveTool('select')}
-              className={`flex items-center gap-1.5 h-8.5 rounded-lg px-3.5 py-1.5 text-xs font-semibold border transition cursor-pointer ${
+              className={`flex items-center gap-1.5 h-[34px] rounded-lg px-3.5 py-1.5 text-xs font-semibold border transition cursor-pointer ${
                 activeTool === 'select'
                   ? 'border-neutral-900 bg-neutral-900 text-white shadow-xs dark:border-white dark:bg-white dark:text-neutral-950'
                   : 'border-neutral-300 bg-neutral-100 text-neutral-700 hover:bg-neutral-200 hover:text-neutral-950 dark:border-[#27272a] dark:bg-[#18181b] dark:text-neutral-300 dark:hover:bg-[#27272a] dark:hover:text-white'
@@ -79,7 +79,7 @@ export const Timeline: React.FC = () => {
           <Tooltip content="Razor Tool (Click clip to cut)" shortcut="C" side="top">
             <button
               onClick={() => setActiveTool('razor')}
-              className={`flex items-center gap-1.5 h-8.5 rounded-lg px-3.5 py-1.5 text-xs font-semibold border transition cursor-pointer ${
+              className={`flex items-center gap-1.5 h-[34px] rounded-lg px-3.5 py-1.5 text-xs font-semibold border transition cursor-pointer ${
                 activeTool === 'razor'
                   ? 'border-red-500 bg-red-500/15 text-red-600 dark:border-red-500 dark:bg-red-500/20 dark:text-red-400 shadow-xs'
                   : 'border-neutral-300 bg-neutral-100 text-neutral-700 hover:bg-neutral-200 hover:text-neutral-950 dark:border-[#27272a] dark:bg-[#18181b] dark:text-neutral-300 dark:hover:bg-[#27272a] dark:hover:text-white'
@@ -97,7 +97,7 @@ export const Timeline: React.FC = () => {
             <button
               onClick={() => selectedClipId && splitClip(selectedClipId)}
               disabled={!selectedClipId}
-              className="flex items-center gap-1.5 h-8.5 rounded-lg px-3 py-1.5 text-xs font-medium border border-neutral-300 bg-neutral-100 text-neutral-800 hover:bg-neutral-200 disabled:opacity-40 transition cursor-pointer dark:border-[#27272a] dark:bg-[#18181b] dark:text-neutral-200 dark:hover:bg-[#27272a]"
+              className="flex items-center gap-1.5 h-[34px] rounded-lg px-3 py-1.5 text-xs font-medium border border-neutral-300 bg-neutral-100 text-neutral-800 hover:bg-neutral-200 disabled:opacity-40 transition cursor-pointer dark:border-[#27272a] dark:bg-[#18181b] dark:text-neutral-200 dark:hover:bg-[#27272a]"
             >
               <Scissors className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Split</span>
@@ -109,7 +109,7 @@ export const Timeline: React.FC = () => {
             <button
               onClick={() => selectedClipId && splitLeft(selectedClipId)}
               disabled={!selectedClipId}
-              className="flex items-center gap-1.5 h-8.5 rounded-lg px-3 py-1.5 text-xs font-medium border border-neutral-300 bg-neutral-100 text-neutral-800 hover:bg-neutral-200 disabled:opacity-40 transition cursor-pointer dark:border-[#27272a] dark:bg-[#18181b] dark:text-neutral-200 dark:hover:bg-[#27272a]"
+              className="flex items-center gap-1.5 h-[34px] rounded-lg px-3 py-1.5 text-xs font-medium border border-neutral-300 bg-neutral-100 text-neutral-800 hover:bg-neutral-200 disabled:opacity-40 transition cursor-pointer dark:border-[#27272a] dark:bg-[#18181b] dark:text-neutral-200 dark:hover:bg-[#27272a]"
             >
               <AlignLeft className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Left (Q)</span>
@@ -121,7 +121,7 @@ export const Timeline: React.FC = () => {
             <button
               onClick={() => selectedClipId && splitRight(selectedClipId)}
               disabled={!selectedClipId}
-              className="flex items-center gap-1.5 h-8.5 rounded-lg px-3 py-1.5 text-xs font-medium border border-neutral-300 bg-neutral-100 text-neutral-800 hover:bg-neutral-200 disabled:opacity-40 transition cursor-pointer dark:border-[#27272a] dark:bg-[#18181b] dark:text-neutral-200 dark:hover:bg-[#27272a]"
+              className="flex items-center gap-1.5 h-[34px] rounded-lg px-3 py-1.5 text-xs font-medium border border-neutral-300 bg-neutral-100 text-neutral-800 hover:bg-neutral-200 disabled:opacity-40 transition cursor-pointer dark:border-[#27272a] dark:bg-[#18181b] dark:text-neutral-200 dark:hover:bg-[#27272a]"
             >
               <AlignRight className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Right (W)</span>
@@ -133,7 +133,7 @@ export const Timeline: React.FC = () => {
             <button
               onClick={() => selectedClipId && isVideoSelected && extractAudio(selectedClipId)}
               disabled={!selectedClipId || !isVideoSelected}
-              className="flex items-center gap-1.5 h-8.5 rounded-lg px-3 py-1.5 text-xs font-medium border border-neutral-300 bg-neutral-100 text-emerald-600 hover:bg-emerald-500/10 disabled:opacity-40 transition cursor-pointer dark:border-[#27272a] dark:bg-[#18181b] dark:text-emerald-400 dark:hover:bg-emerald-500/15"
+              className="flex items-center gap-1.5 h-[34px] rounded-lg px-3 py-1.5 text-xs font-medium border border-neutral-300 bg-neutral-100 text-emerald-600 hover:bg-emerald-500/10 disabled:opacity-40 transition cursor-pointer dark:border-[#27272a] dark:bg-[#18181b] dark:text-emerald-400 dark:hover:bg-emerald-500/15"
             >
               <Link2 className="h-3.5 w-3.5" />
               <span className="hidden md:inline">Extract Audio</span>
@@ -145,7 +145,7 @@ export const Timeline: React.FC = () => {
             <button
               onClick={() => selectedClipId && duplicateClip(selectedClipId)}
               disabled={!selectedClipId}
-              className="flex items-center gap-1.5 h-8.5 rounded-lg px-3 py-1.5 text-xs font-medium border border-neutral-300 bg-neutral-100 text-neutral-800 hover:bg-neutral-200 disabled:opacity-40 transition cursor-pointer dark:border-[#27272a] dark:bg-[#18181b] dark:text-neutral-200 dark:hover:bg-[#27272a]"
+              className="flex items-center gap-1.5 h-[34px] rounded-lg px-3 py-1.5 text-xs font-medium border border-neutral-300 bg-neutral-100 text-neutral-800 hover:bg-neutral-200 disabled:opacity-40 transition cursor-pointer dark:border-[#27272a] dark:bg-[#18181b] dark:text-neutral-200 dark:hover:bg-[#27272a]"
             >
               <Copy className="h-3.5 w-3.5" />
               <span className="hidden md:inline">Duplicate</span>
@@ -157,7 +157,7 @@ export const Timeline: React.FC = () => {
             <button
               onClick={() => selectedClipId && rippleDelete(selectedClipId)}
               disabled={!selectedClipId}
-              className="flex items-center gap-1.5 h-8.5 rounded-lg px-3 py-1.5 text-xs font-medium border border-neutral-300 bg-neutral-100 text-amber-600 hover:bg-amber-500/10 disabled:opacity-40 transition cursor-pointer dark:border-[#27272a] dark:bg-[#18181b] dark:text-amber-400 dark:hover:bg-amber-500/15"
+              className="flex items-center gap-1.5 h-[34px] rounded-lg px-3 py-1.5 text-xs font-medium border border-neutral-300 bg-neutral-100 text-amber-600 hover:bg-amber-500/10 disabled:opacity-40 transition cursor-pointer dark:border-[#27272a] dark:bg-[#18181b] dark:text-amber-400 dark:hover:bg-amber-500/15"
             >
               <Sparkles className="h-3.5 w-3.5" />
               <span className="hidden md:inline">Ripple Del</span>
@@ -169,7 +169,7 @@ export const Timeline: React.FC = () => {
             <button
               onClick={() => selectedClipId && deleteClip(selectedClipId)}
               disabled={!selectedClipId}
-              className="flex items-center justify-center h-8.5 w-8.5 rounded-lg border border-neutral-300 bg-neutral-100 text-red-500 hover:bg-red-500/10 disabled:opacity-40 transition cursor-pointer dark:border-[#27272a] dark:bg-[#18181b] dark:hover:bg-red-500/15"
+              className="flex items-center justify-center h-[34px] w-[34px] rounded-lg border border-neutral-300 bg-neutral-100 text-red-500 hover:bg-red-500/10 disabled:opacity-40 transition cursor-pointer dark:border-[#27272a] dark:bg-[#18181b] dark:hover:bg-red-500/15"
             >
               <Trash2 className="h-3.5 w-3.5" />
             </button>
@@ -181,7 +181,7 @@ export const Timeline: React.FC = () => {
           <Tooltip content="Add bookmark" shortcut="M" side="top">
             <button
               onClick={() => addMarker(playhead)}
-              className="flex items-center gap-1.5 h-8.5 rounded-lg px-3 py-1.5 text-xs font-medium border border-neutral-300 bg-neutral-100 text-blue-600 hover:bg-blue-500/10 transition cursor-pointer dark:border-[#27272a] dark:bg-[#18181b] dark:text-blue-400 dark:hover:bg-blue-500/15"
+              className="flex items-center gap-1.5 h-[34px] rounded-lg px-3 py-1.5 text-xs font-medium border border-neutral-300 bg-neutral-100 text-blue-600 hover:bg-blue-500/10 transition cursor-pointer dark:border-[#27272a] dark:bg-[#18181b] dark:text-blue-400 dark:hover:bg-blue-500/15"
             >
               <Bookmark className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Marker</span>
@@ -192,7 +192,7 @@ export const Timeline: React.FC = () => {
           <Tooltip content={isSnapping ? "Auto snapping ON" : "Auto snapping OFF"} side="top">
             <button
               onClick={toggleSnapping}
-              className={`flex items-center gap-1.5 h-8.5 rounded-lg px-3.5 py-1.5 text-xs font-semibold border transition cursor-pointer ${
+              className={`flex items-center gap-1.5 h-[34px] rounded-lg px-3.5 py-1.5 text-xs font-semibold border transition cursor-pointer ${
                 isSnapping
                   ? 'border-neutral-900 bg-neutral-900 text-white shadow-xs dark:border-white dark:bg-white dark:text-neutral-950'
                   : 'border-neutral-300 bg-neutral-100 text-neutral-700 hover:bg-neutral-200 hover:text-neutral-950 dark:border-[#27272a] dark:bg-[#18181b] dark:text-neutral-300 dark:hover:bg-[#27272a] dark:hover:text-white'
@@ -208,7 +208,7 @@ export const Timeline: React.FC = () => {
             <Tooltip content="Add Video Track" side="top">
               <button
                 onClick={() => addTrack('video')}
-                className="flex items-center gap-1.5 rounded-lg border border-neutral-300 bg-neutral-100 px-3.5 py-1.5 h-8.5 text-xs font-semibold text-blue-600 hover:bg-blue-500/10 transition cursor-pointer dark:border-[#27272a] dark:bg-[#18181b] dark:text-blue-400 dark:hover:bg-blue-500/15"
+                className="flex items-center gap-1.5 rounded-lg border border-neutral-300 bg-neutral-100 px-3.5 py-1.5 h-[34px] text-xs font-semibold text-blue-600 hover:bg-blue-500/10 transition cursor-pointer dark:border-[#27272a] dark:bg-[#18181b] dark:text-blue-400 dark:hover:bg-blue-500/15"
               >
                 <Plus className="h-3.5 w-3.5" />
                 <span>Video</span>
@@ -218,7 +218,7 @@ export const Timeline: React.FC = () => {
             <Tooltip content="Add Audio Track" side="top">
               <button
                 onClick={() => addTrack('audio')}
-                className="flex items-center gap-1.5 rounded-lg border border-neutral-300 bg-neutral-100 px-3.5 py-1.5 h-8.5 text-xs font-semibold text-emerald-600 hover:bg-emerald-500/10 transition cursor-pointer dark:border-[#27272a] dark:bg-[#18181b] dark:text-emerald-400 dark:hover:bg-emerald-500/15"
+                className="flex items-center gap-1.5 rounded-lg border border-neutral-300 bg-neutral-100 px-3.5 py-1.5 h-[34px] text-xs font-semibold text-emerald-600 hover:bg-emerald-500/10 transition cursor-pointer dark:border-[#27272a] dark:bg-[#18181b] dark:text-emerald-400 dark:hover:bg-emerald-500/15"
               >
                 <Plus className="h-3.5 w-3.5" />
                 <span>Audio</span>
@@ -228,7 +228,7 @@ export const Timeline: React.FC = () => {
             <Tooltip content="Add Text Track" side="top">
               <button
                 onClick={() => addTrack('text')}
-                className="flex items-center gap-1.5 rounded-lg border border-neutral-300 bg-neutral-100 px-3.5 py-1.5 h-8.5 text-xs font-semibold text-amber-600 hover:bg-amber-500/10 transition cursor-pointer dark:border-[#27272a] dark:bg-[#18181b] dark:text-amber-400 dark:hover:bg-amber-500/15"
+                className="flex items-center gap-1.5 rounded-lg border border-neutral-300 bg-neutral-100 px-3.5 py-1.5 h-[34px] text-xs font-semibold text-amber-600 hover:bg-amber-500/10 transition cursor-pointer dark:border-[#27272a] dark:bg-[#18181b] dark:text-amber-400 dark:hover:bg-amber-500/15"
               >
                 <Plus className="h-3.5 w-3.5" />
                 <span>Text</span>
