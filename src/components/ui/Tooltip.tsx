@@ -136,12 +136,12 @@ export const Tooltip: React.FC<TooltipProps> = ({
               transform: coords.transform,
               zIndex: 99999,
             }}
-            className="pointer-events-none flex items-center whitespace-nowrap rounded-sm border border-neutral-300 bg-white px-3 py-1.5 text-xs font-medium text-neutral-900 shadow-md transition-opacity duration-100 animate-in fade-in zoom-in-95 dark:border-[#2e2e34] dark:bg-[#18181b] dark:text-[#f4f4f5]"
+            className="pointer-events-none flex items-center whitespace-nowrap rounded-md border px-2.5 py-1 text-xs font-medium shadow-xl transition-opacity duration-100 animate-in fade-in zoom-in-95 bg-neutral-900 text-white border-neutral-800 dark:bg-white dark:text-neutral-900 dark:border-neutral-200"
           >
             <span>
               {content}
               {shortcut && (
-                <span className="ml-1.5 text-neutral-500 dark:text-neutral-400 font-mono text-[11px]">
+                <span className="ml-1.5 font-mono text-[10px] text-neutral-400 dark:text-neutral-500">
                   ({shortcut})
                 </span>
               )}
@@ -149,16 +149,16 @@ export const Tooltip: React.FC<TooltipProps> = ({
 
             {/* Directional Arrow Pointers */}
             {side === 'right' && (
-              <span className="absolute -left-1 top-1/2 -translate-y-1/2 border-y-[4px] border-r-[4px] border-y-transparent border-r-white dark:border-r-[#18181b]" />
+              <span className="absolute -left-1 top-1/2 -translate-y-1/2 border-y-[4px] border-r-[4px] border-y-transparent border-r-neutral-900 dark:border-r-white" />
             )}
             {side === 'left' && (
-              <span className="absolute -right-1 top-1/2 -translate-y-1/2 border-y-[4px] border-l-[4px] border-y-transparent border-l-white dark:border-l-[#18181b]" />
+              <span className="absolute -right-1 top-1/2 -translate-y-1/2 border-y-[4px] border-l-[4px] border-y-transparent border-l-neutral-900 dark:border-l-white" />
             )}
             {side === 'top' && (
-              <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 border-x-[4px] border-t-[4px] border-x-transparent border-t-white dark:border-t-[#18181b]" />
+              <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 border-x-[4px] border-t-[4px] border-x-transparent border-t-neutral-900 dark:border-t-white" />
             )}
             {side === 'bottom' && (
-              <span className="absolute -top-1 left-1/2 -translate-x-1/2 border-x-[4px] border-b-[4px] border-x-transparent border-b-white dark:border-b-[#18181b]" />
+              <span className="absolute -top-1 left-1/2 -translate-x-1/2 border-x-[4px] border-b-[4px] border-x-transparent border-b-neutral-900 dark:border-b-white" />
             )}
           </div>,
           document.body

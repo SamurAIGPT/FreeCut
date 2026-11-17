@@ -287,81 +287,57 @@ export const ClipItem: React.FC<ClipItemProps> = ({ clip, isLocked }) => {
         >
           <div className="h-3 w-0.5 rounded-full bg-neutral-400 dark:bg-white/40" />
           {trimTooltip && trimTooltip.side === 'left' && (
-            <div className="absolute -top-7 left-0 z-30 rounded-sm bg-white text-neutral-900 border border-neutral-300 px-1.5 py-0.5 text-[9px] font-mono shadow-md pointer-events-none whitespace-nowrap dark:bg-[#18181b] dark:text-white dark:border-[#2e2e34]">
+            <div className="absolute -top-7 left-0 z-30 rounded-md border px-1.5 py-0.5 text-[9px] font-mono shadow-xl pointer-events-none whitespace-nowrap bg-neutral-900 text-white border-neutral-800 dark:bg-white dark:text-neutral-900 dark:border-neutral-200">
               {trimTooltip.text}
             </div>
           )}
         </div>
 
         {/* Clip Body & Media Visuals */}
-        <div className="relative flex flex-1 size-full overflow-hidden">
-          {/* Top Header Label Bar (Video & Audio) */}
-          {clip.type !== 'text' && (
-            <div className={`absolute top-0 inset-x-0 flex h-5 items-center px-2 z-10 ${
-              clip.type === 'video'
-                ? 'bg-gradient-to-b from-slate-300/80 to-transparent dark:from-black/60 dark:to-transparent'
-                : 'bg-gradient-to-b from-black/40 to-transparent'
-            }`}>
-              <Icon className={`h-3 w-3 mr-1.5 shrink-0 ${
-                clip.type === 'video' ? 'text-slate-700 dark:text-white/70' : 'text-white/80'
-              }`} />
-              <span className={`truncate text-[11px] font-medium leading-tight ${
-                clip.type === 'video' ? 'text-slate-900 dark:text-white/95' : 'text-white'
-              }`}>
-                {clip.name}
-              </span>
-              <span className={`shrink-0 font-mono text-[9px] ml-auto pl-1 ${
-                clip.type === 'video' ? 'text-slate-600 dark:text-white/50' : 'text-white/60'
-              }`}>
-                {clip.duration.toFixed(1)}s
-              </span>
-            </div>
-          )}
-
-          {/* Text Clip Content (Centered vertically) */}
-          {clip.type === 'text' && (
-            <div className="flex size-full items-center px-2.5 z-10">
-              <Type className="h-3.5 w-3.5 text-white/90 mr-1.5 shrink-0" />
-              <span className="truncate text-xs font-semibold text-white leading-none">
-                {clip.name}
-              </span>
-              <span className="shrink-0 font-mono text-[9px] text-white/70 ml-auto pl-1">
-                {clip.duration.toFixed(1)}s
-              </span>
-            </div>
-          )}
-
-          {/* Audio Waveform Canvas/Bars (Strictly positioned below the top header: top-5 to bottom-1) */}
+        <div className="relative flex flex-1 size-full items-center px-2 overflow-hidden">
+          {/* Audio Waveform Canvas/Bars (fills background of audio clips) */}
           {clip.type === 'audio' && (
-            <div className="pointer-events-none absolute inset-x-2 top-5 bottom-1 flex items-center justify-between">
+            <div className="pointer-events-none absolute inset-x-2 inset-y-1 flex items-center justify-between opacity-50 dark:opacity-40">
               {Array.from({ length: Math.min(80, Math.floor(clipWidth / 4)) }).map((_, i) => {
                 const h = 25 + Math.sin(i * 0.5) * 45 + Math.cos(i * 1.2) * 25 + (i % 4) * 8;
                 return (
                   <div
                     key={i}
-                    style={{ height: `${Math.max(15, Math.min(95, h))}%` }}
-                    className="w-0.5 rounded-full bg-white/80"
+                    style={{ height: `${Math.max(20, Math.min(95, h))}%` }}
+                    className="w-0.5 rounded-full bg-white"
                   />
                 );
               })}
             </div>
           )}
 
-          {/* Video Filmstrip frame indicators */}
-          {clip.type === 'video' && (
-            <div className="pointer-events-none absolute inset-x-0 top-5 bottom-0 flex items-center gap-1.5 px-2 overflow-hidden opacity-30 dark:opacity-25">
-              {Array.from({ length: Math.min(15, Math.floor(clipWidth / 56)) }).map((_, i) => (
-                <div key={i} className="h-8 w-12 rounded-xs border border-slate-400/40 bg-white/60 flex items-center justify-center shrink-0 dark:border-white/20 dark:bg-black/50">
-                  <Film className="h-3.5 w-3.5 text-slate-500 dark:text-white/50" />
-                </div>
-              ))}
-            </div>
-          )}
+          {/* Clean Single-Line Clip Header: Icon + Name + Duration */}
+          <div className="relative z-10 flex w-full items-center gap-1.5 overflow-hidden">
+            <Icon className={`h-3 w-3 shrink-0 ${
+              clip.type === 'video'
+                ? 'text-slate-700 dark:text-white/80'
+                : 'text-white/90'
+            }`} />
+            <span className={`truncate text-xs font-semibold leading-none ${
+              clip.type === 'video'
+                ? 'text-slate-900 dark:text-white'
+                : 'text-white'
+            }`}>
+              {clip.name}
+            </span>
+            <span className={`shrink-0 font-mono text-[9px] ml-auto pl-1 ${
+              clip.type === 'video'
+                ? 'text-slate-600 dark:text-white/60'
+                : 'text-white/75'
+            }`}>
+              {clip.duration.toFixed(1)}s
+            </span>
+          </div>
 
           {/* Audio Volume Line Overlay */}
           {clip.type === 'audio' && (
             <div
-              style={{ bottom: `${(clip.volume || 1) * 60}%` }}
+              style={{ bottom: `${(clip.volume || 1) * 70}%` }}
               className="pointer-events-none absolute inset-x-0 h-px bg-white/40 border-t border-dashed border-white/60"
             />
           )}
@@ -375,7 +351,7 @@ export const ClipItem: React.FC<ClipItemProps> = ({ clip, isLocked }) => {
         >
           <div className="h-3 w-0.5 rounded-full bg-neutral-400 dark:bg-white/40" />
           {trimTooltip && trimTooltip.side === 'right' && (
-            <div className="absolute -top-7 right-0 z-30 rounded-sm bg-white text-neutral-900 border border-neutral-300 px-1.5 py-0.5 text-[9px] font-mono shadow-md pointer-events-none whitespace-nowrap dark:bg-[#18181b] dark:text-white dark:border-[#2e2e34]">
+            <div className="absolute -top-7 right-0 z-30 rounded-md border px-1.5 py-0.5 text-[9px] font-mono shadow-xl pointer-events-none whitespace-nowrap bg-neutral-900 text-white border-neutral-800 dark:bg-white dark:text-neutral-900 dark:border-neutral-200">
               {trimTooltip.text}
             </div>
           )}

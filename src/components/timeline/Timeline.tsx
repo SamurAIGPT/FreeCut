@@ -51,10 +51,11 @@ export const Timeline: React.FC = () => {
     setZoom(Math.round(newZoom));
   };
 
-  const timelineHeight = tracks.length * 64 + 32;
+  const TRACK_HEIGHT = 40;
+  const timelineHeight = tracks.length * TRACK_HEIGHT + 32;
 
   return (
-    <div className="flex h-64 sm:h-72 lg:h-80 w-full shrink-0 flex-col border-t border-app-border bg-app-bg select-none transition-colors duration-200">
+    <div className="flex h-56 sm:h-64 lg:h-72 w-full shrink-0 flex-col border-t border-app-border bg-app-bg select-none transition-colors duration-200">
       {/* Timeline Pro Control Bar */}
       <div className="flex h-11 w-full items-center justify-between border-b border-app-border bg-app-surface px-3 gap-2 overflow-x-auto scrollbar-hidden">
         {/* Left Section: Labeled & Icon Editing Tools with Hover Tooltips */}
@@ -279,7 +280,7 @@ export const Timeline: React.FC = () => {
       {/* Main Timeline Workspace (Fixed Left Headers + Horizontally Scrollable Lanes) */}
       <div className="relative flex flex-1 min-h-0 w-full overflow-hidden">
         {/* Left Track Control Headers */}
-        <div className="flex w-80 shrink-0 flex-col border-r border-app-border bg-app-surface select-none z-30 transition-colors duration-200">
+        <div className="flex w-60 shrink-0 flex-col border-r border-app-border bg-app-surface select-none z-30 transition-colors duration-200">
           <div className="flex h-8 items-center justify-between border-b border-app-border px-3 text-[11px] font-bold tracking-wider text-app-text-muted uppercase">
             <span>Tracks ({tracks.length})</span>
             <span className="font-mono text-[9px] opacity-60 lowercase">scroll ↕</span>
@@ -329,11 +330,12 @@ export const Timeline: React.FC = () => {
                 <div
                   key={track.id}
                   data-track-id={track.id}
-                  className="relative h-16 border-b border-neutral-200 bg-white/70 hover:bg-white transition-colors dark:border-[#222226] dark:bg-[#0c0c0e]/80 dark:hover:bg-[#141418]"
+                  style={{ height: `${TRACK_HEIGHT}px` }}
+                  className="relative border-b border-neutral-200 bg-white/70 hover:bg-white transition-colors dark:border-[#222226] dark:bg-[#0c0c0e]/80 dark:hover:bg-[#141418]"
                 >
                   {/* Empty Track Dashed Dropzone */}
                   {isTrackEmpty && (
-                    <div className="pointer-events-none absolute inset-x-3 inset-y-2 flex items-center justify-center rounded-lg border border-dashed border-neutral-300 text-[10px] text-neutral-400 dark:border-neutral-800 dark:text-neutral-600">
+                    <div className="pointer-events-none absolute inset-x-3 inset-y-1 flex items-center justify-center rounded border border-dashed border-neutral-300 text-[10px] text-neutral-400 dark:border-neutral-800 dark:text-neutral-500">
                       Empty {track.type} track — Drag clips here or add from left panel
                     </div>
                   )}
