@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { AspectRatio, Clip, ClipMask, ColorFilter, MediaAsset, SidebarTab, TimelineMarker, Track, TrackType, Transform } from '@/types/editor';
+import { AspectRatio, Clip, ClipEffect, ClipMask, ColorFilter, MediaAsset, SidebarTab, TimelineMarker, Track, TrackType, Transform } from '@/types/editor';
 
 interface HistorySnapshot {
   tracks: Track[];
@@ -79,6 +79,11 @@ interface EditorState {
   updateClipTransform: (id: string, updates: Partial<Transform>) => void;
   updateClipFilter: (id: string, updates: Partial<ColorFilter>) => void;
   updateClipMask: (id: string, updates: Partial<ClipMask> | null) => void;
+  addClipEffect: (clipId: string, effect: Omit<ClipEffect, 'id'>) => void;
+  updateClipEffect: (clipId: string, effectId: string, updates: Partial<ClipEffect>) => void;
+  removeClipEffect: (clipId: string, effectId: string) => void;
+  toggleClipEffect: (clipId: string, effectId: string) => void;
+  reorderClipEffects: (clipId: string, fromIndex: number, toIndex: number) => void;
   toggleClipKeyframe: (id: string, property: string) => void;
   splitClip: (clipId: string, splitTime?: number) => void;
   splitLeft: (clipId: string) => void;
@@ -399,6 +404,78 @@ export const useEditorStore = create<EditorState>((set, get) => ({
             ...updates,
           },
         };
+      }),
+    });
+  },
+
+  addClipEffect: (clipId, effectData) => {
+    const state = get();
+    const newEffect: ClipEffect = {
+      ...effectData,
+      id: `effect-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+    };
+    set({
+      clips: state.clips.map((c) =>
+        c.id === clipId
+          ? { ...c, effects: [...(c.effects || []), newEffect] }
+          : c
+      ),
+    });
+  },
+
+  updateClipEffect: (clipId, effectId, updates) => {
+    const state = get();
+    set({
+      clips: state.clips.map((c) =>
+        c.id === clipId
+          ? {
+              ...c,
+              effects: (c.effects || []).map((eff) =>
+                eff.id === effectId ? { ...eff, ...updates } : eff
+              ),
+            }
+          : c
+      ),
+    });
+  },
+
+  removeClipEffect: (clipId, effectId) => {
+    const state = get();
+    set({
+      clips: state.clips.map((c) =>
+        c.id === clipId
+          ? { ...c, effects: (c.effects || []).filter((eff) => eff.id !== effectId) }
+          : c
+      ),
+    });
+  },
+
+  toggleClipEffect: (clipId, effectId) => {
+    const state = get();
+    set({
+      clips: state.clips.map((c) =>
+        c.id === clipId
+          ? {
+              ...c,
+              effects: (c.effects || []).map((eff) =>
+                eff.id === effectId ? { ...eff, enabled: !eff.enabled } : eff
+              ),
+            }
+          : c
+      ),
+    });
+  },
+
+  reorderClipEffects: (clipId, fromIndex, toIndex) => {
+    const state = get();
+    set({
+      clips: state.clips.map((c) => {
+        if (c.id !== clipId) return c;
+        const current = [...(c.effects || [])];
+        if (fromIndex < 0 || fromIndex >= current.length || toIndex < 0 || toIndex >= current.length) return c;
+        const [moved] = current.splice(fromIndex, 1);
+        current.splice(toIndex, 0, moved);
+        return { ...c, effects: current };
       }),
     });
   },

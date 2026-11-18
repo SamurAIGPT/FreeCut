@@ -1,26 +1,36 @@
 import React, { useState } from 'react';
 import { 
-  Move, RotateCw, Volume2, VolumeX, Type, Sliders, Trash2, Gauge, 
-  Palette, Layers, RefreshCw, Blend, CaseSensitive, Droplet, 
-  Sparkles, Wand2, Square, Circle, Star, Heart, Diamond, 
-  AlignLeft, AlignCenter, AlignRight, FlipHorizontal 
+  Move, Volume2, VolumeX, Gauge, Droplet, Layers, Sparkles, Type, 
+  Trash2, Diamond, Link2, Unlink2, FlipHorizontal, FlipVertical, 
+  Plus, Eye, EyeOff, AlignLeft, AlignCenter, AlignRight, Bold, 
+  Italic, Underline, Strikethrough, Split, Square, Circle, Heart, 
+  Star, Film, Music, SlidersHorizontal
 } from 'lucide-react';
 import { useEditorStore } from '@/store/useEditorStore';
-import { ClipMask, ColorFilter, MaskType, Transform } from '@/types/editor';
+import { ClipMask, ClipEffect, MaskType, Transform } from '@/types/editor';
 import { CustomSelect, SelectOption } from '@/components/ui/CustomSelect';
 import { Tooltip } from '@/components/ui/Tooltip';
+import { NumberField } from '@/components/ui/NumberField';
+import { formatDuration } from '@/utils/time';
 
 const BLEND_MODE_OPTIONS: SelectOption<GlobalCompositeOperation>[] = [
   { value: 'source-over', label: 'Normal', description: 'Standard layer opacity' },
-  { value: 'screen', label: 'Screen (Lighten)', description: 'Best for fire, lens flares, explosions' },
-  { value: 'multiply', label: 'Multiply (Darken)', description: 'Best for textures and shadows' },
-  { value: 'overlay', label: 'Overlay', description: 'Dynamic contrast blending' },
-  { value: 'lighter', label: 'Add / Glow', description: 'Vibrant luminescent glow effect' },
   { value: 'darken', label: 'Darken', description: 'Keeps only darkest pixels' },
+  { value: 'multiply', label: 'Multiply', description: 'Best for textures and shadows' },
+  { value: 'color-burn', label: 'Color Burn', description: 'Darkens base color with high contrast' },
   { value: 'lighten', label: 'Lighten', description: 'Keeps only lightest pixels' },
+  { value: 'screen', label: 'Screen', description: 'Best for fire, lens flares, explosions' },
+  { value: 'lighter', label: 'Plus Lighter / Add', description: 'Vibrant luminescent glow effect' },
   { value: 'color-dodge', label: 'Color Dodge', description: 'Brightens underlying color' },
-  { value: 'difference', label: 'Invert Difference', description: 'High-contrast inverted stylization' },
+  { value: 'overlay', label: 'Overlay', description: 'Dynamic contrast blending' },
+  { value: 'soft-light', label: 'Soft Light', description: 'Subtle contrast and diffused lighting' },
+  { value: 'hard-light', label: 'Hard Light', description: 'Strong contrast and intense speculars' },
+  { value: 'difference', label: 'Difference', description: 'High-contrast inverted stylization' },
   { value: 'exclusion', label: 'Exclusion', description: 'Softer difference mode' },
+  { value: 'hue', label: 'Hue', description: 'Preserves luminance & saturation with new hue' },
+  { value: 'saturation', label: 'Saturation', description: 'Preserves luminance & hue with new saturation' },
+  { value: 'color', label: 'Color', description: 'Preserves luminance with new hue and saturation' },
+  { value: 'luminosity', label: 'Luminosity', description: 'Preserves hue and saturation with new luminance' },
 ];
 
 const FONT_OPTIONS: SelectOption<string>[] = [
@@ -29,6 +39,28 @@ const FONT_OPTIONS: SelectOption<string>[] = [
   { value: 'Impact, sans-serif', label: 'Impact Display', description: 'Punchy heavy titles' },
   { value: 'Georgia, serif', label: 'Georgia Serif', description: 'Classic editorial serif' },
   { value: 'system-ui, sans-serif', label: 'System Default', description: 'Native operating system' },
+];
+
+const MASK_TYPE_OPTIONS: { type: MaskType; name: string; icon: React.ComponentType<{ className?: string }> }[] = [
+  { type: 'rectangle', name: 'Rectangle', icon: Square },
+  { type: 'ellipse', name: 'Circle / Ellipse', icon: Circle },
+  { type: 'split', name: 'Split Line', icon: Split },
+  { type: 'cinematic-bars', name: 'Cinematic Bars', icon: Film },
+  { type: 'diamond', name: 'Diamond', icon: Diamond },
+  { type: 'star', name: 'Star', icon: Star },
+  { type: 'heart', name: 'Heart', icon: Heart },
+  { type: 'text', name: 'Text Mask', icon: Type },
+];
+
+const EFFECT_CATALOG: { type: ClipEffect['type']; name: string; defaultParam: Partial<ClipEffect> }[] = [
+  { type: 'blur', name: 'Gaussian Blur', defaultParam: { intensity: 15 } },
+  { type: 'brightness', name: 'Brightness', defaultParam: { value: 120 } },
+  { type: 'contrast', name: 'Contrast', defaultParam: { value: 125 } },
+  { type: 'saturation', name: 'Saturation', defaultParam: { value: 130 } },
+  { type: 'grayscale', name: 'Grayscale', defaultParam: { value: 100 } },
+  { type: 'sepia', name: 'Sepia Tone', defaultParam: { value: 80 } },
+  { type: 'invert', name: 'Invert Color', defaultParam: { value: 100 } },
+  { type: 'hue-rotate', name: 'Hue Rotation', defaultParam: { value: 90 } },
 ];
 
 type InspectorTabId = 'transform' | 'audio' | 'speed' | 'blending' | 'masks' | 'effects' | 'text';
@@ -41,14 +73,20 @@ interface TabDef {
 
 export const InspectorPanel: React.FC = () => {
   const [activeTab, setActiveTab] = useState<InspectorTabId>('transform');
+  const [isScaleLocked, setIsScaleLocked] = useState(true);
+  const [isAddMaskOpen, setIsAddMaskOpen] = useState(false);
+  const [isAddEffectOpen, setIsAddEffectOpen] = useState(false);
 
   const selectedClipId = useEditorStore((s) => s.selectedClipId);
   const clips = useEditorStore((s) => s.clips);
   const tracks = useEditorStore((s) => s.tracks);
   const updateClip = useEditorStore((s) => s.updateClip);
   const updateClipTransform = useEditorStore((s) => s.updateClipTransform);
-  const updateClipFilter = useEditorStore((s) => s.updateClipFilter);
   const updateClipMask = useEditorStore((s) => s.updateClipMask);
+  const addClipEffect = useEditorStore((s) => s.addClipEffect);
+  const updateClipEffect = useEditorStore((s) => s.updateClipEffect);
+  const removeClipEffect = useEditorStore((s) => s.removeClipEffect);
+  const toggleClipEffect = useEditorStore((s) => s.toggleClipEffect);
   const toggleClipKeyframe = useEditorStore((s) => s.toggleClipKeyframe);
   const deleteClip = useEditorStore((s) => s.deleteClip);
 
@@ -109,7 +147,7 @@ export const InspectorPanel: React.FC = () => {
       <aside className="flex h-full min-h-0 w-80 shrink-0 flex-col border-l border-app-border bg-app-surface select-none overflow-hidden transition-colors duration-200">
         <div className="flex flex-1 flex-col items-center justify-center p-6 text-center text-app-text-muted">
           <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-app-border bg-app-elevated text-app-text-muted shadow-sm">
-            <Sliders className="h-6 w-6 stroke-[1.5]" />
+            <SlidersHorizontal className="h-6 w-6 stroke-[1.5]" />
           </div>
           <h3 className="mt-3 text-sm font-semibold text-app-text">No Clip Selected</h3>
           <p className="mt-1.5 text-xs text-app-text-muted max-w-[220px] leading-relaxed">
@@ -120,18 +158,20 @@ export const InspectorPanel: React.FC = () => {
     );
   }
 
-  const transform: Transform = clip.transform || { x: 0, y: 0, scale: 1, rotation: 0, opacity: 1 };
-  const filter: ColorFilter = clip.filter || { brightness: 1, contrast: 1, saturation: 1, blur: 0 };
+  const transform: Transform = clip.transform || { x: 0, y: 0, scale: 1, scaleX: 1, scaleY: 1, rotation: 0, opacity: 1 };
   const mask: ClipMask = clip.mask || {
     type: 'none',
     x: 0,
     y: 0,
     width: 360,
     height: 240,
+    scale: 1,
     radius: 0,
     feather: 0,
     inverted: false,
+    rotation: 0,
   };
+  const effects: ClipEffect[] = clip.effects || [];
   const keyframedProps = clip.keyframedProps || [];
 
   const isKeyframed = (prop: string) => keyframedProps.includes(prop);
@@ -169,7 +209,7 @@ export const InspectorPanel: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex h-9 w-9 items-center justify-center rounded-lg transition cursor-pointer ${
+                className={`flex h-8 w-8 items-center justify-center rounded-md transition cursor-pointer ${
                   isActive
                     ? 'border border-blue-500/20 bg-blue-500/10 text-blue-600 dark:border-blue-400/20 dark:bg-blue-400/15 dark:text-blue-400 shadow-xs font-semibold'
                     : 'text-neutral-500 hover:bg-app-elevated hover:text-app-text dark:text-neutral-400'
@@ -212,473 +252,218 @@ export const InspectorPanel: React.FC = () => {
             <div className="space-y-3.5">
               <div className="flex items-center justify-between border-b border-app-border pb-1">
                 <span className="text-xs font-bold text-app-text tracking-wider uppercase">Transform</span>
-                <button
-                  onClick={() => updateClipTransform(clip.id, { x: 0, y: 0, scale: 1, scaleX: 1, scaleY: 1, rotation: 0 })}
-                  title="Reset Transform"
-                  className="flex items-center gap-1 text-[10px] text-app-text-muted hover:text-app-text transition cursor-pointer"
-                >
-                  <RefreshCw className="h-2.5 w-2.5" />
-                  <span>Reset</span>
-                </button>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setIsScaleLocked(!isScaleLocked)}
+                    title={isScaleLocked ? 'Aspect Ratio Locked (Scale X & Y synced)' : 'Aspect Ratio Unlocked'}
+                    className={`flex items-center justify-center h-6 w-6 rounded transition cursor-pointer ${
+                      isScaleLocked ? 'bg-blue-500/15 text-blue-500' : 'text-app-text-muted hover:bg-app-elevated'
+                    }`}
+                  >
+                    {isScaleLocked ? <Link2 className="h-3.5 w-3.5" /> : <Unlink2 className="h-3.5 w-3.5" />}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const cur = transform.scaleX ?? transform.scale ?? 1;
+                      updateClipTransform(clip.id, { scaleX: -cur });
+                    }}
+                    title="Flip Horizontal"
+                    className="flex items-center justify-center h-6 w-6 rounded text-app-text-muted hover:bg-app-elevated hover:text-app-text transition cursor-pointer"
+                  >
+                    <FlipHorizontal className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const cur = transform.scaleY ?? transform.scale ?? 1;
+                      updateClipTransform(clip.id, { scaleY: -cur });
+                    }}
+                    title="Flip Vertical"
+                    className="flex items-center justify-center h-6 w-6 rounded text-app-text-muted hover:bg-app-elevated hover:text-app-text transition cursor-pointer"
+                  >
+                    <FlipVertical className="h-3.5 w-3.5" />
+                  </button>
+                </div>
               </div>
 
               {/* Position X */}
               <div className="space-y-1.5">
                 {renderFieldHeader('transform.positionX', 'Position X')}
-                <div className="flex items-center rounded-lg border border-app-border bg-app-elevated px-3 py-1.5 focus-within:border-neutral-400 dark:focus-within:border-neutral-500 transition">
-                  <input
-                    type="number"
-                    value={Math.round(transform.x)}
-                    onChange={(e) => updateClipTransform(clip.id, { x: Number(e.target.value) })}
-                    className="w-full bg-transparent font-mono text-xs text-app-text focus:outline-none"
-                  />
-                  <span className="text-[10px] text-app-text-muted ml-1">px</span>
-                </div>
+                <NumberField
+                  value={transform.x}
+                  defaultValue={0}
+                  step={1}
+                  suffix="px"
+                  icon="X"
+                  onChange={(val) => updateClipTransform(clip.id, { x: val })}
+                  onReset={() => updateClipTransform(clip.id, { x: 0 })}
+                />
               </div>
 
               {/* Position Y */}
               <div className="space-y-1.5">
                 {renderFieldHeader('transform.positionY', 'Position Y')}
-                <div className="flex items-center rounded-lg border border-app-border bg-app-elevated px-3 py-1.5 focus-within:border-neutral-400 dark:focus-within:border-neutral-500 transition">
-                  <input
-                    type="number"
-                    value={Math.round(transform.y)}
-                    onChange={(e) => updateClipTransform(clip.id, { y: Number(e.target.value) })}
-                    className="w-full bg-transparent font-mono text-xs text-app-text focus:outline-none"
-                  />
-                  <span className="text-[10px] text-app-text-muted ml-1">px</span>
-                </div>
+                <NumberField
+                  value={transform.y}
+                  defaultValue={0}
+                  step={1}
+                  suffix="px"
+                  icon="Y"
+                  onChange={(val) => updateClipTransform(clip.id, { y: val })}
+                  onReset={() => updateClipTransform(clip.id, { y: 0 })}
+                />
               </div>
 
               {/* Scale X */}
               <div className="space-y-1.5">
                 {renderFieldHeader('transform.scaleX', 'Scale X')}
-                <div className="flex items-center rounded-lg border border-app-border bg-app-elevated px-3 py-1.5 focus-within:border-neutral-400 dark:focus-within:border-neutral-500 transition">
-                  <input
-                    type="number"
-                    step="0.05"
-                    min="0.1"
-                    max="5.0"
-                    value={transform.scaleX !== undefined ? transform.scaleX : transform.scale}
-                    onChange={(e) => {
-                      const val = Number(e.target.value);
+                <NumberField
+                  value={transform.scaleX !== undefined ? transform.scaleX : transform.scale}
+                  defaultValue={1}
+                  step={0.01}
+                  min={0.01}
+                  max={20}
+                  dragSensitivity="slow"
+                  onChange={(val) => {
+                    if (isScaleLocked) {
+                      updateClipTransform(clip.id, { scale: val, scaleX: val, scaleY: val });
+                    } else {
                       updateClipTransform(clip.id, { scaleX: val });
-                    }}
-                    className="w-full bg-transparent font-mono text-xs text-app-text focus:outline-none"
-                  />
-                  <span className="text-[10px] text-app-text-muted ml-1">
-                    {Math.round(((transform.scaleX !== undefined ? transform.scaleX : transform.scale) * 100))}%
-                  </span>
-                </div>
+                    }
+                  }}
+                  onReset={() => {
+                    if (isScaleLocked) {
+                      updateClipTransform(clip.id, { scale: 1, scaleX: 1, scaleY: 1 });
+                    } else {
+                      updateClipTransform(clip.id, { scaleX: 1 });
+                    }
+                  }}
+                />
               </div>
 
               {/* Scale Y */}
               <div className="space-y-1.5">
                 {renderFieldHeader('transform.scaleY', 'Scale Y')}
-                <div className="flex items-center rounded-lg border border-app-border bg-app-elevated px-3 py-1.5 focus-within:border-neutral-400 dark:focus-within:border-neutral-500 transition">
-                  <input
-                    type="number"
-                    step="0.05"
-                    min="0.1"
-                    max="5.0"
-                    value={transform.scaleY !== undefined ? transform.scaleY : transform.scale}
-                    onChange={(e) => {
-                      const val = Number(e.target.value);
+                <NumberField
+                  value={transform.scaleY !== undefined ? transform.scaleY : transform.scale}
+                  defaultValue={1}
+                  step={0.01}
+                  min={0.01}
+                  max={20}
+                  dragSensitivity="slow"
+                  onChange={(val) => {
+                    if (isScaleLocked) {
+                      updateClipTransform(clip.id, { scale: val, scaleX: val, scaleY: val });
+                    } else {
                       updateClipTransform(clip.id, { scaleY: val });
-                    }}
-                    className="w-full bg-transparent font-mono text-xs text-app-text focus:outline-none"
-                  />
-                  <span className="text-[10px] text-app-text-muted ml-1">
-                    {Math.round(((transform.scaleY !== undefined ? transform.scaleY : transform.scale) * 100))}%
-                  </span>
-                </div>
+                    }
+                  }}
+                  onReset={() => {
+                    if (isScaleLocked) {
+                      updateClipTransform(clip.id, { scale: 1, scaleX: 1, scaleY: 1 });
+                    } else {
+                      updateClipTransform(clip.id, { scaleY: 1 });
+                    }
+                  }}
+                />
               </div>
 
               {/* Rotate */}
               <div className="space-y-1.5">
                 {renderFieldHeader('transform.rotate', 'Rotate')}
-                <div className="flex items-center rounded-lg border border-app-border bg-app-elevated px-3 py-1.5 focus-within:border-neutral-400 dark:focus-within:border-neutral-500 transition">
-                  <input
-                    type="number"
-                    min="-360"
-                    max="360"
-                    value={transform.rotation}
-                    onChange={(e) => updateClipTransform(clip.id, { rotation: Number(e.target.value) })}
-                    className="w-full bg-transparent font-mono text-xs text-app-text focus:outline-none"
-                  />
-                  <span className="text-[10px] text-app-text-muted ml-1">°</span>
-                </div>
-              </div>
-
-              {/* Quick Scale Presets */}
-              <div className="pt-2 border-t border-app-border space-y-1.5">
-                <span className="text-[11px] font-semibold text-app-text-muted uppercase tracking-wider">Quick Scale</span>
-                <div className="grid grid-cols-4 gap-1.5">
-                  {[0.5, 1.0, 1.5, 2.0].map((s) => (
-                    <button
-                      key={s}
-                      onClick={() => updateClipTransform(clip.id, { scale: s, scaleX: s, scaleY: s })}
-                      className="rounded border border-app-border bg-app-elevated py-1 text-center font-mono text-[11px] text-app-text hover:bg-neutral-200 dark:hover:bg-neutral-800 transition cursor-pointer"
-                    >
-                      {Math.round(s * 100)}%
-                    </button>
-                  ))}
-                </div>
+                <NumberField
+                  value={transform.rotation}
+                  defaultValue={0}
+                  min={-360}
+                  max={360}
+                  step={1}
+                  suffix="°"
+                  onChange={(val) => updateClipTransform(clip.id, { rotation: val })}
+                  onReset={() => updateClipTransform(clip.id, { rotation: 0 })}
+                />
               </div>
             </div>
           )}
 
           {/* ===================== BLENDING TAB ===================== */}
           {activeTab === 'blending' && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between border-b border-app-border pb-1">
-                <span className="text-xs font-bold text-app-text tracking-wider uppercase">Blending & Opacity</span>
+            <div className="space-y-3.5">
+              <div className="border-b border-app-border pb-1">
+                <span className="text-xs font-bold text-app-text tracking-wider uppercase">Blending</span>
               </div>
 
               {/* Opacity */}
               <div className="space-y-1.5">
-                {renderFieldHeader('blending.opacity', 'Opacity')}
-                <div className="flex items-center gap-3">
-                  <input
-                    type="range"
-                    min={0}
-                    max={1}
-                    step={0.01}
-                    value={transform.opacity}
-                    onChange={(e) => updateClipTransform(clip.id, { opacity: Number(e.target.value) })}
-                    className="flex-1 accent-neutral-900 dark:accent-neutral-100"
-                  />
-                  <div className="flex w-16 items-center justify-center rounded-lg border border-app-border bg-app-elevated px-2 py-1 text-xs font-mono font-medium text-app-text">
-                    {Math.round(transform.opacity * 100)}%
-                  </div>
-                </div>
+                {renderFieldHeader('opacity', 'Opacity')}
+                <NumberField
+                  value={transform.opacity}
+                  defaultValue={1}
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  dragSensitivity="slow"
+                  onChange={(val) => updateClipTransform(clip.id, { opacity: val })}
+                  onReset={() => updateClipTransform(clip.id, { opacity: 1 })}
+                />
               </div>
 
-              {/* Compositing Blend Mode */}
-              <div className="space-y-1.5 pt-2 border-t border-app-border">
-                {renderFieldHeader('blending.blendMode', 'Blend Mode')}
+              {/* Blend Mode */}
+              <div className="space-y-1.5">
+                <span className="text-xs font-medium text-app-text">Blend Mode</span>
                 <CustomSelect<GlobalCompositeOperation>
                   value={clip.blendMode || 'source-over'}
                   onChange={(val) => updateClip(clip.id, { blendMode: val })}
                   options={BLEND_MODE_OPTIONS}
-                  icon={<Blend className="h-3.5 w-3.5" />}
                   className="w-full"
                 />
               </div>
             </div>
           )}
 
-          {/* ===================== MASKS TAB ===================== */}
-          {activeTab === 'masks' && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between border-b border-app-border pb-1">
-                <span className="text-xs font-bold text-app-text tracking-wider uppercase">Masks</span>
-                {mask.type !== 'none' && (
-                  <button
-                    onClick={() => updateClipMask(clip.id, { type: 'none' })}
-                    className="text-[10px] text-red-500 hover:underline cursor-pointer"
-                  >
-                    Clear Mask
-                  </button>
-                )}
-              </div>
-
-              {/* Mask Type Selector Buttons */}
-              <div className="space-y-1.5">
-                <span className="text-[11px] font-semibold text-app-text-muted">MASK SHAPE</span>
-                <div className="grid grid-cols-3 gap-1.5">
-                  {[
-                    { type: 'none', label: 'None', icon: Sliders },
-                    { type: 'rectangle', label: 'Rectangle', icon: Square },
-                    { type: 'circle', label: 'Circle', icon: Circle },
-                    { type: 'split', label: 'Linear', icon: AlignCenter },
-                    { type: 'star', label: 'Star', icon: Star },
-                    { type: 'heart', label: 'Heart', icon: Heart },
-                  ].map((m) => {
-                    const MIcon = m.icon;
-                    const isSelected = mask.type === m.type;
-
-                    return (
-                      <button
-                        key={m.type}
-                        type="button"
-                        onClick={() => updateClipMask(clip.id, { type: m.type as MaskType })}
-                        className={`flex flex-col items-center justify-center gap-1 rounded-lg border py-2 px-1 text-[11px] transition cursor-pointer ${
-                          isSelected
-                            ? 'border-blue-500 bg-blue-500/10 text-blue-600 dark:border-blue-400 dark:bg-blue-400/15 dark:text-blue-400 font-semibold shadow-xs'
-                            : 'border-app-border bg-app-elevated text-app-text hover:bg-neutral-200 dark:hover:bg-neutral-800'
-                        }`}
-                      >
-                        <MIcon className="h-4 w-4" />
-                        <span>{m.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Active Mask Parameters */}
-              {mask.type !== 'none' && (
-                <div className="space-y-3 pt-2 border-t border-app-border">
-                  {/* Invert Mask Toggle */}
-                  <div className="flex items-center justify-between rounded-lg border border-app-border bg-app-elevated p-2">
-                    <div className="flex items-center gap-2">
-                      <FlipHorizontal className="h-3.5 w-3.5 text-app-text-muted" />
-                      <span className="text-xs font-medium text-app-text">Invert Mask Area</span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => updateClipMask(clip.id, { inverted: !mask.inverted })}
-                      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                        mask.inverted ? 'bg-blue-600' : 'bg-neutral-300 dark:bg-neutral-700'
-                      }`}
-                    >
-                      <span
-                        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
-                          mask.inverted ? 'translate-x-4' : 'translate-x-0'
-                        }`}
-                      />
-                    </button>
-                  </div>
-
-                  {/* Mask Position X / Y */}
-                  <div className="space-y-1.5">
-                    {renderFieldHeader('mask.position', 'Mask Center (X, Y)')}
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="flex items-center rounded-lg border border-app-border bg-app-elevated px-2.5 py-1.5">
-                        <span className="text-[10px] text-app-text-muted mr-1.5">X</span>
-                        <input
-                          type="number"
-                          value={Math.round(mask.x)}
-                          onChange={(e) => updateClipMask(clip.id, { x: Number(e.target.value) })}
-                          className="w-full bg-transparent font-mono text-xs text-app-text focus:outline-none"
-                        />
-                      </div>
-                      <div className="flex items-center rounded-lg border border-app-border bg-app-elevated px-2.5 py-1.5">
-                        <span className="text-[10px] text-app-text-muted mr-1.5">Y</span>
-                        <input
-                          type="number"
-                          value={Math.round(mask.y)}
-                          onChange={(e) => updateClipMask(clip.id, { y: Number(e.target.value) })}
-                          className="w-full bg-transparent font-mono text-xs text-app-text focus:outline-none"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Mask Width / Height */}
-                  <div className="space-y-1.5">
-                    {renderFieldHeader('mask.size', 'Mask Size (W, H)')}
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="flex items-center rounded-lg border border-app-border bg-app-elevated px-2.5 py-1.5">
-                        <span className="text-[10px] text-app-text-muted mr-1.5">W</span>
-                        <input
-                          type="number"
-                          min="20"
-                          max="2000"
-                          value={Math.round(mask.width)}
-                          onChange={(e) => updateClipMask(clip.id, { width: Number(e.target.value) })}
-                          className="w-full bg-transparent font-mono text-xs text-app-text focus:outline-none"
-                        />
-                      </div>
-                      <div className="flex items-center rounded-lg border border-app-border bg-app-elevated px-2.5 py-1.5">
-                        <span className="text-[10px] text-app-text-muted mr-1.5">H</span>
-                        <input
-                          type="number"
-                          min="20"
-                          max="2000"
-                          value={Math.round(mask.height)}
-                          onChange={(e) => updateClipMask(clip.id, { height: Number(e.target.value) })}
-                          className="w-full bg-transparent font-mono text-xs text-app-text focus:outline-none"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Rectangle Corner Radius */}
-                  {mask.type === 'rectangle' && (
-                    <div className="space-y-1.5">
-                      {renderFieldHeader('mask.radius', 'Corner Radius')}
-                      <div className="flex items-center gap-3">
-                        <input
-                          type="range"
-                          min={0}
-                          max={120}
-                          value={mask.radius || 0}
-                          onChange={(e) => updateClipMask(clip.id, { radius: Number(e.target.value) })}
-                          className="flex-1 accent-neutral-900 dark:accent-neutral-100"
-                        />
-                        <span className="w-10 text-right font-mono text-xs text-app-text">{mask.radius || 0}px</span>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Feather Softness */}
-                  <div className="space-y-1.5">
-                    {renderFieldHeader('mask.feather', 'Edge Feather')}
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="range"
-                        min={0}
-                        max={50}
-                        value={mask.feather}
-                        onChange={(e) => updateClipMask(clip.id, { feather: Number(e.target.value) })}
-                        className="flex-1 accent-neutral-900 dark:accent-neutral-100"
-                      />
-                      <span className="w-10 text-right font-mono text-xs text-app-text">{mask.feather}px</span>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* ===================== EFFECTS TAB ===================== */}
-          {activeTab === 'effects' && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between border-b border-app-border pb-1">
-                <span className="text-xs font-bold text-app-text tracking-wider uppercase">Effects & Color</span>
-                <button
-                  onClick={() => updateClipFilter(clip.id, { brightness: 1, contrast: 1, saturation: 1, blur: 0 })}
-                  className="flex items-center gap-1 text-[10px] text-app-text-muted hover:text-app-text transition cursor-pointer"
-                >
-                  <RefreshCw className="h-2.5 w-2.5" />
-                  <span>Reset</span>
-                </button>
-              </div>
-
-              {/* Brightness */}
-              <div className="space-y-1.5">
-                {renderFieldHeader('effects.brightness', 'Brightness')}
-                <div className="flex items-center gap-3">
-                  <input
-                    type="range"
-                    min={0.2}
-                    max={2.0}
-                    step={0.05}
-                    value={filter.brightness}
-                    onChange={(e) => updateClipFilter(clip.id, { brightness: Number(e.target.value) })}
-                    className="flex-1 accent-neutral-900 dark:accent-neutral-100"
-                  />
-                  <span className="w-12 text-right font-mono text-xs text-app-text">
-                    {Math.round(filter.brightness * 100)}%
-                  </span>
-                </div>
-              </div>
-
-              {/* Contrast */}
-              <div className="space-y-1.5">
-                {renderFieldHeader('effects.contrast', 'Contrast')}
-                <div className="flex items-center gap-3">
-                  <input
-                    type="range"
-                    min={0.2}
-                    max={2.0}
-                    step={0.05}
-                    value={filter.contrast}
-                    onChange={(e) => updateClipFilter(clip.id, { contrast: Number(e.target.value) })}
-                    className="flex-1 accent-neutral-900 dark:accent-neutral-100"
-                  />
-                  <span className="w-12 text-right font-mono text-xs text-app-text">
-                    {Math.round(filter.contrast * 100)}%
-                  </span>
-                </div>
-              </div>
-
-              {/* Saturation */}
-              <div className="space-y-1.5">
-                {renderFieldHeader('effects.saturation', 'Saturation')}
-                <div className="flex items-center gap-3">
-                  <input
-                    type="range"
-                    min={0}
-                    max={2.0}
-                    step={0.05}
-                    value={filter.saturation}
-                    onChange={(e) => updateClipFilter(clip.id, { saturation: Number(e.target.value) })}
-                    className="flex-1 accent-neutral-900 dark:accent-neutral-100"
-                  />
-                  <span className="w-12 text-right font-mono text-xs text-app-text">
-                    {Math.round(filter.saturation * 100)}%
-                  </span>
-                </div>
-              </div>
-
-              {/* Soft Blur */}
-              <div className="space-y-1.5">
-                {renderFieldHeader('effects.blur', 'Defocus Blur')}
-                <div className="flex items-center gap-3">
-                  <input
-                    type="range"
-                    min={0}
-                    max={20}
-                    step={0.5}
-                    value={filter.blur}
-                    onChange={(e) => updateClipFilter(clip.id, { blur: Number(e.target.value) })}
-                    className="flex-1 accent-neutral-900 dark:accent-neutral-100"
-                  />
-                  <span className="w-12 text-right font-mono text-xs text-app-text">{filter.blur}px</span>
-                </div>
-              </div>
-
-              {/* One-Click Filter Presets */}
-              <div className="pt-2 border-t border-app-border space-y-1.5">
-                <span className="text-[11px] font-semibold text-app-text-muted uppercase tracking-wider">Quick Presets</span>
-                <div className="grid grid-cols-2 gap-1.5">
-                  {[
-                    { name: 'Warm Glow', filter: { brightness: 1.15, contrast: 1.25, saturation: 1.2, blur: 0 } },
-                    { name: 'Noir B&W', filter: { brightness: 1.0, contrast: 1.5, saturation: 0, blur: 0 } },
-                    { name: 'Vintage 90s', filter: { brightness: 0.95, contrast: 0.95, saturation: 0.75, blur: 0.3 } },
-                    { name: 'Cyber Neon', filter: { brightness: 1.05, contrast: 1.4, saturation: 1.6, blur: 0 } },
-                  ].map((p) => (
-                    <button
-                      key={p.name}
-                      onClick={() => updateClipFilter(clip.id, p.filter)}
-                      className="rounded border border-app-border bg-app-elevated py-1.5 px-2 text-left font-medium text-[11px] text-app-text hover:bg-neutral-200 dark:hover:bg-neutral-800 transition cursor-pointer truncate"
-                    >
-                      {p.name}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* ===================== AUDIO TAB ===================== */}
           {activeTab === 'audio' && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between border-b border-app-border pb-1">
-                <span className="text-xs font-bold text-app-text tracking-wider uppercase">Audio Mix</span>
+            <div className="space-y-3.5">
+              <div className="border-b border-app-border pb-1">
+                <span className="text-xs font-bold text-app-text tracking-wider uppercase">Audio Controls</span>
               </div>
 
-              {/* Volume Slider & Percentage */}
+              {/* Volume */}
               <div className="space-y-1.5">
-                {renderFieldHeader('audio.volume', 'Master Volume')}
-                <div className="flex items-center gap-3">
-                  <input
-                    type="range"
-                    min={0}
-                    max={1}
-                    step={0.02}
-                    value={clip.volume}
-                    onChange={(e) => updateClip(clip.id, { volume: Number(e.target.value) })}
-                    className="flex-1 accent-emerald-500"
-                  />
-                  <div className="flex w-14 items-center justify-center rounded-lg border border-app-border bg-app-elevated px-2 py-1 text-xs font-mono font-bold text-emerald-500">
-                    {Math.round(clip.volume * 100)}%
-                  </div>
-                </div>
+                {renderFieldHeader('volume', 'Volume')}
+                <NumberField
+                  value={clip.volume !== undefined ? clip.volume : 1}
+                  defaultValue={1}
+                  min={0}
+                  max={2}
+                  step={0.01}
+                  dragSensitivity="slow"
+                  onChange={(val) => updateClip(clip.id, { volume: val })}
+                  onReset={() => updateClip(clip.id, { volume: 1 })}
+                />
               </div>
 
-              {/* Mute Audio Toggle */}
+              {/* Stereo Pan */}
+              <div className="space-y-1.5">
+                {renderFieldHeader('pan', 'Stereo Pan')}
+                <NumberField
+                  value={clip.pan || 0}
+                  defaultValue={0}
+                  min={-1}
+                  max={1}
+                  step={0.05}
+                  dragSensitivity="slow"
+                  onChange={(val) => updateClip(clip.id, { pan: val })}
+                  onReset={() => updateClip(clip.id, { pan: 0 })}
+                />
+              </div>
+
+              {/* Mute Toggle */}
               <div className="flex items-center justify-between rounded-lg border border-app-border bg-app-elevated p-2.5">
                 <div className="flex items-center gap-2">
-                  {clip.isMuted ? (
-                    <VolumeX className="h-4 w-4 text-red-500" />
-                  ) : (
-                    <Volume2 className="h-4 w-4 text-emerald-500" />
-                  )}
-                  <span className="text-xs font-medium text-app-text">Mute Audio Track</span>
+                  {clip.isMuted ? <VolumeX className="h-4 w-4 text-red-500" /> : <Volume2 className="h-4 w-4 text-app-text" />}
+                  <span className="text-xs font-medium text-app-text">Mute Audio</span>
                 </div>
                 <button
                   type="button"
@@ -688,7 +473,7 @@ export const InspectorPanel: React.FC = () => {
                   }`}
                 >
                   <span
-                    className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                    className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
                       clip.isMuted ? 'translate-x-4' : 'translate-x-0'
                     }`}
                   />
@@ -699,163 +484,797 @@ export const InspectorPanel: React.FC = () => {
 
           {/* ===================== SPEED TAB ===================== */}
           {activeTab === 'speed' && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between border-b border-app-border pb-1">
+            <div className="space-y-3.5">
+              <div className="border-b border-app-border pb-1">
                 <span className="text-xs font-bold text-app-text tracking-wider uppercase">Speed & Retiming</span>
               </div>
 
-              {/* Speed Slider */}
+              {/* Speed Factor */}
               <div className="space-y-1.5">
-                {renderFieldHeader('speed.rate', 'Playback Rate')}
-                <div className="flex items-center gap-3">
-                  <input
-                    type="range"
-                    min={0.25}
-                    max={4.0}
-                    step={0.25}
-                    value={clip.speed || 1}
-                    onChange={(e) => updateClip(clip.id, { speed: Number(e.target.value) })}
-                    className="flex-1 accent-cyan-500"
-                  />
-                  <div className="flex w-14 items-center justify-center rounded-lg border border-app-border bg-app-elevated px-2 py-1 text-xs font-mono font-bold text-cyan-500">
-                    {(clip.speed || 1).toFixed(2)}x
-                  </div>
-                </div>
+                <span className="text-xs font-medium text-app-text">Speed</span>
+                <NumberField
+                  value={clip.speed || 1}
+                  defaultValue={1}
+                  min={0.01}
+                  max={100}
+                  step={0.01}
+                  suffix="x"
+                  dragSensitivity="slow"
+                  onChange={(val) => {
+                    const newSpeed = Math.max(0.01, val);
+                    updateClip(clip.id, { speed: newSpeed });
+                  }}
+                  onReset={() => updateClip(clip.id, { speed: 1 })}
+                />
               </div>
 
-              {/* Quick Speed Chips */}
-              <div className="grid grid-cols-4 gap-1.5 pt-2">
-                {[0.5, 1.0, 1.5, 2.0].map((val) => (
+              {/* Quick Preset Buttons */}
+              <div className="grid grid-cols-4 gap-1.5">
+                {[0.5, 1.0, 1.5, 2.0].map((rate) => (
                   <button
-                    key={val}
-                    onClick={() => updateClip(clip.id, { speed: val })}
-                    className={`rounded-lg border py-1.5 font-mono text-xs transition cursor-pointer ${
-                      (clip.speed || 1) === val
-                        ? 'border-neutral-900 bg-neutral-900 text-white dark:border-neutral-100 dark:bg-neutral-100 dark:text-black font-semibold shadow-xs'
-                        : 'border-app-border bg-app-elevated text-app-text hover:bg-neutral-200 dark:hover:bg-neutral-800'
+                    key={rate}
+                    type="button"
+                    onClick={() => updateClip(clip.id, { speed: rate })}
+                    className={`rounded border py-1 font-mono text-[11px] transition cursor-pointer ${
+                      (clip.speed || 1) === rate
+                        ? 'border-blue-500 bg-blue-500/15 text-blue-500 font-semibold'
+                        : 'border-app-border bg-app-elevated text-app-text-muted hover:text-app-text'
                     }`}
                   >
-                    {val}x
+                    {rate}x
                   </button>
                 ))}
+              </div>
+
+              {/* Maintain Pitch Toggle */}
+              <div className="flex items-center justify-between rounded-lg border border-app-border bg-app-elevated p-2.5">
+                <div className="flex flex-col">
+                  <span className="text-xs font-medium text-app-text">Change Pitch</span>
+                  <span className="text-[10px] text-app-text-muted">Pitch scales with speed playback</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => updateClip(clip.id, { maintainPitch: !clip.maintainPitch })}
+                  className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
+                    !clip.maintainPitch ? 'bg-blue-500' : 'bg-neutral-300 dark:bg-neutral-700'
+                  }`}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
+                      !clip.maintainPitch ? 'translate-x-4' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {/* Resulting Duration Info */}
+              <div className="rounded-lg border border-app-border bg-app-elevated p-2.5 flex items-center justify-between text-xs">
+                <span className="text-app-text-muted">Effective Duration:</span>
+                <span className="font-mono font-semibold text-app-text">
+                  {formatDuration(clip.duration / (clip.speed || 1))}
+                </span>
               </div>
             </div>
           )}
 
-          {/* ===================== TEXT TAB ===================== */}
-          {activeTab === 'text' && clip.type === 'text' && (
-            <div className="space-y-4">
+          {/* ===================== MASKS TAB ===================== */}
+          {activeTab === 'masks' && (
+            <div className="space-y-3.5">
               <div className="flex items-center justify-between border-b border-app-border pb-1">
-                <span className="text-xs font-bold text-app-text tracking-wider uppercase">Text Properties</span>
+                <span className="text-xs font-bold text-app-text tracking-wider uppercase">Masks</span>
+                
+                {/* Add Mask dropdown trigger */}
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setIsAddMaskOpen(!isAddMaskOpen)}
+                    className="flex h-6 w-6 items-center justify-center rounded text-app-text-muted hover:bg-app-elevated hover:text-app-text transition cursor-pointer"
+                    title="Add Mask Shape"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                  </button>
+
+                  {isAddMaskOpen && (
+                    <div className="absolute right-0 top-7 z-50 w-44 rounded-lg border border-app-border bg-app-surface py-1 shadow-xl">
+                      {MASK_TYPE_OPTIONS.map((item) => {
+                        const Icon = item.icon;
+                        return (
+                          <button
+                            key={item.type}
+                            type="button"
+                            onClick={() => {
+                              updateClipMask(clip.id, {
+                                type: item.type,
+                                x: 0,
+                                y: 0,
+                                width: item.type === 'split' ? 600 : 360,
+                                height: item.type === 'cinematic-bars' ? 120 : 240,
+                                scale: 1,
+                                radius: 0,
+                                feather: 0,
+                                inverted: false,
+                                rotation: 0,
+                                strokeWidth: 0,
+                                strokeColor: '#ffffff',
+                              });
+                              setIsAddMaskOpen(false);
+                            }}
+                            className="flex w-full items-center gap-2 px-3 py-1.5 text-xs text-app-text hover:bg-app-elevated transition cursor-pointer"
+                          >
+                            <Icon className="h-3.5 w-3.5 text-blue-500" />
+                            <span>{item.name}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               </div>
 
-              {/* Text String */}
+              {mask.type === 'none' ? (
+                <div className="flex flex-col items-center justify-center p-6 text-center text-app-text-muted">
+                  <Layers className="h-8 w-8 stroke-[1.5] text-app-text-muted/60" />
+                  <p className="mt-2 text-xs font-medium text-app-text">No Mask Applied</p>
+                  <p className="mt-1 text-[11px] text-app-text-muted">
+                    Click the + icon above or select a shape to isolate and crop regions.
+                  </p>
+                  <div className="mt-3 grid grid-cols-4 gap-1.5 w-full">
+                    {MASK_TYPE_OPTIONS.slice(0, 4).map((opt) => (
+                      <button
+                        key={opt.type}
+                        type="button"
+                        onClick={() =>
+                          updateClipMask(clip.id, {
+                            type: opt.type,
+                            x: 0,
+                            y: 0,
+                            width: opt.type === 'split' ? 600 : 360,
+                            height: opt.type === 'cinematic-bars' ? 120 : 240,
+                            scale: 1,
+                            radius: 0,
+                            feather: 0,
+                            inverted: false,
+                            rotation: 0,
+                            strokeWidth: 0,
+                          })
+                        }
+                        className="rounded border border-app-border bg-app-elevated py-1.5 text-center text-[10px] font-medium text-app-text hover:border-blue-500 hover:text-blue-500 transition cursor-pointer"
+                      >
+                        {opt.name.split(' ')[0]}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {/* Mask Header & Invert / Remove Actions */}
+                  <div className="flex items-center justify-between rounded-lg border border-app-border bg-app-elevated px-2.5 py-1.5">
+                    <span className="font-semibold text-xs text-app-text capitalize">
+                      {mask.type.replace('-', ' ')} Mask
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => updateClipMask(clip.id, { inverted: !mask.inverted })}
+                        className={`px-2 py-0.5 rounded text-[10px] font-medium transition cursor-pointer ${
+                          mask.inverted ? 'bg-blue-500 text-white' : 'bg-app-surface text-app-text-muted hover:text-app-text'
+                        }`}
+                        title="Invert Mask Area"
+                      >
+                        {mask.inverted ? 'Inverted' : 'Normal'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => updateClipMask(clip.id, { type: 'none' })}
+                        className="p-1 rounded text-red-500 hover:bg-red-500/10 transition cursor-pointer"
+                        title="Remove Mask"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Position X & Y */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      {renderFieldHeader('mask.x', 'Position X')}
+                      <NumberField
+                        value={mask.x}
+                        defaultValue={0}
+                        step={1}
+                        suffix="px"
+                        icon="X"
+                        onChange={(val) => updateClipMask(clip.id, { x: val })}
+                        onReset={() => updateClipMask(clip.id, { x: 0 })}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      {renderFieldHeader('mask.y', 'Position Y')}
+                      <NumberField
+                        value={mask.y}
+                        defaultValue={0}
+                        step={1}
+                        suffix="px"
+                        icon="Y"
+                        onChange={(val) => updateClipMask(clip.id, { y: val })}
+                        onReset={() => updateClipMask(clip.id, { y: 0 })}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Size controls depending on shape */}
+                  {mask.type === 'rectangle' && (
+                    <>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-1">
+                          {renderFieldHeader('mask.width', 'Width')}
+                          <NumberField
+                            value={mask.width}
+                            defaultValue={360}
+                            min={10}
+                            step={1}
+                            suffix="px"
+                            onChange={(val) => updateClipMask(clip.id, { width: val })}
+                            onReset={() => updateClipMask(clip.id, { width: 360 })}
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          {renderFieldHeader('mask.height', 'Height')}
+                          <NumberField
+                            value={mask.height}
+                            defaultValue={240}
+                            min={10}
+                            step={1}
+                            suffix="px"
+                            onChange={(val) => updateClipMask(clip.id, { height: val })}
+                            onReset={() => updateClipMask(clip.id, { height: 240 })}
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        {renderFieldHeader('mask.radius', 'Corner Radius')}
+                        <NumberField
+                          value={mask.radius || 0}
+                          defaultValue={0}
+                          min={0}
+                          max={200}
+                          step={1}
+                          suffix="px"
+                          onChange={(val) => updateClipMask(clip.id, { radius: val })}
+                          onReset={() => updateClipMask(clip.id, { radius: 0 })}
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  {(mask.type === 'ellipse' || mask.type === 'circle') && (
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        {renderFieldHeader('mask.width', 'Radius X')}
+                        <NumberField
+                          value={mask.width}
+                          defaultValue={360}
+                          min={10}
+                          step={1}
+                          suffix="px"
+                          onChange={(val) => updateClipMask(clip.id, { width: val })}
+                          onReset={() => updateClipMask(clip.id, { width: 360 })}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        {renderFieldHeader('mask.height', 'Radius Y')}
+                        <NumberField
+                          value={mask.height}
+                          defaultValue={240}
+                          min={10}
+                          step={1}
+                          suffix="px"
+                          onChange={(val) => updateClipMask(clip.id, { height: val })}
+                          onReset={() => updateClipMask(clip.id, { height: 240 })}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {(mask.type === 'star' || mask.type === 'heart' || mask.type === 'diamond') && (
+                    <div className="space-y-1">
+                      {renderFieldHeader('mask.scale', 'Scale')}
+                      <NumberField
+                        value={mask.scale || 1}
+                        defaultValue={1}
+                        min={0.1}
+                        max={10}
+                        step={0.05}
+                        onChange={(val) => updateClipMask(clip.id, { scale: val })}
+                        onReset={() => updateClipMask(clip.id, { scale: 1 })}
+                      />
+                    </div>
+                  )}
+
+                  {mask.type === 'cinematic-bars' && (
+                    <div className="space-y-1">
+                      {renderFieldHeader('mask.height', 'Bar Height')}
+                      <NumberField
+                        value={mask.height}
+                        defaultValue={120}
+                        min={10}
+                        max={500}
+                        step={1}
+                        suffix="px"
+                        onChange={(val) => updateClipMask(clip.id, { height: val })}
+                        onReset={() => updateClipMask(clip.id, { height: 120 })}
+                      />
+                    </div>
+                  )}
+
+                  {/* Rotation */}
+                  <div className="space-y-1">
+                    {renderFieldHeader('mask.rotation', 'Rotation')}
+                    <NumberField
+                      value={mask.rotation || 0}
+                      defaultValue={0}
+                      min={-360}
+                      max={360}
+                      step={1}
+                      suffix="°"
+                      onChange={(val) => updateClipMask(clip.id, { rotation: val })}
+                      onReset={() => updateClipMask(clip.id, { rotation: 0 })}
+                    />
+                  </div>
+
+                  {/* Feather */}
+                  <div className="space-y-1">
+                    {renderFieldHeader('mask.feather', 'Feather')}
+                    <NumberField
+                      value={mask.feather}
+                      defaultValue={0}
+                      min={0}
+                      max={100}
+                      step={1}
+                      suffix="px"
+                      onChange={(val) => updateClipMask(clip.id, { feather: val })}
+                      onReset={() => updateClipMask(clip.id, { feather: 0 })}
+                    />
+                  </div>
+
+                  {/* Stroke Width & Color */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <span className="text-xs font-medium text-app-text">Stroke Width</span>
+                      <NumberField
+                        value={mask.strokeWidth || 0}
+                        defaultValue={0}
+                        min={0}
+                        max={50}
+                        step={1}
+                        suffix="px"
+                        onChange={(val) => updateClipMask(clip.id, { strokeWidth: val })}
+                        onReset={() => updateClipMask(clip.id, { strokeWidth: 0 })}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <span className="text-xs font-medium text-app-text">Stroke Color</span>
+                      <div className="flex h-8 items-center gap-1.5 rounded-md border border-app-border bg-app-elevated px-2">
+                        <input
+                          type="color"
+                          value={mask.strokeColor || '#ffffff'}
+                          onChange={(e) => updateClipMask(clip.id, { strokeColor: e.target.value })}
+                          className="h-5 w-5 rounded border-none bg-transparent cursor-pointer"
+                        />
+                        <span className="font-mono text-xs uppercase text-app-text">
+                          {mask.strokeColor || '#ffffff'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ===================== EFFECTS TAB ===================== */}
+          {activeTab === 'effects' && (
+            <div className="space-y-3.5">
+              <div className="flex items-center justify-between border-b border-app-border pb-1">
+                <span className="text-xs font-bold text-app-text tracking-wider uppercase">Effects</span>
+
+                {/* Add Effect dropdown */}
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setIsAddEffectOpen(!isAddEffectOpen)}
+                    className="flex h-6 w-6 items-center justify-center rounded text-app-text-muted hover:bg-app-elevated hover:text-app-text transition cursor-pointer"
+                    title="Add Visual Effect"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                  </button>
+
+                  {isAddEffectOpen && (
+                    <div className="absolute right-0 top-7 z-50 w-44 rounded-lg border border-app-border bg-app-surface py-1 shadow-xl">
+                      {EFFECT_CATALOG.map((item) => (
+                        <button
+                          key={item.type}
+                          type="button"
+                          onClick={() => {
+                            addClipEffect(clip.id, {
+                              type: item.type,
+                              name: item.name,
+                              enabled: true,
+                              ...item.defaultParam,
+                            });
+                            setIsAddEffectOpen(false);
+                          }}
+                          className="flex w-full items-center gap-2 px-3 py-1.5 text-xs text-app-text hover:bg-app-elevated transition cursor-pointer"
+                        >
+                          <Sparkles className="h-3.5 w-3.5 text-blue-500" />
+                          <span>{item.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {effects.length === 0 ? (
+                <div className="flex flex-col items-center justify-center p-6 text-center text-app-text-muted">
+                  <Sparkles className="h-8 w-8 stroke-[1.5] text-app-text-muted/60" />
+                  <p className="mt-2 text-xs font-medium text-app-text">No Effects Added</p>
+                  <p className="mt-1 text-[11px] text-app-text-muted">
+                    Click the + icon above to stack blur, brightness, contrast, and color filters.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {effects.map((eff) => (
+                    <div
+                      key={eff.id}
+                      className="rounded-lg border border-app-border bg-app-elevated p-2.5 space-y-2.5 transition"
+                    >
+                      <div className="flex items-center justify-between border-b border-app-border/60 pb-1.5">
+                        <span className="font-semibold text-xs text-app-text">{eff.name}</span>
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => toggleClipEffect(clip.id, eff.id)}
+                            className="p-1 rounded text-app-text-muted hover:text-app-text transition cursor-pointer"
+                            title={eff.enabled ? 'Disable Effect' : 'Enable Effect'}
+                          >
+                            {eff.enabled ? <Eye className="h-3.5 w-3.5 text-blue-500" /> : <EyeOff className="h-3.5 w-3.5" />}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => removeClipEffect(clip.id, eff.id)}
+                            className="p-1 rounded text-red-500 hover:bg-red-500/10 transition cursor-pointer"
+                            title="Remove Effect"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {eff.type === 'blur' && (
+                        <div className="space-y-1">
+                          <span className="text-xs font-medium text-app-text">Intensity</span>
+                          <NumberField
+                            value={eff.intensity || 0}
+                            defaultValue={15}
+                            min={0}
+                            max={100}
+                            step={1}
+                            suffix="px"
+                            onChange={(val) => updateClipEffect(clip.id, eff.id, { intensity: val })}
+                            onReset={() => updateClipEffect(clip.id, eff.id, { intensity: 15 })}
+                          />
+                        </div>
+                      )}
+
+                      {(eff.type === 'brightness' || eff.type === 'contrast' || eff.type === 'saturation') && (
+                        <div className="space-y-1">
+                          <span className="text-xs font-medium text-app-text">Amount</span>
+                          <NumberField
+                            value={eff.value !== undefined ? eff.value : 100}
+                            defaultValue={100}
+                            min={0}
+                            max={300}
+                            step={1}
+                            suffix="%"
+                            onChange={(val) => updateClipEffect(clip.id, eff.id, { value: val })}
+                            onReset={() => updateClipEffect(clip.id, eff.id, { value: 100 })}
+                          />
+                        </div>
+                      )}
+
+                      {(eff.type === 'grayscale' || eff.type === 'sepia' || eff.type === 'invert') && (
+                        <div className="space-y-1">
+                          <span className="text-xs font-medium text-app-text">Intensity</span>
+                          <NumberField
+                            value={eff.value !== undefined ? eff.value : 100}
+                            defaultValue={100}
+                            min={0}
+                            max={100}
+                            step={1}
+                            suffix="%"
+                            onChange={(val) => updateClipEffect(clip.id, eff.id, { value: val })}
+                            onReset={() => updateClipEffect(clip.id, eff.id, { value: 100 })}
+                          />
+                        </div>
+                      )}
+
+                      {eff.type === 'hue-rotate' && (
+                        <div className="space-y-1">
+                          <span className="text-xs font-medium text-app-text">Angle</span>
+                          <NumberField
+                            value={eff.value !== undefined ? eff.value : 0}
+                            defaultValue={0}
+                            min={0}
+                            max={360}
+                            step={1}
+                            suffix="°"
+                            onChange={(val) => updateClipEffect(clip.id, eff.id, { value: val })}
+                            onReset={() => updateClipEffect(clip.id, eff.id, { value: 0 })}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ===================== TEXT TAB ===================== */}
+          {activeTab === 'text' && (
+            <div className="space-y-3.5">
+              <div className="border-b border-app-border pb-1">
+                <span className="text-xs font-bold text-app-text tracking-wider uppercase">Typography</span>
+              </div>
+
+              {/* Text Content */}
               <div className="space-y-1.5">
-                <label className="text-[11px] font-semibold text-app-text-muted">CONTENT</label>
+                <span className="text-xs font-medium text-app-text">Content</span>
                 <textarea
-                  rows={3}
+                  rows={2}
                   value={clip.text || ''}
                   onChange={(e) => updateClip(clip.id, { text: e.target.value })}
                   placeholder="Enter text..."
-                  className="w-full rounded-lg border border-app-border bg-app-elevated p-2.5 text-xs text-app-text focus:outline-none focus:ring-1 focus:ring-neutral-400"
+                  className="w-full rounded-md border border-neutral-200 dark:border-neutral-700/60 bg-neutral-100/80 dark:bg-neutral-800/60 p-2 text-xs text-app-text outline-none focus:border-blue-500 focus:bg-app-surface focus:ring-1 focus:ring-blue-500/20"
                 />
               </div>
 
               {/* Font Family */}
               <div className="space-y-1.5">
-                <label className="text-[11px] font-semibold text-app-text-muted">FONT FAMILY</label>
+                <span className="text-xs font-medium text-app-text">Font Family</span>
                 <CustomSelect<string>
                   value={clip.fontFamily || 'Inter, system-ui'}
                   onChange={(val) => updateClip(clip.id, { fontFamily: val })}
                   options={FONT_OPTIONS}
-                  icon={<CaseSensitive className="h-3.5 w-3.5" />}
                   className="w-full"
                 />
               </div>
 
-              {/* Font Size & Alignment */}
+              {/* Font Size & Color */}
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
-                  <label className="text-[11px] font-semibold text-app-text-muted">FONT SIZE</label>
-                  <div className="flex items-center rounded-lg border border-app-border bg-app-elevated px-2.5 py-1.5">
-                    <input
-                      type="number"
-                      min={12}
-                      max={200}
-                      value={clip.fontSize || 54}
-                      onChange={(e) => updateClip(clip.id, { fontSize: Number(e.target.value) })}
-                      className="w-full bg-transparent font-mono text-xs text-app-text focus:outline-none"
-                    />
-                    <span className="text-[10px] text-app-text-muted ml-1">px</span>
-                  </div>
+                  {renderFieldHeader('fontSize', 'Font Size')}
+                  <NumberField
+                    value={clip.fontSize || 48}
+                    defaultValue={48}
+                    min={8}
+                    max={300}
+                    step={1}
+                    suffix="px"
+                    onChange={(val) => updateClip(clip.id, { fontSize: val })}
+                    onReset={() => updateClip(clip.id, { fontSize: 48 })}
+                  />
                 </div>
-
                 <div className="space-y-1">
-                  <label className="text-[11px] font-semibold text-app-text-muted">ALIGNMENT</label>
-                  <div className="flex h-[34px] items-center rounded-lg border border-app-border bg-app-elevated p-0.5">
-                    <button
-                      type="button"
-                      onClick={() => updateClip(clip.id, { textAlign: 'left' })}
-                      className={`flex-1 flex items-center justify-center h-full rounded transition ${
-                        clip.textAlign === 'left' ? 'bg-app-surface text-app-text shadow-xs' : 'text-app-text-muted hover:text-app-text'
-                      }`}
-                    >
-                      <AlignLeft className="h-3.5 w-3.5" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => updateClip(clip.id, { textAlign: 'center' })}
-                      className={`flex-1 flex items-center justify-center h-full rounded transition ${
-                        !clip.textAlign || clip.textAlign === 'center' ? 'bg-app-surface text-app-text shadow-xs' : 'text-app-text-muted hover:text-app-text'
-                      }`}
-                    >
-                      <AlignCenter className="h-3.5 w-3.5" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => updateClip(clip.id, { textAlign: 'right' })}
-                      className={`flex-1 flex items-center justify-center h-full rounded transition ${
-                        clip.textAlign === 'right' ? 'bg-app-surface text-app-text shadow-xs' : 'text-app-text-muted hover:text-app-text'
-                      }`}
-                    >
-                      <AlignRight className="h-3.5 w-3.5" />
-                    </button>
+                  <span className="text-xs font-medium text-app-text">Text Color</span>
+                  <div className="flex h-8 items-center gap-1.5 rounded-md border border-neutral-200 dark:border-neutral-700/60 bg-neutral-100/80 dark:bg-neutral-800/60 px-2">
+                    <input
+                      type="color"
+                      value={clip.fontColor || '#ffffff'}
+                      onChange={(e) => updateClip(clip.id, { fontColor: e.target.value })}
+                      className="h-5 w-5 rounded border-none bg-transparent cursor-pointer"
+                    />
+                    <span className="font-mono text-xs uppercase text-app-text">
+                      {clip.fontColor || '#ffffff'}
+                    </span>
                   </div>
                 </div>
               </div>
 
-              {/* Text Color */}
-              <div className="space-y-1">
-                <label className="text-[11px] font-semibold text-app-text-muted">TEXT COLOR</label>
-                <div className="flex items-center gap-2 rounded-lg border border-app-border bg-app-elevated p-1.5">
-                  <input
-                    type="color"
-                    value={clip.fontColor || '#ffffff'}
-                    onChange={(e) => updateClip(clip.id, { fontColor: e.target.value })}
-                    className="h-6 w-6 cursor-pointer rounded border-none bg-transparent"
-                  />
-                  <span className="font-mono text-xs text-app-text">{clip.fontColor || '#ffffff'}</span>
+              {/* Alignment & Styles */}
+              <div className="flex items-center justify-between gap-2">
+                {/* Alignment */}
+                <div className="flex items-center rounded-md border border-app-border bg-app-elevated p-0.5">
+                  {(['left', 'center', 'right'] as const).map((align) => {
+                    const Icon = align === 'left' ? AlignLeft : align === 'center' ? AlignCenter : AlignRight;
+                    const isSelected = (clip.textAlign || 'center') === align;
+                    return (
+                      <button
+                        key={align}
+                        type="button"
+                        onClick={() => updateClip(clip.id, { textAlign: align })}
+                        className={`flex h-7 w-7 items-center justify-center rounded transition cursor-pointer ${
+                          isSelected ? 'bg-blue-500 text-white shadow-xs' : 'text-app-text-muted hover:text-app-text'
+                        }`}
+                      >
+                        <Icon className="h-3.5 w-3.5" />
+                      </button>
+                    );
+                  })}
                 </div>
-              </div>
 
-              {/* Background Color */}
-              <div className="space-y-1">
-                <label className="text-[11px] font-semibold text-app-text-muted">BACKGROUND BADGE</label>
-                <div className="flex items-center gap-2 rounded-lg border border-app-border bg-app-elevated p-1.5">
-                  <input
-                    type="color"
-                    value={clip.backgroundColor && clip.backgroundColor !== 'transparent' ? clip.backgroundColor : '#000000'}
-                    onChange={(e) => updateClip(clip.id, { backgroundColor: e.target.value })}
-                    className="h-6 w-6 cursor-pointer rounded border-none bg-transparent"
-                  />
+                {/* Font Weight, Italic, Underline */}
+                <div className="flex items-center rounded-md border border-app-border bg-app-elevated p-0.5">
                   <button
                     type="button"
-                    onClick={() => updateClip(clip.id, { backgroundColor: 'transparent' })}
-                    className="ml-auto rounded bg-app-surface border border-app-border px-2 py-1 text-[10px] text-app-text-muted hover:text-app-text transition"
+                    onClick={() => updateClip(clip.id, { fontWeight: clip.fontWeight === 'bold' ? 'normal' : 'bold' })}
+                    className={`flex h-7 w-7 items-center justify-center rounded transition cursor-pointer ${
+                      clip.fontWeight === 'bold' ? 'bg-blue-500 text-white shadow-xs' : 'text-app-text-muted hover:text-app-text'
+                    }`}
+                    title="Bold"
                   >
-                    Clear Background
+                    <Bold className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => updateClip(clip.id, { fontStyle: clip.fontStyle === 'italic' ? 'normal' : 'italic' })}
+                    className={`flex h-7 w-7 items-center justify-center rounded transition cursor-pointer ${
+                      clip.fontStyle === 'italic' ? 'bg-blue-500 text-white shadow-xs' : 'text-app-text-muted hover:text-app-text'
+                    }`}
+                    title="Italic"
+                  >
+                    <Italic className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => updateClip(clip.id, { textDecoration: clip.textDecoration === 'underline' ? 'none' : 'underline' })}
+                    className={`flex h-7 w-7 items-center justify-center rounded transition cursor-pointer ${
+                      clip.textDecoration === 'underline' ? 'bg-blue-500 text-white shadow-xs' : 'text-app-text-muted hover:text-app-text'
+                    }`}
+                    title="Underline"
+                  >
+                    <Underline className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => updateClip(clip.id, { textDecoration: clip.textDecoration === 'line-through' ? 'none' : 'line-through' })}
+                    className={`flex h-7 w-7 items-center justify-center rounded transition cursor-pointer ${
+                      clip.textDecoration === 'line-through' ? 'bg-blue-500 text-white shadow-xs' : 'text-app-text-muted hover:text-app-text'
+                    }`}
+                    title="Strikethrough"
+                  >
+                    <Strikethrough className="h-3.5 w-3.5" />
                   </button>
                 </div>
+              </div>
+
+              {/* Letter Spacing & Line Height */}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  {renderFieldHeader('letterSpacing', 'Letter Spacing')}
+                  <NumberField
+                    value={clip.letterSpacing || 0}
+                    defaultValue={0}
+                    min={-20}
+                    max={100}
+                    step={1}
+                    suffix="px"
+                    onChange={(val) => updateClip(clip.id, { letterSpacing: val })}
+                    onReset={() => updateClip(clip.id, { letterSpacing: 0 })}
+                  />
+                </div>
+                <div className="space-y-1">
+                  {renderFieldHeader('lineHeight', 'Line Height')}
+                  <NumberField
+                    value={clip.lineHeight || 1.2}
+                    defaultValue={1.2}
+                    min={0.5}
+                    max={3.0}
+                    step={0.1}
+                    dragSensitivity="slow"
+                    onChange={(val) => updateClip(clip.id, { lineHeight: val })}
+                    onReset={() => updateClip(clip.id, { lineHeight: 1.2 })}
+                  />
+                </div>
+              </div>
+
+              {/* Background Box Section */}
+              <div className="rounded-lg border border-app-border bg-app-elevated p-2.5 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-xs text-app-text">Text Background Box</span>
+                  <button
+                    type="button"
+                    onClick={() => updateClip(clip.id, { backgroundEnabled: !clip.backgroundEnabled })}
+                    className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
+                      clip.backgroundEnabled ? 'bg-blue-500' : 'bg-neutral-300 dark:bg-neutral-700'
+                    }`}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
+                        clip.backgroundEnabled ? 'translate-x-4' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {clip.backgroundEnabled && (
+                  <div className="space-y-2.5 pt-1">
+                    <div className="space-y-1">
+                      <span className="text-xs font-medium text-app-text">Background Color</span>
+                      <div className="flex h-8 items-center gap-1.5 rounded-md border border-neutral-200 dark:border-neutral-700/60 bg-app-surface px-2">
+                        <input
+                          type="color"
+                          value={clip.backgroundColor || '#000000'}
+                          onChange={(e) => updateClip(clip.id, { backgroundColor: e.target.value })}
+                          className="h-5 w-5 rounded border-none bg-transparent cursor-pointer"
+                        />
+                        <span className="font-mono text-xs uppercase text-app-text">
+                          {clip.backgroundColor || '#000000'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <span className="text-xs font-medium text-app-text">Corner Radius</span>
+                        <NumberField
+                          value={clip.backgroundCornerRadius || 8}
+                          defaultValue={8}
+                          min={0}
+                          max={50}
+                          step={1}
+                          suffix="px"
+                          onChange={(val) => updateClip(clip.id, { backgroundCornerRadius: val })}
+                          onReset={() => updateClip(clip.id, { backgroundCornerRadius: 8 })}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-xs font-medium text-app-text">Padding X</span>
+                        <NumberField
+                          value={clip.backgroundPaddingX ?? 20}
+                          defaultValue={20}
+                          min={0}
+                          max={100}
+                          step={1}
+                          suffix="px"
+                          onChange={(val) => updateClip(clip.id, { backgroundPaddingX: val })}
+                          onReset={() => updateClip(clip.id, { backgroundPaddingX: 20 })}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <span className="text-xs font-medium text-app-text">Padding Y</span>
+                        <NumberField
+                          value={clip.backgroundPaddingY ?? 12}
+                          defaultValue={12}
+                          min={0}
+                          max={100}
+                          step={1}
+                          suffix="px"
+                          onChange={(val) => updateClip(clip.id, { backgroundPaddingY: val })}
+                          onReset={() => updateClip(clip.id, { backgroundPaddingY: 12 })}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-xs font-medium text-app-text">Offset Y</span>
+                        <NumberField
+                          value={clip.backgroundOffsetY ?? 0}
+                          defaultValue={0}
+                          min={-200}
+                          max={200}
+                          step={1}
+                          suffix="px"
+                          onChange={(val) => updateClip(clip.id, { backgroundOffsetY: val })}
+                          onReset={() => updateClip(clip.id, { backgroundOffsetY: 0 })}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -864,5 +1283,3 @@ export const InspectorPanel: React.FC = () => {
     </aside>
   );
 };
-
-export default InspectorPanel;

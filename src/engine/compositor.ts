@@ -72,7 +72,10 @@ class CanvasCompositor {
     // 5. Draw each clip
     for (const clip of activeClips) {
       const asset = assets.find((a) => a.id === clip.assetId);
-      const relativeTime = clip.trimStart + (playhead - clip.start);
+
+      // Speed multiplier
+      const clipSpeed = clip.speed && clip.speed > 0 ? clip.speed : 1;
+      const relativeTime = clip.trimStart + (playhead - clip.start) * clipSpeed;
 
       ctx.save();
 
@@ -81,10 +84,39 @@ class CanvasCompositor {
         ctx.globalCompositeOperation = clip.blendMode;
       }
 
-      // Color Filter (CSS filters on canvas context)
+      // Filter construction (combines basic ColorFilter and stacked ClipEffects)
+      const filterParts: string[] = [];
       if (clip.filter) {
         const { brightness, contrast, saturation, blur } = clip.filter;
-        ctx.filter = `brightness(${brightness}) contrast(${contrast}) saturate(${saturation}) blur(${blur}px)`;
+        if (brightness !== 1) filterParts.push(`brightness(${brightness})`);
+        if (contrast !== 1) filterParts.push(`contrast(${contrast})`);
+        if (saturation !== 1) filterParts.push(`saturate(${saturation})`);
+        if (blur > 0) filterParts.push(`blur(${blur}px)`);
+      }
+      if (clip.effects && clip.effects.length > 0) {
+        for (const eff of clip.effects) {
+          if (!eff.enabled) continue;
+          if (eff.type === 'blur' && (eff.intensity ?? 0) > 0) {
+            filterParts.push(`blur(${eff.intensity}px)`);
+          } else if (eff.type === 'brightness' && eff.value !== undefined) {
+            filterParts.push(`brightness(${eff.value}%)`);
+          } else if (eff.type === 'contrast' && eff.value !== undefined) {
+            filterParts.push(`contrast(${eff.value}%)`);
+          } else if (eff.type === 'saturation' && eff.value !== undefined) {
+            filterParts.push(`saturate(${eff.value}%)`);
+          } else if (eff.type === 'grayscale' && eff.value !== undefined) {
+            filterParts.push(`grayscale(${eff.value}%)`);
+          } else if (eff.type === 'sepia' && eff.value !== undefined) {
+            filterParts.push(`sepia(${eff.value}%)`);
+          } else if (eff.type === 'invert' && eff.value !== undefined) {
+            filterParts.push(`invert(${eff.value}%)`);
+          } else if (eff.type === 'hue-rotate' && eff.value !== undefined) {
+            filterParts.push(`hue-rotate(${eff.value}deg)`);
+          }
+        }
+      }
+      if (filterParts.length > 0) {
+        ctx.filter = filterParts.join(' ');
       }
 
       // Transform (offset from center)
@@ -99,18 +131,36 @@ class CanvasCompositor {
       ctx.scale(scaleX, scaleY);
       ctx.globalAlpha = clip.transform.opacity;
 
-      // Masking
+      // Mask Path Construction
+      let hasMaskStroke = false;
+      let maskStrokeWidth = 0;
+      let maskStrokeColor = '#ffffff';
+
       if (clip.mask && clip.mask.type && clip.mask.type !== 'none') {
         const m = clip.mask;
-        ctx.beginPath();
         const mx = m.x || 0;
         const my = m.y || 0;
         const mw = m.width || 360;
         const mh = m.height || 240;
+        const maskScale = m.scale || 1;
+        const rot = ((m.rotation || 0) * Math.PI) / 180;
+
+        hasMaskStroke = !!(m.strokeWidth && m.strokeWidth > 0);
+        maskStrokeWidth = m.strokeWidth || 0;
+        maskStrokeColor = m.strokeColor || '#ffffff';
+
+        ctx.save();
+        if (rot !== 0) {
+          ctx.translate(mx, my);
+          ctx.rotate(rot);
+          ctx.translate(-mx, -my);
+        }
+
+        ctx.beginPath();
 
         if (m.type === 'rectangle') {
           if (m.inverted) {
-            ctx.rect(-width * 2, -height * 2, width * 4, height * 4);
+            ctx.rect(-width * 3, -height * 3, width * 6, height * 6);
             ctx.roundRect(mx - mw / 2, my - mh / 2, mw, mh, m.radius || 0);
             ctx.clip('evenodd');
           } else {
@@ -121,7 +171,7 @@ class CanvasCompositor {
           const rx = mw / 2;
           const ry = (m.type === 'circle' ? mw : mh) / 2;
           if (m.inverted) {
-            ctx.rect(-width * 2, -height * 2, width * 4, height * 4);
+            ctx.rect(-width * 3, -height * 3, width * 6, height * 6);
             ctx.ellipse(mx, my, rx, ry, 0, 0, Math.PI * 2);
             ctx.clip('evenodd');
           } else {
@@ -130,36 +180,61 @@ class CanvasCompositor {
           }
         } else if (m.type === 'split') {
           if (m.inverted) {
-            ctx.rect(-width * 2, -height * 2, width * 4, height * 4);
-            ctx.rect(-width * 2, my, width * 4, height * 2);
+            ctx.rect(-width * 3, -height * 3, width * 6, height * 6);
+            ctx.rect(-width * 3, my, width * 6, height * 3);
             ctx.clip('evenodd');
           } else {
-            ctx.rect(-width * 2, -height * 2, width * 4, height * 2 + my);
+            ctx.rect(-width * 3, -height * 3, width * 6, height * 3 + my);
+            ctx.clip();
+          }
+        } else if (m.type === 'cinematic-bars') {
+          const barHeight = mh || 120;
+          if (m.inverted) {
+            ctx.rect(-width * 3, -height * 3, width * 6, height * 6);
+            ctx.rect(-width * 3, -height / 2 + barHeight, width * 6, height - barHeight * 2);
+            ctx.clip('evenodd');
+          } else {
+            ctx.rect(-width * 3, -height / 2 + barHeight, width * 6, height - barHeight * 2);
+            ctx.clip();
+          }
+        } else if (m.type === 'diamond') {
+          const hw = (mw * maskScale) / 2;
+          const hh = (mh * maskScale) / 2;
+          if (m.inverted) {
+            ctx.rect(-width * 3, -height * 3, width * 6, height * 6);
+          }
+          ctx.moveTo(mx, my - hh);
+          ctx.lineTo(mx + hw, my);
+          ctx.lineTo(mx, my + hh);
+          ctx.lineTo(mx - hw, my);
+          ctx.closePath();
+          if (m.inverted) {
+            ctx.clip('evenodd');
+          } else {
             ctx.clip();
           }
         } else if (m.type === 'star') {
           const spikes = 5;
-          const outerRadius = mw / 2;
+          const outerRadius = (mw * maskScale) / 2;
           const innerRadius = outerRadius * 0.45;
-          let rot = (Math.PI / 2) * 3;
-          const step = Math.PI / spikes;
+          let srot = (Math.PI / 2) * 3;
+          const sstep = Math.PI / spikes;
 
           if (m.inverted) {
-            ctx.rect(-width * 2, -height * 2, width * 4, height * 4);
+            ctx.rect(-width * 3, -height * 3, width * 6, height * 6);
           }
           ctx.moveTo(mx, my - outerRadius);
           for (let i = 0; i < spikes; i++) {
-            let x = mx + Math.cos(rot) * outerRadius;
-            let y = my + Math.sin(rot) * outerRadius;
-            ctx.lineTo(x, y);
-            rot += step;
+            let px = mx + Math.cos(srot) * outerRadius;
+            let py = my + Math.sin(srot) * outerRadius;
+            ctx.lineTo(px, py);
+            srot += sstep;
 
-            x = mx + Math.cos(rot) * innerRadius;
-            y = my + Math.sin(rot) * innerRadius;
-            ctx.lineTo(x, y);
-            rot += step;
+            px = mx + Math.cos(srot) * innerRadius;
+            py = my + Math.sin(srot) * innerRadius;
+            ctx.lineTo(px, py);
+            srot += sstep;
           }
-          ctx.lineTo(mx, my - outerRadius);
           ctx.closePath();
           if (m.inverted) {
             ctx.clip('evenodd');
@@ -167,9 +242,9 @@ class CanvasCompositor {
             ctx.clip();
           }
         } else if (m.type === 'heart') {
-          const s = mw / 200;
+          const s = (mw * maskScale) / 200;
           if (m.inverted) {
-            ctx.rect(-width * 2, -height * 2, width * 4, height * 4);
+            ctx.rect(-width * 3, -height * 3, width * 6, height * 6);
           }
           ctx.moveTo(mx, my - 30 * s);
           ctx.bezierCurveTo(mx, my - 60 * s, mx - 60 * s, my - 80 * s, mx - 100 * s, my - 40 * s);
@@ -182,7 +257,19 @@ class CanvasCompositor {
           } else {
             ctx.clip();
           }
+        } else if (m.type === 'text') {
+          const textContent = m.content || 'MASK';
+          const tFontSize = m.fontSize || 120;
+          ctx.font = `bold ${tFontSize}px ${m.fontFamily || 'Inter, system-ui'}`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          if (m.inverted) {
+            ctx.rect(-width * 3, -height * 3, width * 6, height * 6);
+            ctx.clip('evenodd');
+          }
         }
+
+        ctx.restore();
       }
 
       if (clip.type === 'video' && asset) {
@@ -210,26 +297,74 @@ class CanvasCompositor {
       } else if (clip.type === 'text') {
         const text = clip.text || 'FreeCut';
         const fontSize = clip.fontSize || 54;
-        ctx.font = `bold ${fontSize}px ${clip.fontFamily || 'Inter, system-ui'}`;
-        ctx.textAlign = 'center';
+        const fontWeight = clip.fontWeight || 'bold';
+        const fontStyle = clip.fontStyle === 'italic' ? 'italic' : 'normal';
+        const fontFamily = clip.fontFamily || 'Inter, system-ui';
+        
+        ctx.font = `${fontStyle} ${fontWeight} ${fontSize}px ${fontFamily}`;
+        ctx.textAlign = clip.textAlign || 'center';
         ctx.textBaseline = 'middle';
 
-        if (clip.backgroundColor && clip.backgroundColor !== 'transparent') {
-          const metrics = ctx.measureText(text);
-          const padding = 20;
-          const bgW = metrics.width + padding * 2;
-          const bgH = fontSize + padding;
-          ctx.fillStyle = clip.backgroundColor;
+        // Letter spacing
+        if (clip.letterSpacing && 'letterSpacing' in ctx) {
+          (ctx as any).letterSpacing = `${clip.letterSpacing}px`;
+        }
+
+        const metrics = ctx.measureText(text);
+        const textWidth = metrics.width;
+        const textHeight = fontSize * (clip.lineHeight || 1.2);
+
+        // Text Background box
+        const bgEnabled = clip.backgroundEnabled ?? (!!clip.backgroundColor && clip.backgroundColor !== 'transparent');
+        if (bgEnabled) {
+          const padX = clip.backgroundPaddingX ?? 20;
+          const padY = clip.backgroundPaddingY ?? 12;
+          const radius = clip.backgroundCornerRadius ?? 8;
+          const offX = clip.backgroundOffsetX ?? 0;
+          const offY = clip.backgroundOffsetY ?? 0;
+
+          const bgW = textWidth + padX * 2;
+          const bgH = textHeight + padY * 2;
+
+          let startX = -bgW / 2 + offX;
+          if (clip.textAlign === 'left') startX = -padX + offX;
+          else if (clip.textAlign === 'right') startX = -textWidth - padX + offX;
+
+          ctx.fillStyle = clip.backgroundColor || 'rgba(0,0,0,0.7)';
           ctx.beginPath();
-          ctx.roundRect(-bgW / 2, -bgH / 2, bgW, bgH, 12);
+          ctx.roundRect(startX, -bgH / 2 + offY, bgW, bgH, radius);
           ctx.fill();
         }
 
-        // Text shadow for legibility
+        // Text shadow for crisp legibility
         ctx.shadowColor = 'rgba(0,0,0,0.8)';
         ctx.shadowBlur = 8;
         ctx.fillStyle = clip.fontColor || '#ffffff';
         ctx.fillText(text, 0, 0);
+
+        // Text decoration
+        if (clip.textDecoration === 'underline') {
+          ctx.lineWidth = Math.max(2, fontSize / 16);
+          ctx.strokeStyle = clip.fontColor || '#ffffff';
+          ctx.beginPath();
+          ctx.moveTo(-textWidth / 2, fontSize * 0.55);
+          ctx.lineTo(textWidth / 2, fontSize * 0.55);
+          ctx.stroke();
+        } else if (clip.textDecoration === 'line-through') {
+          ctx.lineWidth = Math.max(2, fontSize / 16);
+          ctx.strokeStyle = clip.fontColor || '#ffffff';
+          ctx.beginPath();
+          ctx.moveTo(-textWidth / 2, 0);
+          ctx.lineTo(textWidth / 2, 0);
+          ctx.stroke();
+        }
+      }
+
+      // Draw mask stroke outline if configured
+      if (hasMaskStroke) {
+        ctx.strokeStyle = maskStrokeColor;
+        ctx.lineWidth = maskStrokeWidth;
+        ctx.stroke();
       }
 
       ctx.restore();
