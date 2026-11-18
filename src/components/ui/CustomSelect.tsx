@@ -78,13 +78,14 @@ export function CustomSelect<T extends string | number>({
       top = rect.bottom + 4;
     }
 
+    const menuWidth = Math.max(rect.width, 140);
     let left: number | undefined;
     let right: number | undefined;
 
-    if (align === 'right') {
+    if (align === 'right' || rect.left + menuWidth > viewportWidth - 8) {
       right = Math.max(8, viewportWidth - rect.right);
     } else {
-      left = Math.max(8, Math.min(rect.left, viewportWidth - Math.max(rect.width, 160) - 8));
+      left = Math.max(8, rect.left);
     }
 
     setCoords({
@@ -92,7 +93,7 @@ export function CustomSelect<T extends string | number>({
       bottom,
       left,
       right,
-      width: rect.width,
+      width: menuWidth,
       maxHeight,
       placement: shouldOpenUpwards ? 'top' : 'bottom',
     });
@@ -217,7 +218,7 @@ export function CustomSelect<T extends string | number>({
               left: coords.left !== undefined ? `${coords.left}px` : undefined,
               right: coords.right !== undefined ? `${coords.right}px` : undefined,
               width: `${coords.width}px`,
-              minWidth: 'max(100%, 160px)',
+              maxWidth: '320px',
               maxHeight: `${coords.maxHeight}px`,
             }}
           >
