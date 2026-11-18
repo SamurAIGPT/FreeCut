@@ -20,6 +20,27 @@ export interface NumberFieldProps {
   ariaLabel?: string;
 }
 
+function tryEvaluateExpression(expr: string): number | null {
+  const sanitized = expr.trim();
+  if (!sanitized) return null;
+  const direct = parseFloat(sanitized);
+  if (!isNaN(direct) && /^-?\d*(\.\d*)?$/.test(sanitized)) {
+    return direct;
+  }
+  if (/^[0-9\s.+\-*/()]+$/.test(sanitized)) {
+    try {
+      const fn = new Function(`"use strict"; return (${sanitized})`);
+      const res = fn();
+      if (typeof res === 'number' && !isNaN(res) && isFinite(res)) {
+        return res;
+      }
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
 export const NumberField: React.FC<NumberFieldProps> = ({
   value,
   defaultValue,
@@ -45,7 +66,7 @@ export const NumberField: React.FC<NumberFieldProps> = ({
   const startValRef = useRef(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Sync draft value when not editing
+  // Sync draft value when not actively typing/focused
   useEffect(() => {
     if (!isEditing) {
       setDraftValue(Number.isInteger(value) ? String(value) : value.toFixed(step < 0.1 ? 2 : 1));
@@ -112,13 +133,14 @@ export const NumberField: React.FC<NumberFieldProps> = ({
 
   const commitDraft = () => {
     setIsEditing(false);
-    const parsed = parseFloat(draftValue);
-    if (!isNaN(parsed)) {
-      const finalVal = clampValue(snapValue(parsed));
+    const evaluated = tryEvaluateExpression(draftValue);
+    if (evaluated !== null) {
+      const finalVal = clampValue(snapValue(evaluated));
       onChange(finalVal);
+      setDraftValue(Number.isInteger(finalVal) ? String(finalVal) : finalVal.toFixed(step < 0.1 ? 2 : 1));
       onScrubEnd?.();
     } else {
-      setDraftValue(String(value));
+      setDraftValue(Number.isInteger(value) ? String(value) : value.toFixed(step < 0.1 ? 2 : 1));
     }
   };
 
@@ -155,13 +177,25 @@ export const NumberField: React.FC<NumberFieldProps> = ({
           setIsEditing(true);
           e.target.select();
         }}
-        onChange={(e) => setDraftValue(e.target.value)}
+        onChange={(e) => {
+          const nextText = e.target.value;
+          setDraftValue(nextText);
+
+          // Real-time canvas reflection on every keystroke
+          const evaluated = tryEvaluateExpression(nextText);
+          if (evaluated !== null) {
+            // Apply live change to video canvas
+            let liveVal = evaluated;
+            if (max !== undefined && liveVal > max) liveVal = max;
+            onChange(liveVal);
+          }
+        }}
         onKeyDown={(e) => {
           if (e.key === 'Enter') {
             commitDraft();
             inputRef.current?.blur();
           } else if (e.key === 'Escape') {
-            setDraftValue(String(value));
+            setDraftValue(Number.isInteger(value) ? String(value) : value.toFixed(step < 0.1 ? 2 : 1));
             setIsEditing(false);
             inputRef.current?.blur();
           }

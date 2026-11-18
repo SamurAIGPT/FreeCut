@@ -807,6 +807,34 @@ export const InspectorPanel: React.FC = () => {
                     </div>
                   )}
 
+                  {mask.type === 'text' && (
+                    <div className="space-y-2">
+                      <div className="space-y-1">
+                        <span className="text-xs font-medium text-app-text">Mask Text</span>
+                        <input
+                          type="text"
+                          value={mask.content || 'MASK'}
+                          onChange={(e) => updateClipMask(clip.id, { content: e.target.value })}
+                          className="w-full rounded-md border border-app-border bg-app-elevated px-2 py-1.5 text-xs text-app-text outline-none focus:border-blue-500"
+                          placeholder="Enter mask text..."
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        {renderFieldHeader('mask.fontSize', 'Font Size')}
+                        <NumberField
+                          value={mask.fontSize || 120}
+                          defaultValue={120}
+                          min={20}
+                          max={400}
+                          step={1}
+                          suffix="px"
+                          onChange={(val) => updateClipMask(clip.id, { fontSize: val })}
+                          onReset={() => updateClipMask(clip.id, { fontSize: 120 })}
+                        />
+                      </div>
+                    </div>
+                  )}
+
                   {/* Rotation */}
                   <div className="space-y-1">
                     {renderFieldHeader('mask.rotation', 'Rotation')}
