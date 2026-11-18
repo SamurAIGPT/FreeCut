@@ -1,7 +1,7 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { 
   Upload, Film, Music, Plus, Sparkles, Search, Palette, Wand2, Type, Smile, 
-  Image as ImageIcon, Play, Square, Check, ArrowRight, Zap, Flame, Star, 
+  Image as ImageIcon, Play, Pause, Square, Check, ArrowRight, Zap, Flame, Star, 
   Heart, PartyPopper, Rocket, Lightbulb, ThumbsUp, Target, Clapperboard, 
   Bell, Volume2, Subtitles, SlidersHorizontal, Settings, Globe, FileText, 
   RotateCcw, Monitor, RefreshCw, Loader2, Info, Trash2
@@ -16,6 +16,85 @@ import {
   playLiveSoundPreview, 
   SoundEffectType 
 } from '@/utils/sampleMedia';
+
+/**
+ * Auto-generating video thumbnail component that displays the video frame
+ * and caches a canvas snapshot to ensure instant subsequent rendering.
+ */
+const VideoAutoThumbnail: React.FC<{ url: string; alt: string }> = ({ url, alt }) => {
+  const [thumb, setThumb] = useState<string | null>(null);
+  const [hasError, setHasError] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  const handleLoadedData = () => {
+    if (!videoRef.current || thumb) return;
+    try {
+      const v = videoRef.current;
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.min(320, v.videoWidth || 320);
+      canvas.height = Math.min(180, v.videoHeight || 180);
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        if (dataUrl && dataUrl.length > 50) {
+          setThumb(dataUrl);
+        }
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  if (hasError) {
+    return (
+      <div className="flex h-full w-full items-center justify-center bg-neutral-900">
+        <Film className="h-6 w-6 text-blue-500/70" />
+      </div>
+    );
+  }
+
+  if (thumb) {
+    return (
+      <img
+        src={thumb}
+        alt={alt}
+        className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+        loading="lazy"
+      />
+    );
+  }
+
+  return (
+    <video
+      ref={videoRef}
+      src={`${url}#t=0.001`}
+      preload="metadata"
+      muted
+      playsInline
+      onLoadedData={handleLoadedData}
+      onError={() => setHasError(true)}
+      className="h-full w-full object-cover pointer-events-none"
+    />
+  );
+};
+
+/**
+ * Formats duration in seconds into standard video editor time format M:SS or H:MM:SS
+ */
+const formatDuration = (seconds?: number): string => {
+  if (typeof seconds !== 'number' || isNaN(seconds) || !isFinite(seconds) || seconds <= 0) {
+    return '0:00';
+  }
+  const total = Math.round(seconds);
+  const hrs = Math.floor(total / 3600);
+  const mins = Math.floor((total % 3600) / 60);
+  const secs = total % 60;
+  if (hrs > 0) {
+    return `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  }
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+};
 
 export const SidebarContent: React.FC = () => {
   const activeTab = useEditorStore((s) => s.activeSidebarTab);
@@ -64,6 +143,62 @@ export const SidebarContent: React.FC = () => {
     setTimeout(() => setFeedbackMessage(null), 2500);
   };
 
+  // Audio preview playback in project bin
+  const [playingAudioId, setPlayingAudioId] = useState<string | null>(null);
+  const activeAudioElRef = useRef<HTMLAudioElement | null>(null);
+
+  const handleTogglePlayAudio = (asset: MediaAsset) => {
+    if (playingAudioId === asset.id) {
+      if (activeAudioElRef.current) {
+        activeAudioElRef.current.pause();
+        activeAudioElRef.current = null;
+      }
+      setPlayingAudioId(null);
+      return;
+    }
+
+    if (activeAudioElRef.current) {
+      activeAudioElRef.current.pause();
+      activeAudioElRef.current = null;
+    }
+
+    if (!asset.url) return;
+
+    try {
+      const audio = new Audio(asset.url);
+      activeAudioElRef.current = audio;
+      setPlayingAudioId(asset.id);
+
+      audio.onended = () => {
+        setPlayingAudioId(null);
+        activeAudioElRef.current = null;
+      };
+
+      audio.onerror = () => {
+        setPlayingAudioId(null);
+        activeAudioElRef.current = null;
+      };
+
+      audio.play().catch(() => {
+        setPlayingAudioId(null);
+        activeAudioElRef.current = null;
+      });
+    } catch {
+      setPlayingAudioId(null);
+      activeAudioElRef.current = null;
+    }
+  };
+
+  // Clean up audio on unmount or tab switch
+  useEffect(() => {
+    return () => {
+      if (activeAudioElRef.current) {
+        activeAudioElRef.current.pause();
+        activeAudioElRef.current = null;
+      }
+    };
+  }, [activeTab]);
+
   // 1. File Upload
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -78,7 +213,14 @@ export const SidebarContent: React.FC = () => {
       if (isVideo) {
         const v = document.createElement('video');
         v.src = url;
-        v.onloadedmetadata = () => {
+        v.preload = 'metadata';
+        v.muted = true;
+        v.playsInline = true;
+
+        let added = false;
+        const addVideo = (thumb?: string) => {
+          if (added) return;
+          added = true;
           addAsset({
             id: `asset-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
             name: file.name,
@@ -87,9 +229,35 @@ export const SidebarContent: React.FC = () => {
             duration: v.duration || 5,
             width: v.videoWidth || 1920,
             height: v.videoHeight || 1080,
+            thumbnailUrl: thumb,
           });
           showToast(`Imported ${file.name}`);
         };
+
+        v.onloadedmetadata = () => {
+          v.currentTime = Math.min(0.5, (v.duration || 1) / 2);
+        };
+
+        v.onseeked = () => {
+          try {
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.min(320, v.videoWidth || 320);
+            canvas.height = Math.min(180, v.videoHeight || 180);
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
+              const thumbUrl = canvas.toDataURL('image/jpeg', 0.85);
+              addVideo(thumbUrl);
+              return;
+            }
+          } catch {
+            // ignore
+          }
+          addVideo();
+        };
+
+        v.onerror = () => addVideo();
+        setTimeout(() => addVideo(), 1000);
       } else if (isAudio) {
         const a = new Audio(url);
         a.onloadedmetadata = () => {
@@ -114,11 +282,13 @@ export const SidebarContent: React.FC = () => {
             duration: 4,
             width: img.width,
             height: img.height,
+            thumbnailUrl: url,
           });
           showToast(`Imported ${file.name}`);
         };
       }
     }
+    e.target.value = '';
   };
 
   // 2. Demo Media Generator
@@ -761,7 +931,7 @@ export const SidebarContent: React.FC = () => {
     .map((c) => ({
       value: c.id,
       label: c.name,
-      description: `${c.type.toUpperCase()} • ${c.duration.toFixed(1)}s at ${c.start.toFixed(1)}s`,
+      description: `${c.type.toUpperCase()} • ${formatDuration(c.duration)} at ${formatDuration(c.start)}`,
     }));
 
   // 10. Settings Presets & Custom Dropdown Options
@@ -863,22 +1033,105 @@ export const SidebarContent: React.FC = () => {
                     .map((asset) => (
                       <div
                         key={asset.id}
-                        className="group relative flex flex-col overflow-hidden rounded-lg border border-app-border bg-app-elevated hover:border-neutral-400 dark:hover:border-neutral-600 transition"
+                        className="group relative flex flex-col overflow-hidden rounded-xl border border-app-border bg-app-elevated hover:border-neutral-400 dark:hover:border-neutral-600 transition shadow-xs"
                       >
-                        <div className="relative flex h-20 w-full items-center justify-center bg-app-surface text-app-text-muted">
-                          {asset.type === 'video' ? (
-                            <Film className="h-5 w-5 text-blue-500" />
-                          ) : asset.type === 'audio' ? (
-                            <Music className="h-5 w-5 text-emerald-500" />
+                        {/* Media Preview Box */}
+                        <div className="relative flex h-24 w-full items-center justify-center bg-app-surface overflow-hidden select-none">
+                          {asset.type === 'image' ? (
+                            <>
+                              <img
+                                src={asset.url}
+                                alt={asset.name}
+                                className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                                loading="lazy"
+                                onError={(e) => {
+                                  (e.currentTarget as HTMLElement).style.display = 'none';
+                                }}
+                              />
+                              {/* Image Badge Top Left */}
+                              <div className="absolute top-1.5 left-1.5 flex items-center gap-1 rounded bg-black/65 px-1.5 py-0.5 text-[9px] font-semibold text-purple-300 backdrop-blur-xs">
+                                <ImageIcon className="h-2.5 w-2.5" />
+                                <span>IMAGE</span>
+                              </div>
+                            </>
+                          ) : asset.type === 'video' ? (
+                            <>
+                              {asset.thumbnailUrl ? (
+                                <img
+                                  src={asset.thumbnailUrl}
+                                  alt={asset.name}
+                                  className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                                  loading="lazy"
+                                />
+                              ) : (
+                                <VideoAutoThumbnail url={asset.url} alt={asset.name} />
+                              )}
+                              {/* Video Badge Top Left */}
+                              <div className="absolute top-1.5 left-1.5 flex items-center gap-1 rounded bg-black/65 px-1.5 py-0.5 text-[9px] font-semibold text-blue-300 backdrop-blur-xs">
+                                <Film className="h-2.5 w-2.5" />
+                                <span>VIDEO</span>
+                              </div>
+                            </>
                           ) : (
-                            <ImageIcon className="h-5 w-5 text-purple-500" />
+                            /* Audio Preview with Play/Pause Button and Animated Waveform */
+                            <div className="relative flex h-full w-full flex-col items-center justify-center bg-gradient-to-b from-neutral-900/90 to-neutral-950 p-2 overflow-hidden">
+                              {/* Soundwave bars */}
+                              <div className="absolute inset-x-2 bottom-2.5 flex items-end justify-center gap-1 opacity-30 pointer-events-none h-9">
+                                {[35, 65, 40, 85, 55, 95, 45, 75, 60, 90, 70, 40, 80, 50, 95].map((h, i) => {
+                                  const isPlayingThis = playingAudioId === asset.id;
+                                  return (
+                                    <div
+                                      key={i}
+                                      style={{
+                                        height: isPlayingThis ? `${Math.max(25, (h + (i % 3) * 20) % 100)}%` : `${h}%`,
+                                      }}
+                                      className={`w-1 rounded-full transition-all duration-150 ${
+                                        isPlayingThis ? 'bg-emerald-400 animate-pulse' : 'bg-neutral-400'
+                                      }`}
+                                    />
+                                  );
+                                })}
+                              </div>
+
+                              {/* Audio Badge Top Left */}
+                              <div className="absolute top-1.5 left-1.5 flex items-center gap-1 rounded bg-black/65 px-1.5 py-0.5 text-[9px] font-semibold text-emerald-300 backdrop-blur-xs">
+                                <Music className="h-2.5 w-2.5" />
+                                <span>AUDIO</span>
+                              </div>
+
+                              {/* Centered Play / Pause Button */}
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleTogglePlayAudio(asset);
+                                }}
+                                title={playingAudioId === asset.id ? 'Pause audio' : 'Play audio preview'}
+                                className={`relative z-10 flex h-10 w-10 items-center justify-center rounded-full transition cursor-pointer shadow-lg ${
+                                  playingAudioId === asset.id
+                                    ? 'bg-emerald-500 text-white shadow-emerald-500/50 ring-4 ring-emerald-500/25 scale-105'
+                                    : 'bg-neutral-800/90 hover:bg-emerald-600 text-emerald-400 hover:text-white border border-neutral-700 hover:border-emerald-500 hover:scale-110 active:scale-95'
+                                }`}
+                              >
+                                {playingAudioId === asset.id ? (
+                                  <Pause className="h-4.5 w-4.5 fill-current" />
+                                ) : (
+                                  <Play className="h-4.5 w-4.5 fill-current ml-0.5" />
+                                )}
+                              </button>
+                            </div>
                           )}
-                          <span className="absolute bottom-1 right-1.5 rounded bg-black/75 px-1 font-mono text-[9px] text-white">
-                            {asset.duration.toFixed(1)}s
-                          </span>
+
+                          {/* Duration Badge Bottom Right (Videos & Audios only - images have no duration) */}
+                          {asset.type !== 'image' && (
+                            <span className="absolute bottom-1.5 right-1.5 rounded bg-black/75 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-white backdrop-blur-xs shadow-xs">
+                              {formatDuration(asset.duration)}
+                            </span>
+                          )}
                         </div>
 
-                        <div className="flex items-center justify-between p-2">
+                        {/* Card Info & Insert Button */}
+                        <div className="flex items-center justify-between p-2 bg-app-elevated border-t border-app-border/60">
                           <span className="truncate text-[11px] font-medium text-app-text" title={asset.name}>
                             {asset.name}
                           </span>
@@ -902,7 +1155,7 @@ export const SidebarContent: React.FC = () => {
                                 showToast(`Inserted ${asset.name} at playhead`);
                               }
                             }}
-                            className="rounded p-1 text-app-text-muted hover:bg-app-surface hover:text-app-text transition cursor-pointer"
+                            className="flex h-6 w-6 items-center justify-center rounded-md text-app-text-muted hover:bg-app-surface hover:text-app-text transition cursor-pointer shrink-0 ml-1 border border-transparent hover:border-app-border"
                             title="Insert at Playhead"
                           >
                             <Plus className="h-3.5 w-3.5" />
@@ -969,7 +1222,7 @@ export const SidebarContent: React.FC = () => {
                         <div className="min-w-0">
                           <h4 className="text-xs font-medium text-app-text truncate">{sfx.name}</h4>
                           <span className="text-[10px] text-app-text-muted uppercase font-semibold">
-                            {sfx.cat} • {sfx.duration.toFixed(1)}s
+                            {sfx.cat} • {formatDuration(sfx.duration)}
                           </span>
                         </div>
                       </div>

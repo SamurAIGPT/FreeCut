@@ -20,6 +20,7 @@ export async function generateCountdownVideo(): Promise<MediaAsset> {
   const duration = 5; // 5 seconds
   const fps = 30;
   const totalFrames = duration * fps;
+  let thumbnailUrl = '';
 
   return new Promise((resolve) => {
     recorder.onstop = () => {
@@ -33,6 +34,7 @@ export async function generateCountdownVideo(): Promise<MediaAsset> {
         duration,
         width: 1280,
         height: 720,
+        thumbnailUrl: thumbnailUrl || undefined,
       });
     };
 
@@ -44,6 +46,12 @@ export async function generateCountdownVideo(): Promise<MediaAsset> {
         clearInterval(interval);
         recorder.stop();
         return;
+      }
+
+      if (frame === 15) {
+        try {
+          thumbnailUrl = canvas.toDataURL('image/jpeg', 0.85);
+        } catch (e) {}
       }
 
       const count = Math.max(1, 5 - Math.floor(frame / fps));
