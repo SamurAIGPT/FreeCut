@@ -48,12 +48,6 @@ export async function generateCountdownVideo(): Promise<MediaAsset> {
         return;
       }
 
-      if (frame === 15) {
-        try {
-          thumbnailUrl = canvas.toDataURL('image/jpeg', 0.85);
-        } catch (e) {}
-      }
-
       const count = Math.max(1, 5 - Math.floor(frame / fps));
 
       // Background gradient
@@ -92,6 +86,13 @@ export async function generateCountdownVideo(): Promise<MediaAsset> {
       ctx.font = '24px Inter, system-ui';
       ctx.fillStyle = '#94a3b8';
       ctx.fillText('FREECUT TEST FOOTAGE', cx, cy + 240);
+
+      // Capture crisp thumbnail on frame 15 after full graphics are rendered
+      if (frame === 15) {
+        try {
+          thumbnailUrl = canvas.toDataURL('image/jpeg', 0.85);
+        } catch (e) {}
+      }
 
       frame++;
     }, 1000 / fps);

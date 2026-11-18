@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { AspectRatio, Clip, ClipEffect, ClipMask, ColorFilter, MediaAsset, SidebarTab, TimelineMarker, Track, TrackType, Transform } from '@/types/editor';
+import { ProjectRecord, projectService } from '@/services/storage/projectService';
 
 interface HistorySnapshot {
   tracks: Track[];
@@ -30,6 +31,8 @@ interface EditorState {
   isRippleMode: boolean;
   canvasBg: string;
   fps: number;
+  currentProjectId: string | null;
+  isSaving: boolean;
 
   // History
   history: {
@@ -56,6 +59,9 @@ interface EditorState {
   setSnapGuideX: (x: number | null) => void;
   setCanvasBg: (bg: string) => void;
   setFps: (fps: number) => void;
+  setCurrentProjectId: (id: string | null) => void;
+  loadProjectRecord: (record: ProjectRecord) => void;
+  saveCurrentProject: () => Promise<void>;
   
   // Markers
   addMarker: (time?: number, label?: string, color?: string) => void;
@@ -199,6 +205,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   isRippleMode: false,
   canvasBg: '#000000',
   fps: 30,
+  currentProjectId: null,
+  isSaving: false,
   history: { past: [], future: [] },
 
   setTheme: (theme) => {
@@ -242,6 +250,73 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   setSnapGuideX: (x) => set({ snapGuideX: x }),
   setCanvasBg: (bg) => set({ canvasBg: bg }),
   setFps: (fps) => set({ fps }),
+
+  setCurrentProjectId: (id) => set({ currentProjectId: id }),
+
+  loadProjectRecord: (record) => {
+    // Sync fingerprint so initial load doesn't trigger redundant auto-save
+    lastSerializedState = `${record.name}|${record.aspectRatio}|${record.fps || 30}|${record.canvasBg || '#000000'}|${Math.max(record.duration || 10, 10)}|${(record.tracks || []).length}|${(record.clips || []).length}|${(record.assets || []).length}|${(record.clips || []).map((c) => `${c.id}:${c.start}:${c.duration}:${c.effects?.length || 0}`).join(',')}`;
+
+    set({
+      currentProjectId: record.id,
+      projectTitle: record.name,
+      aspectRatio: record.aspectRatio,
+      fps: record.fps || 30,
+      canvasBg: record.canvasBg || '#000000',
+      duration: Math.max(record.duration || 10, 10),
+      tracks: record.tracks || [],
+      clips: record.clips || [],
+      assets: record.assets || [],
+      playhead: 0,
+      selectedClipId: null,
+      history: { past: [], future: [] },
+    });
+  },
+
+  saveCurrentProject: async () => {
+    const state = get();
+    const pid = state.currentProjectId;
+    if (!pid) return;
+
+    set({ isSaving: true });
+    try {
+      let thumbnail: string | undefined = undefined;
+      if (typeof document !== 'undefined') {
+        const canvas = document.querySelector('canvas') as HTMLCanvasElement | null;
+        if (canvas && canvas.width > 0 && canvas.height > 0) {
+          try {
+            const thumbCanvas = document.createElement('canvas');
+            const thumbW = 320;
+            const thumbH = Math.round((thumbW * canvas.height) / (canvas.width || 1));
+            thumbCanvas.width = thumbW;
+            thumbCanvas.height = thumbH;
+            const ctx = thumbCanvas.getContext('2d');
+            if (ctx) {
+              ctx.drawImage(canvas, 0, 0, thumbW, thumbH);
+              thumbnail = thumbCanvas.toDataURL('image/jpeg', 0.7);
+            }
+          } catch {
+            // ignore canvas extraction error
+          }
+        }
+      }
+
+      await projectService.saveProject({
+        id: pid,
+        name: state.projectTitle,
+        duration: state.duration,
+        aspectRatio: state.aspectRatio,
+        fps: state.fps,
+        canvasBg: state.canvasBg,
+        tracks: state.tracks,
+        clips: state.clips,
+        assets: state.assets,
+        thumbnail,
+      });
+    } finally {
+      setTimeout(() => set({ isSaving: false }), 300);
+    }
+  },
 
   addMarker: (time, label, color) => {
     const state = get();
@@ -735,3 +810,22 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     });
   },
 }));
+
+// Auto-save debouncer for active project
+let autoSaveTimer: ReturnType<typeof setTimeout> | null = null;
+let lastSerializedState = '';
+
+useEditorStore.subscribe((state) => {
+  if (!state.currentProjectId) return;
+
+  // Fingerprint of persistent project fields
+  const fingerprint = `${state.projectTitle}|${state.aspectRatio}|${state.fps}|${state.canvasBg}|${state.duration}|${state.tracks.length}|${state.clips.length}|${state.assets.length}|${state.clips.map((c) => `${c.id}:${c.start}:${c.duration}:${c.effects?.length || 0}`).join(',')}`;
+
+  if (fingerprint === lastSerializedState) return;
+  lastSerializedState = fingerprint;
+
+  if (autoSaveTimer) clearTimeout(autoSaveTimer);
+  autoSaveTimer = setTimeout(() => {
+    state.saveCurrentProject();
+  }, 800);
+});

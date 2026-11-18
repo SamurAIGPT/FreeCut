@@ -1,24 +1,51 @@
-import React, { useEffect } from 'react';
-import { Header } from '@/components/header/Header';
-import { AssetsPanel } from '@/components/assets/AssetsPanel';
-import { PreviewCanvas } from '@/components/preview/PreviewCanvas';
-import { InspectorPanel } from '@/components/inspector/InspectorPanel';
-import { Timeline } from '@/components/timeline/Timeline';
-import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
-import { useAnimationLoop } from '@/hooks/useAnimationLoop';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useEditorStore } from '@/store/useEditorStore';
-import { generateCountdownVideo, generateSampleAudio } from '@/utils/sampleMedia';
+import { projectService } from '@/services/storage/projectService';
+import { ProjectsPage } from '@/components/projects/ProjectsPage';
+import { EditorWorkspace } from '@/components/editor/EditorWorkspace';
+import { Loader2 } from 'lucide-react';
+
+function parseRouteFromLocation(): { route: 'projects' | 'editor'; projectId: string | null } {
+  if (typeof window === 'undefined') {
+    return { route: 'projects', projectId: null };
+  }
+
+  const pathname = window.location.pathname;
+  const hash = window.location.hash;
+  const searchParams = new URLSearchParams(window.location.search);
+
+  // 1. Query parameter ?project=... or ?id=...
+  const queryProjectId = searchParams.get('project') || searchParams.get('id');
+  if (queryProjectId) {
+    return { route: 'editor', projectId: queryProjectId };
+  }
+
+  // 2. Path /editor/:id
+  const editorMatch = pathname.match(/\/editor\/([^/?#]+)/);
+  if (editorMatch && editorMatch[1]) {
+    return { route: 'editor', projectId: editorMatch[1] };
+  }
+
+  // 3. Hash #/editor/:id
+  const hashMatch = hash.match(/#\/editor\/([^/?#]+)/);
+  if (hashMatch && hashMatch[1]) {
+    return { route: 'editor', projectId: hashMatch[1] };
+  }
+
+  return { route: 'projects', projectId: null };
+}
 
 export const App: React.FC = () => {
-  useKeyboardShortcuts();
-  useAnimationLoop();
-
   const theme = useEditorStore((s) => s.theme);
   const setTheme = useEditorStore((s) => s.setTheme);
-  const assets = useEditorStore((s) => s.assets);
-  const addAsset = useEditorStore((s) => s.addAsset);
-  const addClip = useEditorStore((s) => s.addClip);
-  const tracks = useEditorStore((s) => s.tracks);
+
+  const [currentRoute, setCurrentRoute] = useState<'projects' | 'editor'>(() => {
+    return parseRouteFromLocation().route;
+  });
+  const [activeProjectId, setActiveProjectId] = useState<string | null>(() => {
+    return parseRouteFromLocation().projectId;
+  });
+  const [isLoadingProject, setIsLoadingProject] = useState(false);
 
   // Sync theme with query param or store on startup
   useEffect(() => {
@@ -33,118 +60,98 @@ export const App: React.FC = () => {
     setTheme(theme);
   }, []);
 
-  // Auto-seed sequence on first visit
+  // Listen for browser popstate navigation (Back / Forward)
   useEffect(() => {
-    if (assets.length === 0) {
-      const initSamples = async () => {
+    const handlePopState = () => {
+      const parsed = parseRouteFromLocation();
+      setCurrentRoute(parsed.route);
+      setActiveProjectId(parsed.projectId);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // Back to projects handler
+  const handleBackToProjects = useCallback(async () => {
+    try {
+      await useEditorStore.getState().saveCurrentProject();
+    } catch {
+      // ignore
+    }
+    useEditorStore.getState().setCurrentProjectId(null);
+    setActiveProjectId(null);
+    setCurrentRoute('projects');
+    window.history.pushState(null, '', '/projects');
+  }, []);
+
+  // Open project handler
+  const handleOpenProject = useCallback((projectId: string) => {
+    setActiveProjectId(projectId);
+    setCurrentRoute('editor');
+    window.history.pushState(null, '', `/editor/${projectId}`);
+  }, []);
+
+  // Load project record whenever in editor route
+  useEffect(() => {
+    if (currentRoute === 'editor' && activeProjectId) {
+      let isCancelled = false;
+      const load = async () => {
+        setIsLoadingProject(true);
         try {
-          const videoAsset = await generateCountdownVideo();
-          addAsset(videoAsset);
-
-          const audioAsset = await generateSampleAudio();
-          addAsset(audioAsset);
-
-          const textTrack = tracks.find((t) => t.type === 'text') || tracks[0];
-          const mainVideoTrack = tracks.find((t) => t.id === 'track-video-1') || tracks[1];
-          const bRollTrack = tracks.find((t) => t.id === 'track-video-2') || tracks[1];
-          const audioTrack = tracks.find((t) => t.id === 'track-audio-1') || tracks[2];
-
-          // 1. Main Background Video
-          if (mainVideoTrack) {
-            addClip({
-              trackId: mainVideoTrack.id,
-              assetId: videoAsset.id,
-              name: 'Cinematic Countdown.webm',
-              type: 'video',
-              start: 0,
-              duration: 5,
-              trimStart: 0,
-              trimEnd: 5,
-              transform: { x: 0, y: 0, scale: 1, rotation: 0, opacity: 1 },
-              volume: 1,
-              color: '#2563eb',
-            });
+          let project = await projectService.getProject(activeProjectId);
+          if (!project) {
+            // Ensure starter project exists if loading default
+            const initialList = await projectService.ensureInitialProjects();
+            project = initialList.find((p) => p.id === activeProjectId) || null;
           }
 
-          // 2. Overlay B-Roll Cut
-          if (bRollTrack) {
-            addClip({
-              trackId: bRollTrack.id,
-              assetId: videoAsset.id,
-              name: 'Picture-in-Picture.webm',
-              type: 'video',
-              start: 2,
-              duration: 3,
-              trimStart: 2,
-              trimEnd: 5,
-              transform: { x: 380, y: -190, scale: 0.35, rotation: 0, opacity: 0.95 },
-              volume: 0,
-              color: '#4f46e5',
-            });
-          }
+          if (isCancelled) return;
 
-          // 3. Audio Soundtrack
-          if (audioTrack) {
-            addClip({
-              trackId: audioTrack.id,
-              assetId: audioAsset.id,
-              name: 'Lo-Fi Ambient Beat.wav',
-              type: 'audio',
-              start: 0,
-              duration: 5,
-              trimStart: 0,
-              trimEnd: 5,
-              transform: { x: 0, y: 0, scale: 1, rotation: 0, opacity: 1 },
-              volume: 0.85,
-              color: '#059669',
-            });
-          }
-
-          // 4. Stylized Title Card
-          if (textTrack) {
-            addClip({
-              trackId: textTrack.id,
-              name: 'Obsidian Title',
-              type: 'text',
-              text: 'FREECUT PRO',
-              fontSize: 56,
-              fontColor: '#ffffff',
-              backgroundColor: 'rgba(0, 0, 0, 0.85)',
-              fontFamily: 'Inter, system-ui',
-              start: 0.5,
-              duration: 4.5,
-              trimStart: 0,
-              trimEnd: 4.5,
-              transform: { x: 0, y: 160, scale: 1, rotation: 0, opacity: 1 },
-              volume: 0,
-              color: '#d97706',
-            });
+          if (project) {
+            useEditorStore.getState().loadProjectRecord(project);
+          } else {
+            console.warn(`Project ${activeProjectId} not found in storage, returning to projects.`);
+            handleBackToProjects();
           }
         } catch (err) {
-          console.error('Failed to init sample media:', err);
+          console.error('Failed to load project from storage:', err);
+          handleBackToProjects();
+        } finally {
+          if (!isCancelled) {
+            setIsLoadingProject(false);
+          }
         }
       };
 
-      initSamples();
+      load();
+      return () => {
+        isCancelled = true;
+      };
     }
-  }, []);
+  }, [currentRoute, activeProjectId, handleBackToProjects]);
 
-  return (
-    <div className="flex h-screen w-screen flex-col overflow-hidden bg-app-bg text-app-text select-none transition-colors duration-200">
-      {/* Top Application Header */}
-      <Header />
-
-      {/* Main Studio Workspace */}
-      <div className="flex flex-1 min-h-0 min-w-0 overflow-hidden">
-        <AssetsPanel />
-        <PreviewCanvas />
-        <InspectorPanel />
+  // Loading Screen for Editor Project
+  if (currentRoute === 'editor' && isLoadingProject) {
+    return (
+      <div className="flex h-screen w-screen flex-col items-center justify-center bg-app-bg text-app-text select-none">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="h-8 w-8 animate-spin text-neutral-400 dark:text-neutral-500" />
+          <p className="text-xs font-semibold text-app-text-muted tracking-wider uppercase">
+            Loading Project...
+          </p>
+        </div>
       </div>
+    );
+  }
 
-      {/* Bottom Multi-Track Pro Timeline */}
-      <Timeline />
-    </div>
-  );
+  // Active Editor Workspace
+  if (currentRoute === 'editor') {
+    return <EditorWorkspace onBackToProjects={handleBackToProjects} />;
+  }
+
+  // Projects Dashboard View
+  return <ProjectsPage onOpenProject={handleOpenProject} />;
 };
 
 export default App;
