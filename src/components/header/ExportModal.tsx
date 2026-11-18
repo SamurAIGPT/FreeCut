@@ -1,24 +1,31 @@
 import React, { useState } from 'react';
-import { Download, Film, Loader2, X, Monitor, Video, Gauge } from 'lucide-react';
+import { Download, Film, Loader2, X, Monitor, Video, Gauge, Sliders, Volume2 } from 'lucide-react';
 import { useEditorStore } from '@/store/useEditorStore';
 import { exportTimelineVideo, ExportProgress } from '@/engine/exporter';
 import { CustomSelect, SelectOption } from '@/components/ui/CustomSelect';
+import { formatDuration } from '@/utils/time';
 
 const RESOLUTION_OPTIONS: SelectOption<string>[] = [
-  { value: '1080p', label: '1080p Full HD', description: 'Standard high-definition web export' },
-  { value: '720p', label: '720p HD', description: 'Fast render & smaller file size' },
-  { value: '4k', label: '4K Ultra HD', description: 'Maximum crisp detail (3840×2160)' },
+  { value: '1080p', label: '1080p Full HD (1920×1080)', description: 'Standard high-definition web export' },
+  { value: '720p', label: '720p HD (1280×720)', description: 'Fast render & compact file size' },
+  { value: '4k', label: '4K Ultra HD (3840×2160)', description: 'Maximum crisp detail' },
 ];
 
 const FORMAT_OPTIONS: SelectOption<string>[] = [
-  { value: 'webm', label: 'WebM Video', description: 'VP9 codec with high web compression' },
-  { value: 'mp4', label: 'MP4 Video', description: 'Universal compatibility format' },
+  { value: 'mp4', label: 'MP4 Video (H.264 / AVC)', description: 'Universal format compatible everywhere' },
+  { value: 'webm', label: 'WebM Video (VP9)', description: 'High compression web standard' },
 ];
 
 const FPS_OPTIONS: SelectOption<number>[] = [
   { value: 30, label: '30 FPS', description: 'Standard web & social video' },
   { value: 60, label: '60 FPS', description: 'Silky smooth high motion' },
   { value: 24, label: '24 FPS', description: 'Cinematic film cadence' },
+];
+
+const QUALITY_OPTIONS: SelectOption<string>[] = [
+  { value: 'high', label: 'High Quality', description: 'Crisp visual fidelity & rich colors' },
+  { value: 'medium', label: 'Balanced Quality', description: 'Good trade-off between size and fidelity' },
+  { value: 'low', label: 'Fast Draft', description: 'Quick rendering and smaller download' },
 ];
 
 interface ExportModalProps {
@@ -30,8 +37,10 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose }) => 
   const [isExporting, setIsExporting] = useState(false);
   const [progress, setProgress] = useState<ExportProgress | null>(null);
   const [resolution, setResolution] = useState('1080p');
-  const [format, setFormat] = useState('webm');
+  const [format, setFormat] = useState('mp4');
   const [fps, setFps] = useState(30);
+  const [quality, setQuality] = useState('high');
+  const [includeAudio, setIncludeAudio] = useState(true);
 
   const tracks = useEditorStore((s) => s.tracks);
   const clips = useEditorStore((s) => s.clips);
@@ -40,20 +49,36 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose }) => 
   const duration = useEditorStore((s) => s.duration);
   const projectTitle = useEditorStore((s) => s.projectTitle);
 
+  // Calculate actual content duration (end of last clip)
+  const contentDuration = clips.length > 0 
+    ? Math.max(...clips.map((c) => c.start + c.duration))
+    : duration;
+
+  const [exportRange, setExportRange] = useState<'content' | 'timeline'>('content');
+
   if (!isOpen) return null;
+
+  const activeDuration = exportRange === 'content' && contentDuration > 0 ? contentDuration : duration;
 
   const handleStartExport = async () => {
     try {
       setIsExporting(true);
-      setProgress({ progress: 0, currentSecond: 0, totalSeconds: duration });
+      setProgress({ progress: 0, currentSecond: 0, totalSeconds: activeDuration });
 
       const blob = await exportTimelineVideo(
         tracks,
         clips,
         assets,
         aspect,
-        duration,
-        (p) => setProgress(p)
+        activeDuration,
+        (p) => setProgress(p),
+        {
+          format: format as 'webm' | 'mp4',
+          resolution: resolution as '1080p' | '720p' | '4k',
+          fps,
+          quality: quality as 'high' | 'medium' | 'low',
+          includeAudio,
+        }
       );
 
       const url = URL.createObjectURL(blob);
@@ -69,7 +94,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose }) => 
       onClose();
     } catch (err) {
       console.error('Export failed:', err);
-      alert('Export failed. Check console for details.');
+      alert('Export failed. Check console for details: ' + (err instanceof Error ? err.message : String(err)));
       setIsExporting(false);
     }
   };
@@ -100,14 +125,52 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose }) => 
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="rounded-lg border border-app-border bg-app-elevated p-3">
-              <span className="text-app-text-muted">Aspect Ratio</span>
-              <p className="mt-1 text-sm font-bold text-app-text">{aspect}</p>
+          {/* Export Range Selection */}
+          <div>
+            <label className="text-app-text-muted font-medium mb-1.5 block">Export Range</label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setExportRange('content')}
+                className={`flex flex-col text-left p-2.5 rounded-lg border transition ${
+                  exportRange === 'content'
+                    ? 'border-blue-500 bg-blue-500/10 text-app-text'
+                    : 'border-app-border bg-app-elevated text-app-text-muted hover:border-neutral-400'
+                }`}
+              >
+                <span className="font-semibold text-xs text-app-text">Timeline Content</span>
+                <span className="text-[11px] font-mono mt-0.5 text-app-text-muted">
+                  0:00 - {formatDuration(contentDuration)} ({contentDuration.toFixed(1)}s)
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setExportRange('timeline')}
+                className={`flex flex-col text-left p-2.5 rounded-lg border transition ${
+                  exportRange === 'timeline'
+                    ? 'border-blue-500 bg-blue-500/10 text-app-text'
+                    : 'border-app-border bg-app-elevated text-app-text-muted hover:border-neutral-400'
+                }`}
+              >
+                <span className="font-semibold text-xs text-app-text">Full Timeline</span>
+                <span className="text-[11px] font-mono mt-0.5 text-app-text-muted">
+                  0:00 - {formatDuration(duration)} ({duration.toFixed(1)}s)
+                </span>
+              </button>
             </div>
-            <div className="rounded-lg border border-app-border bg-app-elevated p-3">
-              <span className="text-app-text-muted">Duration</span>
-              <p className="mt-1 text-sm font-bold text-app-text">{duration.toFixed(1)}s</p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-lg border border-app-border bg-app-elevated p-2.5">
+              <span className="text-app-text-muted">Aspect Ratio</span>
+              <p className="mt-0.5 text-sm font-bold text-app-text">{aspect}</p>
+            </div>
+            <div className="rounded-lg border border-app-border bg-app-elevated p-2.5">
+              <span className="text-app-text-muted">Export Duration</span>
+              <p className="mt-0.5 text-sm font-bold text-blue-500">
+                {formatDuration(activeDuration)} ({activeDuration.toFixed(1)}s)
+              </p>
             </div>
           </div>
 
@@ -147,22 +210,47 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose }) => 
                 />
               </div>
             </div>
+
+            <div className="space-y-1">
+              <label className="text-app-text-muted font-medium">Encoding Quality</label>
+              <CustomSelect<string>
+                value={quality}
+                onChange={(val) => setQuality(val)}
+                options={QUALITY_OPTIONS}
+                icon={<Sliders className="h-3.5 w-3.5" />}
+                className="w-full"
+              />
+            </div>
+
+            {/* Audio Inclusion Toggle */}
+            <label className="flex items-center gap-2 cursor-pointer pt-1 text-app-text">
+              <input
+                type="checkbox"
+                checked={includeAudio}
+                onChange={(e) => setIncludeAudio(e.target.checked)}
+                className="rounded border-app-border accent-blue-500 h-4 w-4"
+              />
+              <Volume2 className="h-3.5 w-3.5 text-app-text-muted" />
+              <span className="font-medium">Include audio tracks in export</span>
+            </label>
           </div>
 
           {isExporting && progress && (
             <div className="space-y-2 pt-2">
               <div className="flex items-center justify-between text-app-text font-medium">
-                <span>Rendering frames...</span>
+                <span>
+                  Rendering {progress.currentFrame ? `frame ${progress.currentFrame}/${progress.totalFrames}` : 'frames...'}
+                </span>
                 <span>{Math.round(progress.progress * 100)}%</span>
               </div>
               <div className="h-2 w-full overflow-hidden rounded-full bg-app-elevated">
                 <div
-                  className="h-full bg-neutral-900 dark:bg-neutral-100 transition-all duration-100"
-                  style={{ width: `${progress.progress * 100}%` }}
+                  className="h-full bg-blue-500 transition-all duration-100"
+                  style={{ width: `${Math.min(100, progress.progress * 100)}%` }}
                 />
               </div>
               <p className="text-center text-[11px] text-app-text-muted">
-                Processed {progress.currentSecond.toFixed(1)}s of {progress.totalSeconds.toFixed(1)}s
+                {progress.currentSecond.toFixed(1)}s of {progress.totalSeconds.toFixed(1)}s rendered
               </p>
             </div>
           )}
@@ -178,7 +266,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose }) => 
                 </button>
                 <button
                   onClick={handleStartExport}
-                  className="flex items-center gap-2 rounded-lg bg-neutral-900 dark:bg-neutral-100 px-4 py-2 font-semibold text-white dark:text-neutral-900 shadow-sm hover:opacity-90 active:scale-95 transition"
+                  className="flex items-center gap-2 rounded-lg bg-blue-600 hover:bg-blue-700 px-4 py-2 font-semibold text-white shadow-sm active:scale-95 transition"
                 >
                   <Download className="h-4 w-4" />
                   Render & Download
@@ -187,7 +275,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose }) => 
             ) : (
               <button
                 disabled
-                className="flex items-center gap-2 rounded-lg bg-neutral-900/70 dark:bg-neutral-100/70 px-4 py-2 font-medium text-white dark:text-neutral-900"
+                className="flex items-center gap-2 rounded-lg bg-blue-600/70 px-4 py-2 font-medium text-white"
               >
                 <Loader2 className="h-4 w-4 animate-spin" />
                 Rendering...

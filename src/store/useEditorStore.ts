@@ -317,7 +317,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     };
 
     const clipEnd = newClip.start + newClip.duration;
-    const newDuration = Math.max(state.duration, clipEnd + 5);
+    const newDuration = Math.max(state.duration, clipEnd);
 
     set({
       history: {
@@ -335,11 +335,11 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   updateClip: (id, updates) => {
     const state = get();
     const updatedClips = state.clips.map((c) => (c.id === id ? { ...c, ...updates } : c));
-    const maxEnd = Math.max(...updatedClips.map((c) => c.start + c.duration), 15);
+    const maxEnd = updatedClips.length > 0 ? Math.max(...updatedClips.map((c) => c.start + c.duration)) : 0;
 
     set({
       clips: updatedClips,
-      duration: Math.max(maxEnd + 5, 15),
+      duration: Math.max(maxEnd, 10),
     });
   },
 
@@ -466,7 +466,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       history: { past, future: [] },
       clips: [...state.clips, newClip],
       selectedClipId: newId,
-      duration: Math.max(state.duration, newClip.start + newClip.duration + 5),
+      duration: Math.max(state.duration, newClip.start + newClip.duration),
     });
   },
 

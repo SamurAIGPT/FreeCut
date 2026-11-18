@@ -1,30 +1,329 @@
 import { AspectRatio, Clip, MediaAsset, Track } from '@/types/editor';
 import { compositor } from './compositor';
+import {
+  Output,
+  Mp4OutputFormat,
+  WebMOutputFormat,
+  BufferTarget,
+  CanvasSource,
+  AudioBufferSource,
+  QUALITY_HIGH,
+  QUALITY_MEDIUM,
+  QUALITY_LOW
+} from 'mediabunny';
 
 export interface ExportProgress {
   progress: number; // 0.0 to 1.0
   currentSecond: number;
   totalSeconds: number;
+  currentFrame?: number;
+  totalFrames?: number;
 }
 
+export interface ExportTimelineOptions {
+  tracks: Track[];
+  clips: Clip[];
+  assets: MediaAsset[];
+  aspect: AspectRatio;
+  duration: number;
+  format?: 'webm' | 'mp4';
+  resolution?: '1080p' | '720p' | '4k';
+  fps?: number;
+  quality?: 'high' | 'medium' | 'low';
+  includeAudio?: boolean;
+  onProgress?: (p: ExportProgress) => void;
+}
+
+const QUALITY_MAP = {
+  low: QUALITY_LOW,
+  medium: QUALITY_MEDIUM,
+  high: QUALITY_HIGH,
+};
+
+/**
+ * Mixes timeline audio tracks into a single AudioBuffer using OfflineAudioContext.
+ */
+async function mixTimelineAudio(
+  clips: Clip[],
+  assets: MediaAsset[],
+  totalDuration: number
+): Promise<AudioBuffer | null> {
+  const audioClips = clips.filter((c) => (c.type === 'audio' || c.type === 'video') && !c.isMuted);
+  if (audioClips.length === 0) return null;
+
+  try {
+    const sampleRate = 44100;
+    const totalSamples = Math.max(1, Math.ceil(totalDuration * sampleRate));
+    const offlineCtx = new OfflineAudioContext(2, totalSamples, sampleRate);
+
+    let hasAudio = false;
+
+    for (const clip of audioClips) {
+      const asset = assets.find((a) => a.id === clip.assetId);
+      if (!asset?.url) continue;
+
+      try {
+        const response = await fetch(asset.url);
+        const arrayBuffer = await response.arrayBuffer();
+        const decodedBuffer = await offlineCtx.decodeAudioData(arrayBuffer);
+
+        const source = offlineCtx.createBufferSource();
+        source.buffer = decodedBuffer;
+
+        const gainNode = offlineCtx.createGain();
+        gainNode.gain.value = Math.max(0, Math.min(1, clip.volume ?? 1));
+
+        source.connect(gainNode);
+        gainNode.connect(offlineCtx.destination);
+
+        const startTime = Math.max(0, clip.start);
+        const offset = Math.max(0, clip.trimStart || 0);
+        const clipDur = Math.min(clip.duration, Math.max(0, decodedBuffer.duration - offset));
+
+        if (clipDur > 0) {
+          source.start(startTime, offset, clipDur);
+          hasAudio = true;
+        }
+      } catch {
+        // Skip audio decoding if asset is unavailable or purely synthetic
+      }
+    }
+
+    if (!hasAudio) return null;
+    return await offlineCtx.startRendering();
+  } catch (err) {
+    console.warn('Audio mixing skipped:', err);
+    return null;
+  }
+}
+
+/**
+ * Deterministically exports the timeline video using mediabunny (WebCodecs & standard container muxers).
+ * Each frame is assigned its exact mathematical timestamp (playhead = frame / fps), guaranteeing
+ * that the output video file has the exact intended duration and never drifts or stretches.
+ */
 export async function exportTimelineVideo(
   tracks: Track[],
   clips: Clip[],
   assets: MediaAsset[],
   aspect: AspectRatio,
   duration: number,
-  onProgress?: (p: ExportProgress) => void
+  onProgress?: (p: ExportProgress) => void,
+  options?: {
+    format?: 'webm' | 'mp4';
+    resolution?: '1080p' | '720p' | '4k';
+    fps?: number;
+    quality?: 'high' | 'medium' | 'low';
+    includeAudio?: boolean;
+  }
 ): Promise<Blob> {
-  const { width, height } = compositor.getDimensions(aspect);
+  const format = options?.format || 'webm';
+  const resolution = options?.resolution || '1080p';
+  const fps = options?.fps || 30;
+  const quality = options?.quality || 'high';
+  const includeAudio = options?.includeAudio ?? true;
+
+  // Compute resolution dimensions
+  const baseDim = compositor.getDimensions(aspect);
+  let scale = 1.0;
+  if (resolution === '720p') scale = 720 / 1080;
+  else if (resolution === '4k') scale = 2160 / 1080;
+
+  // Dimensions must be even integers for video encoders
+  const width = Math.round((baseDim.width * scale) / 2) * 2;
+  const height = Math.round((baseDim.height * scale) / 2) * 2;
+
+  const totalFrames = Math.max(1, Math.round(duration * fps));
+
+  // Check if WebCodecs VideoEncoder is available
+  if (typeof VideoEncoder !== 'undefined') {
+    return await exportWithMediabunny({
+      tracks,
+      clips,
+      assets,
+      aspect,
+      duration,
+      width,
+      height,
+      fps,
+      totalFrames,
+      format,
+      quality,
+      includeAudio,
+      onProgress,
+    });
+  }
+
+  // Fallback for older browsers without WebCodecs
+  return await exportWithMediaRecorderFallback({
+    tracks,
+    clips,
+    assets,
+    aspect,
+    duration,
+    width,
+    height,
+    fps,
+    totalFrames,
+    onProgress,
+  });
+}
+
+/**
+ * Primary export path: Mediabunny muxing with explicit timestamps.
+ */
+async function exportWithMediabunny(params: {
+  tracks: Track[];
+  clips: Clip[];
+  assets: MediaAsset[];
+  aspect: AspectRatio;
+  duration: number;
+  width: number;
+  height: number;
+  fps: number;
+  totalFrames: number;
+  format: 'webm' | 'mp4';
+  quality: 'high' | 'medium' | 'low';
+  includeAudio: boolean;
+  onProgress?: (p: ExportProgress) => void;
+}): Promise<Blob> {
+  const {
+    tracks,
+    clips,
+    assets,
+    aspect,
+    duration,
+    width,
+    height,
+    fps,
+    totalFrames,
+    format,
+    quality,
+    includeAudio,
+    onProgress,
+  } = params;
+
   const offscreenCanvas = document.createElement('canvas');
   offscreenCanvas.width = width;
   offscreenCanvas.height = height;
 
-  const fps = 30;
-  const totalFrames = Math.max(1, Math.floor(duration * fps));
+  const outputFormat = format === 'mp4' ? new Mp4OutputFormat() : new WebMOutputFormat();
+  const target = new BufferTarget();
+  const output = new Output({
+    format: outputFormat,
+    target,
+  });
+
+  const videoCodec = format === 'mp4' ? 'avc' : 'vp9';
+  const videoSource = new CanvasSource(offscreenCanvas, {
+    codec: videoCodec,
+    quality: QUALITY_MAP[quality],
+  });
+
+  output.addVideoTrack(videoSource, { frameRate: fps });
+
+  // Audio rendering & mixing
+  let audioBuffer: AudioBuffer | null = null;
+  let audioSource: AudioBufferSource | null = null;
+  if (includeAudio) {
+    audioBuffer = await mixTimelineAudio(clips, assets, duration);
+    if (audioBuffer) {
+      let audioCodec: 'aac' | 'opus' = format === 'webm' ? 'opus' : 'aac';
+      if (audioCodec === 'aac' && typeof AudioEncoder !== 'undefined') {
+        const { supported } = await AudioEncoder.isConfigSupported({
+          codec: 'mp4a.40.2',
+          sampleRate: audioBuffer.sampleRate,
+          numberOfChannels: audioBuffer.numberOfChannels,
+          bitrate: 192000,
+        });
+        if (!supported) audioCodec = 'opus';
+      }
+
+      audioSource = new AudioBufferSource({
+        codec: audioCodec,
+        bitrate: quality === 'low' ? 96000 : quality === 'medium' ? 128000 : 192000,
+      });
+      output.addAudioTrack(audioSource);
+    }
+  }
+
+  await output.start();
+
+  if (audioSource && audioBuffer) {
+    await audioSource.add(audioBuffer);
+    audioSource.close();
+  }
+
+  // Render video frame by frame with exact mathematical timestamps
+  for (let frame = 0; frame < totalFrames; frame++) {
+    const playhead = frame / fps;
+    compositor.render(offscreenCanvas, playhead, aspect, tracks, clips, assets);
+
+    // Exact timestamp in seconds, exact frame duration (1 / fps)
+    await videoSource.add(playhead, 1 / fps);
+
+    if (onProgress) {
+      onProgress({
+        progress: (frame + 1) / totalFrames,
+        currentSecond: playhead,
+        totalSeconds: duration,
+        currentFrame: frame + 1,
+        totalFrames,
+      });
+    }
+
+    // Yield to the event loop every 10 frames to keep the UI interactive
+    if (frame % 10 === 0) {
+      await new Promise((r) => setTimeout(r, 0));
+    }
+  }
+
+  videoSource.close();
+  await output.finalize();
+
+  const buffer = target.buffer;
+  if (!buffer) {
+    throw new Error('Failed to generate export video buffer');
+  }
+
+  const mimeType = format === 'mp4' ? 'video/mp4' : 'video/webm';
+  return new Blob([buffer], { type: mimeType });
+}
+
+/**
+ * Fallback export path using MediaRecorder without artificial sleep delays.
+ */
+async function exportWithMediaRecorderFallback(params: {
+  tracks: Track[];
+  clips: Clip[];
+  assets: MediaAsset[];
+  aspect: AspectRatio;
+  duration: number;
+  width: number;
+  height: number;
+  fps: number;
+  totalFrames: number;
+  onProgress?: (p: ExportProgress) => void;
+}): Promise<Blob> {
+  const {
+    tracks,
+    clips,
+    assets,
+    aspect,
+    duration,
+    width,
+    height,
+    fps,
+    totalFrames,
+    onProgress,
+  } = params;
+
+  const offscreenCanvas = document.createElement('canvas');
+  offscreenCanvas.width = width;
+  offscreenCanvas.height = height;
+
   const stream = offscreenCanvas.captureStream(fps);
 
-  // Setup MediaRecorder
   let mimeType = 'video/webm;codecs=vp9';
   if (!MediaRecorder.isTypeSupported(mimeType)) {
     mimeType = 'video/webm';
@@ -32,7 +331,7 @@ export async function exportTimelineVideo(
 
   const recorder = new MediaRecorder(stream, {
     mimeType,
-    videoBitsPerSecond: 8_000_000, // 8 Mbps high quality
+    videoBitsPerSecond: 8_000_000,
   });
 
   const chunks: Blob[] = [];
@@ -40,33 +339,43 @@ export async function exportTimelineVideo(
     if (e.data && e.data.size > 0) chunks.push(e.data);
   };
 
-  return new Promise(async (resolve, reject) => {
+  return new Promise((resolve, reject) => {
     recorder.onstop = () => {
-      const blob = new Blob(chunks, { type: mimeType });
-      resolve(blob);
+      resolve(new Blob(chunks, { type: mimeType }));
     };
-
     recorder.onerror = (e) => reject(e);
 
     recorder.start();
 
-    // Render frame by frame
-    for (let frame = 0; frame < totalFrames; frame++) {
+    let frame = 0;
+    const intervalMs = 1000 / fps;
+    const startTime = performance.now();
+
+    const renderNext = () => {
+      if (frame >= totalFrames) {
+        recorder.stop();
+        return;
+      }
+
       const playhead = frame / fps;
       compositor.render(offscreenCanvas, playhead, aspect, tracks, clips, assets);
 
       if (onProgress) {
         onProgress({
-          progress: frame / totalFrames,
+          progress: (frame + 1) / totalFrames,
           currentSecond: playhead,
           totalSeconds: duration,
+          currentFrame: frame + 1,
+          totalFrames,
         });
       }
 
-      // Small delay to allow the recorder to encode the frame
-      await new Promise((r) => setTimeout(r, 1000 / fps));
-    }
+      frame++;
+      const nextExpected = startTime + frame * intervalMs;
+      const delay = Math.max(0, nextExpected - performance.now());
+      setTimeout(renderNext, delay);
+    };
 
-    recorder.stop();
+    renderNext();
   });
 }
