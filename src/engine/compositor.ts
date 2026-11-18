@@ -231,6 +231,54 @@ class CanvasCompositor {
 
     // 5. Draw each clip
     for (const clip of activeClips) {
+      // 5a. Global Effect / Adjustment Layer Clip
+      if (clip.type === 'effect') {
+        const filterParts: string[] = [];
+        if (clip.filter) {
+          const { brightness, contrast, saturation, blur } = clip.filter;
+          if (brightness !== 1) filterParts.push(`brightness(${brightness})`);
+          if (contrast !== 1) filterParts.push(`contrast(${contrast})`);
+          if (saturation !== 1) filterParts.push(`saturate(${saturation})`);
+          if (blur > 0) filterParts.push(`blur(${blur}px)`);
+        }
+        if (clip.effects && clip.effects.length > 0) {
+          for (const eff of clip.effects) {
+            if (!eff.enabled) continue;
+            if (eff.type === 'blur' && (eff.intensity ?? 0) > 0) {
+              filterParts.push(`blur(${eff.intensity}px)`);
+            } else if (eff.type === 'brightness' && eff.value !== undefined) {
+              filterParts.push(`brightness(${eff.value}%)`);
+            } else if (eff.type === 'contrast' && eff.value !== undefined) {
+              filterParts.push(`contrast(${eff.value}%)`);
+            } else if (eff.type === 'saturation' && eff.value !== undefined) {
+              filterParts.push(`saturate(${eff.value}%)`);
+            } else if (eff.type === 'grayscale' && eff.value !== undefined) {
+              filterParts.push(`grayscale(${eff.value}%)`);
+            } else if (eff.type === 'sepia' && eff.value !== undefined) {
+              filterParts.push(`sepia(${eff.value}%)`);
+            } else if (eff.type === 'invert' && eff.value !== undefined) {
+              filterParts.push(`invert(${eff.value}%)`);
+            } else if (eff.type === 'hue-rotate' && eff.value !== undefined) {
+              filterParts.push(`hue-rotate(${eff.value}deg)`);
+            }
+          }
+        }
+
+        if (filterParts.length > 0) {
+          const { offscreen, offCtx } = this.getBuffers(width, height);
+          offCtx.clearRect(0, 0, width, height);
+          offCtx.drawImage(canvas, 0, 0);
+
+          ctx.save();
+          ctx.filter = filterParts.join(' ');
+          ctx.globalAlpha = clip.transform.opacity ?? 1;
+          if (clip.blendMode) ctx.globalCompositeOperation = clip.blendMode;
+          ctx.drawImage(offscreen, 0, 0);
+          ctx.restore();
+        }
+        continue;
+      }
+
       const asset = assets.find((a) => a.id === clip.assetId);
 
       // Speed multiplier
@@ -279,6 +327,71 @@ class CanvasCompositor {
         ctx.filter = filterParts.join(' ');
       }
 
+      // Transitions (In and Out)
+      let transitionAlpha = 1;
+      const timeInClip = playhead - clip.start;
+      const timeRemaining = clip.start + clip.duration - playhead;
+
+      if (clip.transitionIn) {
+        const inDur = Math.max(0.1, clip.transitionIn.duration || 0.5);
+        if (timeInClip >= 0 && timeInClip < inDur) {
+          const p = Math.max(0, Math.min(1, timeInClip / inDur));
+          switch (clip.transitionIn.type) {
+            case 'fade':
+            case 'dissolve':
+              transitionAlpha *= p;
+              break;
+            case 'zoom': {
+              const z = 0.6 + p * 0.4;
+              ctx.scale(z, z);
+              transitionAlpha *= p;
+              break;
+            }
+            case 'slide-left': {
+              ctx.translate((1 - p) * (width * 0.4), 0);
+              break;
+            }
+            case 'slide-right': {
+              ctx.translate((1 - p) * (-width * 0.4), 0);
+              break;
+            }
+            case 'glitch': {
+              if (Math.random() < (1 - p) * 0.6) {
+                ctx.translate((Math.random() - 0.5) * 24, (Math.random() - 0.5) * 12);
+              }
+              break;
+            }
+          }
+        }
+      }
+
+      if (clip.transitionOut) {
+        const outDur = Math.max(0.1, clip.transitionOut.duration || 0.5);
+        if (timeRemaining >= 0 && timeRemaining < outDur) {
+          const p = Math.max(0, Math.min(1, timeRemaining / outDur));
+          switch (clip.transitionOut.type) {
+            case 'fade':
+            case 'dissolve':
+              transitionAlpha *= p;
+              break;
+            case 'zoom': {
+              const z = 1.0 + (1 - p) * 0.4;
+              ctx.scale(z, z);
+              transitionAlpha *= p;
+              break;
+            }
+            case 'slide-left': {
+              ctx.translate((1 - p) * (-width * 0.4), 0);
+              break;
+            }
+            case 'slide-right': {
+              ctx.translate((1 - p) * (width * 0.4), 0);
+              break;
+            }
+          }
+        }
+      }
+
       // Transform (offset from center)
       const centerX = width / 2 + clip.transform.x;
       const centerY = height / 2 + clip.transform.y;
@@ -289,7 +402,7 @@ class CanvasCompositor {
       const scaleX = clip.transform.scaleX !== undefined ? clip.transform.scaleX : clip.transform.scale;
       const scaleY = clip.transform.scaleY !== undefined ? clip.transform.scaleY : clip.transform.scale;
       ctx.scale(scaleX, scaleY);
-      ctx.globalAlpha = clip.transform.opacity;
+      ctx.globalAlpha = clip.transform.opacity * transitionAlpha;
 
       // Helper to draw the actual clip media or text onto any context
       const drawClipContent = (targetCtx: CanvasRenderingContext2D) => {
@@ -308,13 +421,18 @@ class CanvasCompositor {
           targetCtx.drawImage(video, -dw / 2, -dh / 2, dw, dh);
         } else if (clip.type === 'image' && asset) {
           const img = this.getOrCreateImage(asset);
-          const iWidth = asset.width || img.width || 800;
-          const iHeight = asset.height || img.height || 600;
+          const iWidth = asset.width || (img.naturalWidth > 0 ? img.naturalWidth : 800);
+          const iHeight = asset.height || (img.naturalHeight > 0 ? img.naturalHeight : 600);
           const scale = Math.min(width / iWidth, height / iHeight);
           const dw = iWidth * scale;
           const dh = iHeight * scale;
 
-          targetCtx.drawImage(img, -dw / 2, -dh / 2, dw, dh);
+          if (img.complete && img.naturalWidth > 0) {
+            targetCtx.drawImage(img, -dw / 2, -dh / 2, dw, dh);
+          } else {
+            // If image is still decoding, trigger decode and draw fallback rect
+            img.decode?.().catch(() => {});
+          }
         } else if (clip.type === 'text') {
           const text = clip.text || 'FreeCut';
           const fontSize = clip.fontSize || 54;
@@ -425,6 +543,9 @@ class CanvasCompositor {
           // 1. Draw media onto offscreen buffer centered at (bufW/2, bufH/2)
           offCtx.save();
           offCtx.translate(bufW / 2, bufH / 2);
+          if (filterParts.length > 0) {
+            offCtx.filter = filterParts.join(' ');
+          }
           drawClipContent(offCtx);
           offCtx.restore();
 

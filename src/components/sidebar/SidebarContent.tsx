@@ -7,7 +7,7 @@ import {
   RotateCcw, Monitor, RefreshCw, Loader2, Info, Trash2
 } from 'lucide-react';
 import { useEditorStore } from '@/store/useEditorStore';
-import { MediaAsset, ColorFilter, AspectRatio } from '@/types/editor';
+import { MediaAsset, ColorFilter, AspectRatio, ClipEffect, ClipTransition } from '@/types/editor';
 import { CustomSelect, SelectOption } from '@/components/ui/CustomSelect';
 import { 
   generateCountdownVideo, 
@@ -97,6 +97,10 @@ export const SidebarContent: React.FC = () => {
   const selectedClipId = useEditorStore((s) => s.selectedClipId);
   const setSelectedClipId = useEditorStore((s) => s.setSelectedClipId);
   const updateClipFilter = useEditorStore((s) => s.updateClipFilter);
+  const addClipEffect = useEditorStore((s) => s.addClipEffect);
+  const removeClipEffect = useEditorStore((s) => s.removeClipEffect);
+  const toggleClipEffect = useEditorStore((s) => s.toggleClipEffect);
+  const updateClip = useEditorStore((s) => s.updateClip);
   const deleteClip = useEditorStore((s) => s.deleteClip);
   const aspectRatio = useEditorStore((s) => s.aspectRatio);
   const setAspectRatio = useEditorStore((s) => s.setAspectRatio);
@@ -537,47 +541,127 @@ export const SidebarContent: React.FC = () => {
   };
 
   // 6. Effects & Filters
-  const EFFECT_PRESETS: { name: string; desc: string; filter: ColorFilter; iconColor: string }[] = [
-    { name: 'Gaussian Blur', desc: 'Soft defocus background blur', filter: { brightness: 1.0, contrast: 1.0, saturation: 1.0, blur: 3.5 }, iconColor: 'text-indigo-400' },
-    { name: 'Cinematic Glow', desc: 'Warm blooming highlights', filter: { brightness: 1.15, contrast: 1.25, saturation: 1.2, blur: 0 }, iconColor: 'text-amber-400' },
-    { name: 'Monochrome Noir', desc: 'Dramatic high-contrast black & white', filter: { brightness: 1.0, contrast: 1.5, saturation: 0, blur: 0 }, iconColor: 'text-neutral-300' },
-    { name: 'Vintage 90s', desc: 'Warm analog retro cassette tone', filter: { brightness: 0.98, contrast: 0.95, saturation: 0.75, blur: 0.3 }, iconColor: 'text-amber-600' },
-    { name: 'Vignette Dark', desc: 'Moody darkened corners and focus', filter: { brightness: 0.9, contrast: 1.35, saturation: 1.05, blur: 0 }, iconColor: 'text-purple-400' },
-    { name: 'Cyberpunk Neon', desc: 'Electrifying cyan and magenta punch', filter: { brightness: 1.05, contrast: 1.4, saturation: 1.6, blur: 0 }, iconColor: 'text-cyan-400' },
-    { name: 'Sepia Nostalgia', desc: 'Antique golden brown vintage look', filter: { brightness: 1.05, contrast: 1.1, saturation: 0.4, blur: 0.2 }, iconColor: 'text-yellow-600' },
-    { name: 'Punchy Contrast', desc: 'Clean sharp vibrant pop', filter: { brightness: 1.05, contrast: 1.3, saturation: 1.2, blur: 0 }, iconColor: 'text-emerald-400' },
-    { name: 'Dreamy Bloom', desc: 'Soft ethereal romantic glow', filter: { brightness: 1.12, contrast: 1.05, saturation: 1.1, blur: 1.2 }, iconColor: 'text-pink-400' },
-    { name: 'Invert Matrix', desc: 'Reversed negative color spectrum', filter: { brightness: 0.85, contrast: 1.2, saturation: 1.5, blur: 0 }, iconColor: 'text-rose-400' },
+  const EFFECT_PRESETS: {
+    id: string;
+    name: string;
+    desc: string;
+    effectType: ClipEffect['type'];
+    defaultParam: Partial<ClipEffect>;
+    filter: ColorFilter;
+    iconColor: string;
+  }[] = [
+    { id: 'blur', name: 'Gaussian Blur', desc: 'Soft defocus background blur', effectType: 'blur', defaultParam: { intensity: 15 }, filter: { brightness: 1.0, contrast: 1.0, saturation: 1.0, blur: 4 }, iconColor: 'text-indigo-400' },
+    { id: 'glow', name: 'Cinematic Glow', desc: 'Warm blooming highlights', effectType: 'brightness', defaultParam: { value: 125 }, filter: { brightness: 1.25, contrast: 1.2, saturation: 1.15, blur: 0 }, iconColor: 'text-amber-400' },
+    { id: 'noir', name: 'Monochrome Noir', desc: 'Dramatic high-contrast black & white', effectType: 'grayscale', defaultParam: { value: 100 }, filter: { brightness: 1.0, contrast: 1.5, saturation: 0, blur: 0 }, iconColor: 'text-neutral-300' },
+    { id: 'vintage', name: 'Vintage 90s', desc: 'Warm analog retro cassette tone', effectType: 'sepia', defaultParam: { value: 75 }, filter: { brightness: 0.98, contrast: 0.95, saturation: 0.75, blur: 0.3 }, iconColor: 'text-amber-600' },
+    { id: 'vignette', name: 'Vignette Dark', desc: 'Moody darkened corners and focus', effectType: 'contrast', defaultParam: { value: 135 }, filter: { brightness: 0.9, contrast: 1.35, saturation: 1.05, blur: 0 }, iconColor: 'text-purple-400' },
+    { id: 'neon', name: 'Cyberpunk Neon', desc: 'Electrifying cyan and magenta punch', effectType: 'saturation', defaultParam: { value: 165 }, filter: { brightness: 1.05, contrast: 1.4, saturation: 1.65, blur: 0 }, iconColor: 'text-cyan-400' },
+    { id: 'sepia', name: 'Sepia Nostalgia', desc: 'Antique golden brown vintage look', effectType: 'sepia', defaultParam: { value: 90 }, filter: { brightness: 1.05, contrast: 1.1, saturation: 0.4, blur: 0.2 }, iconColor: 'text-yellow-600' },
+    { id: 'punchy', name: 'Punchy Contrast', desc: 'Clean sharp vibrant pop', effectType: 'contrast', defaultParam: { value: 145 }, filter: { brightness: 1.05, contrast: 1.45, saturation: 1.2, blur: 0 }, iconColor: 'text-emerald-400' },
+    { id: 'bloom', name: 'Dreamy Bloom', desc: 'Soft ethereal romantic glow', effectType: 'blur', defaultParam: { intensity: 8 }, filter: { brightness: 1.15, contrast: 1.05, saturation: 1.1, blur: 2.0 }, iconColor: 'text-pink-400' },
+    { id: 'invert', name: 'Invert Matrix', desc: 'Reversed negative color spectrum', effectType: 'invert', defaultParam: { value: 100 }, filter: { brightness: 0.85, contrast: 1.2, saturation: 1.5, blur: 0 }, iconColor: 'text-rose-400' },
+    { id: 'hue', name: 'Color Shifter', desc: 'Dynamic rainbow hue rotation', effectType: 'hue-rotate', defaultParam: { value: 120 }, filter: { brightness: 1.0, contrast: 1.1, saturation: 1.2, blur: 0 }, iconColor: 'text-violet-400' },
   ];
 
   const handleApplyEffect = (preset: typeof EFFECT_PRESETS[0]) => {
-    let targetClipId = selectedClipId;
-    if (!targetClipId) {
-      // Auto-find clip under playhead
-      const curPlayhead = useEditorStore.getState().playhead;
-      const allClips = useEditorStore.getState().clips;
-      const clipUnderPlayhead = allClips.find(
-        (c) => c.type !== 'audio' && c.start <= curPlayhead && curPlayhead <= c.start + c.duration
-      ) || allClips.find((c) => c.type !== 'audio');
+    const curPlayhead = useEditorStore.getState().playhead;
+    const allClips = useEditorStore.getState().clips;
 
-      if (clipUnderPlayhead) {
-        targetClipId = clipUnderPlayhead.id;
-        setSelectedClipId(clipUnderPlayhead.id);
+    // Prioritize selected visual clip, then visual clip under playhead, then first visual clip
+    let targetClip = allClips.find((c) => c.id === selectedClipId && (c.type === 'video' || c.type === 'image' || c.type === 'effect'));
+    if (!targetClip) {
+      targetClip = allClips.find(
+        (c) => (c.type === 'video' || c.type === 'image' || c.type === 'effect') && c.start <= curPlayhead && curPlayhead <= c.start + c.duration
+      ) || allClips.find((c) => c.type === 'video' || c.type === 'image');
+    }
+
+    if (targetClip) {
+      setSelectedClipId(targetClip.id);
+      const existingEff = targetClip.effects?.find((e) => e.type === preset.effectType || e.name === preset.name);
+      if (existingEff) {
+        removeClipEffect(targetClip.id, existingEff.id);
+        showToast(`Removed "${preset.name}" from ${targetClip.name}`);
+      } else {
+        addClipEffect(targetClip.id, {
+          type: preset.effectType,
+          name: preset.name,
+          enabled: true,
+          ...preset.defaultParam,
+        });
+        updateClipFilter(targetClip.id, preset.filter);
+        showToast(`Applied "${preset.name}" to ${targetClip.name}`);
       }
-    }
-
-    if (targetClipId) {
-      updateClipFilter(targetClipId, preset.filter);
-      showToast(`Applied "${preset.name}" to selected clip`);
     } else {
-      showToast('Add a video or image clip to timeline to apply effects');
+      // Add as effect layer
+      const overlayTrack = tracks.find((t) => t.id === 'track-video-2') || tracks.find((t) => t.type === 'video') || tracks[0];
+      const newId = addClip({
+        trackId: overlayTrack.id,
+        name: `${preset.name} Layer`,
+        type: 'effect',
+        start: curPlayhead,
+        duration: 5.0,
+        trimStart: 0,
+        trimEnd: 5.0,
+        transform: { x: 0, y: 0, scale: 1, rotation: 0, opacity: 1 },
+        volume: 0,
+        color: '#ec4899',
+        filter: preset.filter,
+        effects: [
+          {
+            id: `effect-${Date.now()}`,
+            type: preset.effectType,
+            name: preset.name,
+            enabled: true,
+            ...preset.defaultParam,
+          },
+        ],
+      });
+      setSelectedClipId(newId);
+      showToast(`Added "${preset.name}" layer to timeline`);
     }
+  };
+
+  const handleInsertEffectLayer = (preset: typeof EFFECT_PRESETS[0]) => {
+    const curPlayhead = useEditorStore.getState().playhead;
+    const overlayTrack = tracks.find((t) => t.id === 'track-video-2') || tracks.find((t) => t.type === 'video') || tracks[0];
+    const newId = addClip({
+      trackId: overlayTrack.id,
+      name: `${preset.name} Layer`,
+      type: 'effect',
+      start: curPlayhead,
+      duration: 5.0,
+      trimStart: 0,
+      trimEnd: 5.0,
+      transform: { x: 0, y: 0, scale: 1, rotation: 0, opacity: 1 },
+      volume: 0,
+      color: '#ec4899',
+      filter: preset.filter,
+      effects: [
+        {
+          id: `effect-${Date.now()}`,
+          type: preset.effectType,
+          name: preset.name,
+          enabled: true,
+          ...preset.defaultParam,
+        },
+      ],
+    });
+    setSelectedClipId(newId);
+    showToast(`Added "${preset.name}" layer at ${curPlayhead.toFixed(1)}s`);
   };
 
   const handleResetEffects = () => {
     if (selectedClipId) {
-      updateClipFilter(selectedClipId, { brightness: 1, contrast: 1, saturation: 1, blur: 0 });
-      showToast('Reset clip filter to default');
+      const clip = clips.find((c) => c.id === selectedClipId);
+      if (clip) {
+        if (clip.effects && clip.effects.length > 0) {
+          updateClip(clip.id, { effects: [] });
+        }
+        updateClipFilter(selectedClipId, { brightness: 1, contrast: 1, saturation: 1, blur: 0 });
+        showToast(`Reset effects on "${clip.name}"`);
+      }
+    } else {
+      showToast('Select a clip to reset effects');
     }
   };
 
@@ -586,12 +670,42 @@ export const SidebarContent: React.FC = () => {
     { name: 'Cross Dissolve', desc: 'Smooth opacity blend', type: 'dissolve' },
     { name: 'Dip to Black', desc: 'Fade to black then next shot', type: 'fade' },
     { name: 'Dip to White', desc: 'High energy flash cut', type: 'flash' },
-    { name: 'Zoom In Push', desc: 'Dynamic camera push', type: 'zoom-in' },
-    { name: 'Zoom Out Reveal', desc: 'Pull back reveal transition', type: 'zoom-out' },
+    { name: 'Zoom In Push', desc: 'Dynamic camera push', type: 'zoom' },
     { name: 'Slide Left', desc: 'Directional push left wipe', type: 'slide-left' },
     { name: 'Slide Right', desc: 'Directional push right wipe', type: 'slide-right' },
     { name: 'Glitch Wipe', desc: 'Digital RGB stutter artifact', type: 'glitch' },
   ];
+
+  const handleApplyTransition = (tr: typeof TRANSITION_PRESETS[0]) => {
+    const curPlayhead = useEditorStore.getState().playhead;
+    let targetClip = clips.find((c) => c.id === selectedClipId && (c.type === 'video' || c.type === 'image'));
+    if (!targetClip) {
+      targetClip = clips.find(
+        (c) => (c.type === 'video' || c.type === 'image') && c.start <= curPlayhead && curPlayhead <= c.start + c.duration
+      ) || clips.find((c) => c.type === 'video' || c.type === 'image');
+    }
+
+    if (targetClip) {
+      setSelectedClipId(targetClip.id);
+      const isAlreadyApplied = targetClip.transitionIn?.type === tr.type;
+      if (isAlreadyApplied) {
+        updateClip(targetClip.id, { transitionIn: undefined, transitionOut: undefined });
+        showToast(`Removed transition from "${targetClip.name}"`);
+      } else {
+        const transObj: ClipTransition = {
+          type: tr.type as ClipTransition['type'],
+          duration: 0.6,
+        };
+        updateClip(targetClip.id, {
+          transitionIn: transObj,
+          transitionOut: transObj,
+        });
+        showToast(`Applied ${tr.name} transition to "${targetClip.name}"`);
+      }
+    } else {
+      showToast('Select a video or image clip to apply transition');
+    }
+  };
 
   // 8. Captions & Subtitles
   const parseSubtitleText = (text: string): Array<{ start: number; end: number; text: string }> => {
@@ -1244,7 +1358,7 @@ export const SidebarContent: React.FC = () => {
         {/* ==================== 3. TEXT TAB ==================== */}
         {activeTab === 'text' && (
           <div className="space-y-4">
-            {/* OpenCut Style "Default Text" Big Card */}
+            {/* Standard "Default Text" Card */}
             <div>
               <span className="text-xs font-semibold text-app-text-muted mb-2 block">
                 BASIC TEXT
@@ -1355,76 +1469,159 @@ export const SidebarContent: React.FC = () => {
         )}
 
         {/* ==================== 5. EFFECTS TAB ==================== */}
-        {activeTab === 'effects' && (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-app-text-muted">
-                VIDEO EFFECTS & COLOR GRADES
-              </span>
-              <button
-                onClick={handleResetEffects}
-                className="text-[11px] font-medium text-red-500 hover:underline cursor-pointer"
-              >
-                Reset Effect
-              </button>
-            </div>
+        {activeTab === 'effects' && (() => {
+          const curPlayhead = useEditorStore.getState().playhead;
+          const targetVisualClip = clips.find((c) => c.id === selectedClipId && (c.type === 'video' || c.type === 'image' || c.type === 'effect'))
+            || clips.find((c) => (c.type === 'video' || c.type === 'image' || c.type === 'effect') && c.start <= curPlayhead && curPlayhead <= c.start + c.duration)
+            || clips.find((c) => c.type === 'video' || c.type === 'image');
 
-            <div className="grid grid-cols-2 gap-2">
-              {EFFECT_PRESETS
-                .filter((e) => !searchQuery || e.name.toLowerCase().includes(searchQuery.toLowerCase()) || e.desc.toLowerCase().includes(searchQuery.toLowerCase()))
-                .map((fx, idx) => (
-                  <div
-                    key={idx}
-                    onClick={() => handleApplyEffect(fx)}
-                    className="group relative flex flex-col justify-between rounded-xl border border-app-border bg-app-elevated p-3 hover:border-neutral-400 dark:hover:border-neutral-600 transition cursor-pointer min-h-[96px]"
+          return (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-xs font-semibold text-app-text-muted block">
+                    VIDEO EFFECTS & COLOR GRADES
+                  </span>
+                  <span className="text-[10px] text-app-text-muted">
+                    Target: <strong className="text-app-text">{targetVisualClip ? targetVisualClip.name : 'New Adjustment Layer'}</strong>
+                  </span>
+                </div>
+                {targetVisualClip && (targetVisualClip.effects?.length || targetVisualClip.filter?.blur || targetVisualClip.filter?.brightness !== 1) ? (
+                  <button
+                    onClick={handleResetEffects}
+                    className="text-[11px] font-medium text-red-500 hover:underline cursor-pointer"
                   >
-                    <div className="flex items-center justify-between">
-                      <Sparkles className={`h-4 w-4 ${fx.iconColor}`} />
-                      <span className="text-[10px] font-semibold text-app-text-muted opacity-0 group-hover:opacity-100 transition">
-                        Apply
-                      </span>
-                    </div>
+                    Reset Effects
+                  </button>
+                ) : null}
+              </div>
 
-                    <div className="mt-2">
-                      <h4 className="text-xs font-semibold text-app-text">{fx.name}</h4>
-                      <p className="text-[10px] text-app-text-muted leading-tight mt-0.5 line-clamp-2">
-                        {fx.desc}
-                      </p>
-                    </div>
-                  </div>
-                ))}
+              <div className="grid grid-cols-2 gap-2">
+                {EFFECT_PRESETS
+                  .filter((e) => !searchQuery || e.name.toLowerCase().includes(searchQuery.toLowerCase()) || e.desc.toLowerCase().includes(searchQuery.toLowerCase()))
+                  .map((fx, idx) => {
+                    const isApplied = targetVisualClip?.effects?.some((e) => (e.type === fx.effectType || e.name === fx.name) && e.enabled);
+
+                    return (
+                      <div
+                        key={idx}
+                        onClick={() => handleApplyEffect(fx)}
+                        className={`group relative flex flex-col justify-between rounded-xl border p-3 transition cursor-pointer min-h-[96px] ${
+                          isApplied
+                            ? 'border-emerald-500 bg-emerald-500/10 shadow-sm'
+                            : 'border-app-border bg-app-elevated hover:border-neutral-400 dark:hover:border-neutral-600'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <Sparkles className={`h-4 w-4 ${fx.iconColor}`} />
+                          <div className="flex items-center gap-1">
+                            {isApplied ? (
+                              <span className="flex items-center gap-0.5 rounded bg-emerald-500/20 px-1.5 py-0.5 text-[9px] font-bold text-emerald-500">
+                                <Check className="h-2.5 w-2.5" /> Active
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-semibold text-app-text-muted opacity-0 group-hover:opacity-100 transition">
+                                + Apply
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="mt-2">
+                          <h4 className="text-xs font-semibold text-app-text">{fx.name}</h4>
+                          <p className="text-[10px] text-app-text-muted leading-tight mt-0.5 line-clamp-2">
+                            {fx.desc}
+                          </p>
+                        </div>
+
+                        {/* Quick Action Bar on hover */}
+                        <div className="mt-1.5 pt-1.5 border-t border-app-border/40 flex items-center justify-between text-[9px] text-app-text-muted">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleInsertEffectLayer(fx);
+                            }}
+                            className="hover:text-pink-400 transition cursor-pointer flex items-center gap-0.5"
+                            title="Add as independent layer to timeline"
+                          >
+                            + As Layer
+                          </button>
+                          <span className="group-hover:text-app-text transition">
+                            {isApplied ? 'Toggle Off' : 'Apply to Clip'}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* ==================== 6. TRANSITIONS TAB ==================== */}
-        {activeTab === 'transitions' && (
-          <div className="space-y-3">
-            <span className="text-xs font-semibold text-app-text-muted block">
-              VIDEO TRANSITIONS
-            </span>
+        {activeTab === 'transitions' && (() => {
+          const curPlayhead = useEditorStore.getState().playhead;
+          const targetVisualClip = clips.find((c) => c.id === selectedClipId && (c.type === 'video' || c.type === 'image'))
+            || clips.find((c) => (c.type === 'video' || c.type === 'image') && c.start <= curPlayhead && curPlayhead <= c.start + c.duration)
+            || clips.find((c) => c.type === 'video' || c.type === 'image');
 
-            <div className="grid grid-cols-2 gap-2">
-              {TRANSITION_PRESETS
-                .filter((t) => !searchQuery || t.name.toLowerCase().includes(searchQuery.toLowerCase()))
-                .map((tr, idx) => (
-                  <div
-                    key={idx}
+          return (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-xs font-semibold text-app-text-muted block">
+                    VIDEO TRANSITIONS
+                  </span>
+                  <span className="text-[10px] text-app-text-muted">
+                    Target: <strong className="text-app-text">{targetVisualClip ? targetVisualClip.name : 'Select a clip'}</strong>
+                  </span>
+                </div>
+                {targetVisualClip?.transitionIn && (
+                  <button
                     onClick={() => {
-                      showToast(`Applied ${tr.name} transition`);
+                      updateClip(targetVisualClip.id, { transitionIn: undefined, transitionOut: undefined });
+                      showToast(`Removed transitions from "${targetVisualClip.name}"`);
                     }}
-                    className="group flex flex-col items-center justify-center rounded-xl border border-app-border bg-app-elevated p-3 text-center hover:border-neutral-400 dark:hover:border-neutral-600 transition cursor-pointer"
+                    className="text-[11px] font-medium text-red-500 hover:underline cursor-pointer"
                   >
-                    <div className="h-8 w-8 rounded-lg bg-app-surface flex items-center justify-center text-app-text mb-2 group-hover:scale-105 transition">
-                      <Wand2 className="h-4 w-4 text-purple-400" />
-                    </div>
-                    <span className="text-xs font-medium text-app-text">{tr.name}</span>
-                    <span className="text-[9px] text-app-text-muted mt-0.5">{tr.desc}</span>
-                  </div>
-                ))}
+                    Clear
+                  </button>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                {TRANSITION_PRESETS
+                  .filter((t) => !searchQuery || t.name.toLowerCase().includes(searchQuery.toLowerCase()))
+                  .map((tr, idx) => {
+                    const isApplied = targetVisualClip?.transitionIn?.type === tr.type;
+
+                    return (
+                      <div
+                        key={idx}
+                        onClick={() => handleApplyTransition(tr)}
+                        className={`group flex flex-col items-center justify-center rounded-xl border p-3 text-center transition cursor-pointer ${
+                          isApplied
+                            ? 'border-purple-500 bg-purple-500/10 shadow-sm'
+                            : 'border-app-border bg-app-elevated hover:border-neutral-400 dark:hover:border-neutral-600'
+                        }`}
+                      >
+                        <div className="h-8 w-8 rounded-lg bg-app-surface flex items-center justify-center text-app-text mb-2 group-hover:scale-105 transition">
+                          <Wand2 className="h-4 w-4 text-purple-400" />
+                        </div>
+                        <span className="text-xs font-medium text-app-text">{tr.name}</span>
+                        <span className="text-[9px] text-app-text-muted mt-0.5">{tr.desc}</span>
+                        {isApplied && (
+                          <span className="mt-1.5 flex items-center gap-0.5 rounded bg-purple-500/20 px-1.5 py-0.5 text-[9px] font-bold text-purple-400">
+                            <Check className="h-2.5 w-2.5" /> Active
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* ==================== 7. CAPTIONS TAB ==================== */}
         {activeTab === 'captions' && (

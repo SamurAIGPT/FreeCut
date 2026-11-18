@@ -1,5 +1,10 @@
 export type TrackType = 'video' | 'audio' | 'text';
-export type ClipType = 'video' | 'audio' | 'image' | 'text';
+export type ClipType = 'video' | 'audio' | 'image' | 'text' | 'effect';
+
+export interface ClipTransition {
+  type: 'fade' | 'dissolve' | 'flash' | 'zoom' | 'slide-left' | 'slide-right' | 'glitch';
+  duration: number; // Duration in seconds (e.g. 0.5)
+}
 
 export type SidebarTab = 
   | 'media' 
@@ -96,6 +101,8 @@ export interface Clip {
   filter?: ColorFilter;
   effects?: ClipEffect[];
   mask?: ClipMask;
+  transitionIn?: ClipTransition;
+  transitionOut?: ClipTransition;
   keyframedProps?: string[];
   isMuted?: boolean;
   isHidden?: boolean;

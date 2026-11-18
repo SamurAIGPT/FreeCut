@@ -98,6 +98,65 @@ async function mixTimelineAudio(
 }
 
 /**
+ * Deterministically prepares media (video seeking and image loading) before rendering a frame.
+ */
+async function prepareFrameAssets(
+  playhead: number,
+  clips: Clip[],
+  assets: MediaAsset[]
+): Promise<void> {
+  const activeClips = clips.filter((c) => playhead >= c.start && playhead < c.start + c.duration);
+  const tasks: Promise<any>[] = [];
+
+  for (const clip of activeClips) {
+    const asset = assets.find((a) => a.id === clip.assetId);
+    if (!asset) continue;
+
+    if (clip.type === 'video') {
+      const video = compositor.getOrCreateVideo(asset);
+      const clipSpeed = clip.speed && clip.speed > 0 ? clip.speed : 1;
+      const targetTime = clip.trimStart + (playhead - clip.start) * clipSpeed;
+
+      if (Math.abs(video.currentTime - targetTime) > 0.01) {
+        tasks.push(
+          new Promise<void>((resolve) => {
+            let done = false;
+            const finish = () => {
+              if (!done) {
+                done = true;
+                video.removeEventListener('seeked', finish);
+                video.removeEventListener('error', finish);
+                resolve();
+              }
+            };
+            video.addEventListener('seeked', finish);
+            video.addEventListener('error', finish);
+            video.currentTime = Math.max(0, Math.min(video.duration || 999999, targetTime));
+            setTimeout(finish, 80);
+          })
+        );
+      }
+    } else if (clip.type === 'image') {
+      const img = compositor.getOrCreateImage(asset);
+      if (!img.complete || img.naturalWidth === 0) {
+        tasks.push(
+          new Promise<void>((resolve) => {
+            if (img.complete && img.naturalWidth > 0) return resolve();
+            img.onload = () => resolve();
+            img.onerror = () => resolve();
+            setTimeout(resolve, 150);
+          })
+        );
+      }
+    }
+  }
+
+  if (tasks.length > 0) {
+    await Promise.all(tasks);
+  }
+}
+
+/**
  * Deterministically exports the timeline video using mediabunny (WebCodecs & standard container muxers).
  * Each frame is assigned its exact mathematical timestamp (playhead = frame / fps), guaranteeing
  * that the output video file has the exact intended duration and never drifts or stretches.
@@ -257,6 +316,7 @@ async function exportWithMediabunny(params: {
   // Render video frame by frame with exact mathematical timestamps
   for (let frame = 0; frame < totalFrames; frame++) {
     const playhead = frame / fps;
+    await prepareFrameAssets(playhead, clips, assets);
     compositor.render(offscreenCanvas, playhead, aspect, tracks, clips, assets);
 
     // Exact timestamp in seconds, exact frame duration (1 / fps)
@@ -351,13 +411,14 @@ async function exportWithMediaRecorderFallback(params: {
     const intervalMs = 1000 / fps;
     const startTime = performance.now();
 
-    const renderNext = () => {
+    const renderNext = async () => {
       if (frame >= totalFrames) {
         recorder.stop();
         return;
       }
 
       const playhead = frame / fps;
+      await prepareFrameAssets(playhead, clips, assets);
       compositor.render(offscreenCanvas, playhead, aspect, tracks, clips, assets);
 
       if (onProgress) {
