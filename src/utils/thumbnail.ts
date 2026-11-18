@@ -44,47 +44,47 @@ export function createSyntheticThumbnail(name: string, type: string): string {
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, 160, 90);
 
-  // Decorative visuals
+  // Decorative visuals (centered in lower 65% of tile, leaving top 28px clear for header)
   if (isCountdown) {
     // Rotating radar circle with countdown 5
     ctx.strokeStyle = '#38bdf8';
-    ctx.lineWidth = 2.5;
+    ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.arc(80, 45, 26, 0, Math.PI * 2);
+    ctx.arc(80, 52, 22, 0, Math.PI * 2);
     ctx.stroke();
 
     ctx.beginPath();
-    ctx.moveTo(80, 45);
-    ctx.lineTo(80 + Math.cos(0.8) * 26, 45 + Math.sin(0.8) * 26);
+    ctx.moveTo(80, 52);
+    ctx.lineTo(80 + Math.cos(0.8) * 22, 52 + Math.sin(0.8) * 22);
     ctx.stroke();
 
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 22px Inter, system-ui, sans-serif';
+    ctx.font = 'bold 16px Inter, system-ui, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('5', 80, 45);
+    ctx.fillText('5', 80, 53);
   } else if (isPip) {
     // Picture in Picture preview frame
     ctx.strokeStyle = '#e879f9';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(35, 20, 90, 50);
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(35, 30, 90, 45);
 
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 11px Inter, system-ui, sans-serif';
+    ctx.font = 'bold 10px Inter, system-ui, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('PIP OVERLAY', 80, 45);
+    ctx.fillText('PIP OVERLAY', 80, 53);
   } else {
     // General film graphic
     ctx.strokeStyle = '#94a3b8';
     ctx.lineWidth = 1.5;
-    ctx.strokeRect(25, 15, 110, 60);
+    ctx.strokeRect(25, 28, 110, 48);
 
     ctx.fillStyle = '#f1f5f9';
-    ctx.font = 'bold 12px Inter, system-ui, sans-serif';
+    ctx.font = 'bold 11px Inter, system-ui, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(name.slice(0, 14), 80, 45);
+    ctx.fillText(name.slice(0, 14), 80, 53);
   }
 
   // Film frame separator line on the right edge

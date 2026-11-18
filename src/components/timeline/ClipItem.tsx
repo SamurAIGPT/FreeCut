@@ -61,13 +61,48 @@ export const ClipItem: React.FC<ClipItemProps> = ({ clip, isLocked }) => {
     return () => document.removeEventListener('mousedown', handleOutside);
   }, [contextMenu]);
 
-  // Context Menu trigger
+  // Context Menu trigger with intelligent viewport positioning
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setSelectedClipId(clip.id);
-    setContextMenu({ x: e.clientX, y: e.clientY });
+
+    // Initial boundary estimate to prevent cut-off
+    const estWidth = 210;
+    const estHeight = 350;
+    const pad = 12;
+
+    const posX = Math.min(e.clientX, Math.max(pad, window.innerWidth - estWidth - pad));
+    const posY = e.clientY + estHeight > window.innerHeight - pad
+      ? Math.max(pad, e.clientY - estHeight)
+      : e.clientY;
+
+    setContextMenu({ x: posX, y: posY });
   };
+
+  // Adjust context menu position after DOM mount if it exceeds viewport bounds
+  useEffect(() => {
+    if (contextMenu && contextMenuRef.current) {
+      const rect = contextMenuRef.current.getBoundingClientRect();
+      const pad = 12;
+      let adjustedX = contextMenu.x;
+      let adjustedY = contextMenu.y;
+      let needsAdjustment = false;
+
+      if (rect.bottom > window.innerHeight - pad) {
+        adjustedY = Math.max(pad, window.innerHeight - rect.height - pad);
+        needsAdjustment = true;
+      }
+      if (rect.right > window.innerWidth - pad) {
+        adjustedX = Math.max(pad, window.innerWidth - rect.width - pad);
+        needsAdjustment = true;
+      }
+
+      if (needsAdjustment) {
+        setContextMenu({ x: adjustedX, y: adjustedY });
+      }
+    }
+  }, [contextMenu]);
 
   // Drag Clip (Both Horizontally in Time & Vertically between Tracks)
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -329,10 +364,39 @@ export const ClipItem: React.FC<ClipItemProps> = ({ clip, isLocked }) => {
         </div>
 
         {/* Clip Body & Media Visuals */}
-        <div className="relative flex flex-1 size-full items-center px-2 overflow-hidden">
-          {/* Audio Waveform Canvas/Bars (fills background of audio clips) */}
+        <div className="relative flex flex-1 size-full flex-col justify-start overflow-hidden">
+          {/* Top Header Bar: Icon + Name + Duration */}
+          <div className="relative z-10 flex h-4.5 w-full items-center gap-1.5 px-1.5 pt-0.5 overflow-hidden">
+            <Icon className={`h-2.5 w-2.5 shrink-0 ${
+              isTiledMedia
+                ? 'text-white/90 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]'
+                : clip.type === 'video'
+                ? 'text-slate-700 dark:text-white/80'
+                : 'text-white/90'
+            }`} />
+            <span className={`truncate text-[10px] font-semibold leading-tight ${
+              isTiledMedia
+                ? 'text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]'
+                : clip.type === 'video'
+                ? 'text-slate-900 dark:text-white'
+                : 'text-white'
+            }`}>
+              {clip.name}
+            </span>
+            <span className={`shrink-0 font-mono text-[8.5px] ml-auto pl-1 ${
+              isTiledMedia
+                ? 'text-white/85 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]'
+                : clip.type === 'video'
+                ? 'text-slate-600 dark:text-white/60'
+                : 'text-white/75'
+            }`}>
+              {formatDuration(clip.duration)}
+            </span>
+          </div>
+
+          {/* Audio Waveform Canvas/Bars (fills lower area below header) */}
           {clip.type === 'audio' && (
-            <div className="pointer-events-none absolute inset-x-2 inset-y-1 flex items-center justify-between opacity-50 dark:opacity-40">
+            <div className="pointer-events-none absolute inset-x-1.5 top-4.5 bottom-1 flex items-end justify-between opacity-60 dark:opacity-50">
               {Array.from({ length: Math.min(80, Math.floor(clipWidth / 4)) }).map((_, i) => {
                 const h = 25 + Math.sin(i * 0.5) * 45 + Math.cos(i * 1.2) * 25 + (i % 4) * 8;
                 return (
@@ -345,35 +409,6 @@ export const ClipItem: React.FC<ClipItemProps> = ({ clip, isLocked }) => {
               })}
             </div>
           )}
-
-          {/* Clean Single-Line Clip Header: Icon + Name + Duration */}
-          <div className="relative z-10 flex w-full items-center gap-1.5 overflow-hidden">
-            <Icon className={`h-3 w-3 shrink-0 ${
-              isTiledMedia
-                ? 'text-white/90 drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]'
-                : clip.type === 'video'
-                ? 'text-slate-700 dark:text-white/80'
-                : 'text-white/90'
-            }`} />
-            <span className={`truncate text-xs font-semibold leading-none ${
-              isTiledMedia
-                ? 'text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]'
-                : clip.type === 'video'
-                ? 'text-slate-900 dark:text-white'
-                : 'text-white'
-            }`}>
-              {clip.name}
-            </span>
-            <span className={`shrink-0 font-mono text-[9px] ml-auto pl-1 ${
-              isTiledMedia
-                ? 'text-white/85 drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]'
-                : clip.type === 'video'
-                ? 'text-slate-600 dark:text-white/60'
-                : 'text-white/75'
-            }`}>
-              {formatDuration(clip.duration)}
-            </span>
-          </div>
 
           {/* Audio Volume Line Overlay */}
           {clip.type === 'audio' && (
@@ -404,7 +439,7 @@ export const ClipItem: React.FC<ClipItemProps> = ({ clip, isLocked }) => {
         <div
           ref={contextMenuRef}
           style={{ top: `${contextMenu.y}px`, left: `${contextMenu.x}px` }}
-          className="fixed z-50 min-w-[190px] rounded-xl border border-neutral-200 bg-white p-1 shadow-2xl backdrop-blur-md text-xs text-neutral-900 select-none animate-in fade-in zoom-in-95 duration-100 dark:border-[#2e2e34] dark:bg-[#18181b] dark:text-[#f4f4f5]"
+          className="fixed z-50 min-w-[200px] max-h-[calc(100vh-24px)] overflow-y-auto rounded-xl border border-neutral-200 bg-white/95 p-1.5 shadow-2xl backdrop-blur-md text-xs text-neutral-900 select-none animate-in fade-in zoom-in-95 duration-100 dark:border-[#2e2e34] dark:bg-[#18181b]/95 dark:text-[#f4f4f5]"
         >
           <div className="px-2.5 py-1 text-[10px] font-semibold text-neutral-500 dark:text-neutral-400 border-b border-neutral-200 dark:border-[#2e2e34] mb-1 truncate">
             {clip.name}
