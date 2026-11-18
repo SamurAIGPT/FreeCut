@@ -16,8 +16,24 @@ export interface Transform {
   x: number;          // Offset in px from center
   y: number;          // Offset in px from center
   scale: number;      // 1.0 = 100%
+  scaleX?: number;    // 1.0 = 100%
+  scaleY?: number;    // 1.0 = 100%
   rotation: number;   // Degrees (-180 to 180)
   opacity: number;    // 0.0 - 1.0
+}
+
+export type MaskType = 'none' | 'rectangle' | 'circle' | 'ellipse' | 'split' | 'star' | 'heart';
+
+export interface ClipMask {
+  type: MaskType;
+  x: number;          // Center X offset (-500 to 500)
+  y: number;          // Center Y offset (-500 to 500)
+  width: number;      // Width in px (default 320)
+  height: number;     // Height in px (default 240)
+  radius?: number;    // Corner radius for rectangle (0 to 100)
+  feather: number;    // Feather blur in px (0 to 50)
+  inverted?: boolean; // Invert mask
+  rotation?: number;  // Rotation in degrees
 }
 
 export interface ColorFilter {
@@ -50,6 +66,8 @@ export interface Clip {
   color?: string;      // Color for timeline item
   blendMode?: GlobalCompositeOperation;
   filter?: ColorFilter;
+  mask?: ClipMask;
+  keyframedProps?: string[];
   isMuted?: boolean;
   isHidden?: boolean;
   // Text clip specific properties

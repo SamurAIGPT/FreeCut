@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { AspectRatio, Clip, ColorFilter, MediaAsset, SidebarTab, TimelineMarker, Track, TrackType, Transform } from '@/types/editor';
+import { AspectRatio, Clip, ClipMask, ColorFilter, MediaAsset, SidebarTab, TimelineMarker, Track, TrackType, Transform } from '@/types/editor';
 
 interface HistorySnapshot {
   tracks: Track[];
@@ -78,6 +78,8 @@ interface EditorState {
   updateClip: (id: string, updates: Partial<Clip>) => void;
   updateClipTransform: (id: string, updates: Partial<Transform>) => void;
   updateClipFilter: (id: string, updates: Partial<ColorFilter>) => void;
+  updateClipMask: (id: string, updates: Partial<ClipMask> | null) => void;
+  toggleClipKeyframe: (id: string, property: string) => void;
   splitClip: (clipId: string, splitTime?: number) => void;
   splitLeft: (clipId: string) => void;
   splitRight: (clipId: string) => void;
@@ -369,6 +371,48 @@ export const useEditorStore = create<EditorState>((set, get) => ({
             }
           : c
       ),
+    });
+  },
+
+  updateClipMask: (id, updates) => {
+    const state = get();
+    set({
+      clips: state.clips.map((c) => {
+        if (c.id !== id) return c;
+        if (updates === null) {
+          const { mask, ...rest } = c;
+          return rest as Clip;
+        }
+        return {
+          ...c,
+          mask: {
+            ...(c.mask || {
+              type: 'rectangle',
+              x: 0,
+              y: 0,
+              width: 360,
+              height: 240,
+              radius: 0,
+              feather: 0,
+              inverted: false,
+            }),
+            ...updates,
+          },
+        };
+      }),
+    });
+  },
+
+  toggleClipKeyframe: (id, property) => {
+    const state = get();
+    set({
+      clips: state.clips.map((c) => {
+        if (c.id !== id) return c;
+        const current = c.keyframedProps || [];
+        const exists = current.includes(property);
+        const updated = exists ? current.filter((p) => p !== property) : [...current, property];
+        return { ...c, keyframedProps: updated };
+      }),
     });
   },
 

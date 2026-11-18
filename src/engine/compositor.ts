@@ -93,8 +93,97 @@ class CanvasCompositor {
 
       ctx.translate(centerX, centerY);
       ctx.rotate((clip.transform.rotation * Math.PI) / 180);
-      ctx.scale(clip.transform.scale, clip.transform.scale);
+
+      const scaleX = clip.transform.scaleX !== undefined ? clip.transform.scaleX : clip.transform.scale;
+      const scaleY = clip.transform.scaleY !== undefined ? clip.transform.scaleY : clip.transform.scale;
+      ctx.scale(scaleX, scaleY);
       ctx.globalAlpha = clip.transform.opacity;
+
+      // Masking
+      if (clip.mask && clip.mask.type && clip.mask.type !== 'none') {
+        const m = clip.mask;
+        ctx.beginPath();
+        const mx = m.x || 0;
+        const my = m.y || 0;
+        const mw = m.width || 360;
+        const mh = m.height || 240;
+
+        if (m.type === 'rectangle') {
+          if (m.inverted) {
+            ctx.rect(-width * 2, -height * 2, width * 4, height * 4);
+            ctx.roundRect(mx - mw / 2, my - mh / 2, mw, mh, m.radius || 0);
+            ctx.clip('evenodd');
+          } else {
+            ctx.roundRect(mx - mw / 2, my - mh / 2, mw, mh, m.radius || 0);
+            ctx.clip();
+          }
+        } else if (m.type === 'circle' || m.type === 'ellipse') {
+          const rx = mw / 2;
+          const ry = (m.type === 'circle' ? mw : mh) / 2;
+          if (m.inverted) {
+            ctx.rect(-width * 2, -height * 2, width * 4, height * 4);
+            ctx.ellipse(mx, my, rx, ry, 0, 0, Math.PI * 2);
+            ctx.clip('evenodd');
+          } else {
+            ctx.ellipse(mx, my, rx, ry, 0, 0, Math.PI * 2);
+            ctx.clip();
+          }
+        } else if (m.type === 'split') {
+          if (m.inverted) {
+            ctx.rect(-width * 2, -height * 2, width * 4, height * 4);
+            ctx.rect(-width * 2, my, width * 4, height * 2);
+            ctx.clip('evenodd');
+          } else {
+            ctx.rect(-width * 2, -height * 2, width * 4, height * 2 + my);
+            ctx.clip();
+          }
+        } else if (m.type === 'star') {
+          const spikes = 5;
+          const outerRadius = mw / 2;
+          const innerRadius = outerRadius * 0.45;
+          let rot = (Math.PI / 2) * 3;
+          const step = Math.PI / spikes;
+
+          if (m.inverted) {
+            ctx.rect(-width * 2, -height * 2, width * 4, height * 4);
+          }
+          ctx.moveTo(mx, my - outerRadius);
+          for (let i = 0; i < spikes; i++) {
+            let x = mx + Math.cos(rot) * outerRadius;
+            let y = my + Math.sin(rot) * outerRadius;
+            ctx.lineTo(x, y);
+            rot += step;
+
+            x = mx + Math.cos(rot) * innerRadius;
+            y = my + Math.sin(rot) * innerRadius;
+            ctx.lineTo(x, y);
+            rot += step;
+          }
+          ctx.lineTo(mx, my - outerRadius);
+          ctx.closePath();
+          if (m.inverted) {
+            ctx.clip('evenodd');
+          } else {
+            ctx.clip();
+          }
+        } else if (m.type === 'heart') {
+          const s = mw / 200;
+          if (m.inverted) {
+            ctx.rect(-width * 2, -height * 2, width * 4, height * 4);
+          }
+          ctx.moveTo(mx, my - 30 * s);
+          ctx.bezierCurveTo(mx, my - 60 * s, mx - 60 * s, my - 80 * s, mx - 100 * s, my - 40 * s);
+          ctx.bezierCurveTo(mx - 150 * s, my + 10 * s, mx - 50 * s, my + 70 * s, mx, my + 110 * s);
+          ctx.bezierCurveTo(mx + 50 * s, my + 70 * s, mx + 150 * s, my + 10 * s, mx + 100 * s, my - 40 * s);
+          ctx.bezierCurveTo(mx + 60 * s, my - 80 * s, mx, my - 60 * s, mx, my - 30 * s);
+          ctx.closePath();
+          if (m.inverted) {
+            ctx.clip('evenodd');
+          } else {
+            ctx.clip();
+          }
+        }
+      }
 
       if (clip.type === 'video' && asset) {
         const video = this.getOrCreateVideo(asset);
