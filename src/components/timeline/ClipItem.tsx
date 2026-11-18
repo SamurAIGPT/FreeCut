@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { 
   Film, Music, Type, Scissors, Copy, Trash2, 
   Volume2, VolumeX, Eye, EyeOff, Link2, Sparkles, MoveHorizontal 
@@ -37,6 +37,13 @@ export const ClipItem: React.FC<ClipItemProps> = ({ clip, isLocked }) => {
 
   const [trimTooltip, setTrimTooltip] = useState<{ text: string; side: 'left' | 'right' } | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+  const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({
+    position: 'fixed',
+    visibility: 'hidden',
+    top: 0,
+    left: 0,
+    zIndex: 50,
+  });
   const contextMenuRef = useRef<HTMLDivElement>(null);
 
   const isSelected = selectedClipId === clip.id;
@@ -48,60 +55,77 @@ export const ClipItem: React.FC<ClipItemProps> = ({ clip, isLocked }) => {
   const trackHeight = 36;
   const tileWidth = Math.round(trackHeight * THUMBNAIL_ASPECT_RATIO);
 
-  // Close context menu on outside click
+  // Close context menu on outside click, window resize, or scroll
   useEffect(() => {
     const handleOutside = (e: MouseEvent) => {
       if (contextMenuRef.current && !contextMenuRef.current.contains(e.target as Node)) {
         setContextMenu(null);
       }
     };
+    const handleClose = () => {
+      setContextMenu(null);
+    };
+
     if (contextMenu) {
       document.addEventListener('mousedown', handleOutside);
+      window.addEventListener('resize', handleClose);
+      window.addEventListener('scroll', handleClose, true);
     }
-    return () => document.removeEventListener('mousedown', handleOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleOutside);
+      window.removeEventListener('resize', handleClose);
+      window.removeEventListener('scroll', handleClose, true);
+    };
   }, [contextMenu]);
 
-  // Context Menu trigger with intelligent viewport positioning
+  // Context Menu trigger: record exact cursor coordinates where user clicked
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setSelectedClipId(clip.id);
-
-    // Initial boundary estimate to prevent cut-off
-    const estWidth = 210;
-    const estHeight = 350;
-    const pad = 12;
-
-    const posX = Math.min(e.clientX, Math.max(pad, window.innerWidth - estWidth - pad));
-    const posY = e.clientY + estHeight > window.innerHeight - pad
-      ? Math.max(pad, e.clientY - estHeight)
-      : e.clientY;
-
-    setContextMenu({ x: posX, y: posY });
+    setContextMenu({ x: e.clientX, y: e.clientY });
   };
 
-  // Adjust context menu position after DOM mount if it exceeds viewport bounds
-  useEffect(() => {
-    if (contextMenu && contextMenuRef.current) {
-      const rect = contextMenuRef.current.getBoundingClientRect();
-      const pad = 12;
-      let adjustedX = contextMenu.x;
-      let adjustedY = contextMenu.y;
-      let needsAdjustment = false;
-
-      if (rect.bottom > window.innerHeight - pad) {
-        adjustedY = Math.max(pad, window.innerHeight - rect.height - pad);
-        needsAdjustment = true;
-      }
-      if (rect.right > window.innerWidth - pad) {
-        adjustedX = Math.max(pad, window.innerWidth - rect.width - pad);
-        needsAdjustment = true;
-      }
-
-      if (needsAdjustment) {
-        setContextMenu({ x: adjustedX, y: adjustedY });
-      }
+  // Position context menu directly at the click point, flipping if necessary to remain fully within viewport
+  useLayoutEffect(() => {
+    if (!contextMenu || !contextMenuRef.current) {
+      setMenuStyle({
+        position: 'fixed',
+        visibility: 'hidden',
+        top: 0,
+        left: 0,
+        zIndex: 50,
+      });
+      return;
     }
+
+    const el = contextMenuRef.current;
+    const rect = el.getBoundingClientRect();
+    const width = rect.width > 0 ? rect.width : 210;
+    const height = rect.height > 0 ? rect.height : (clip.type === 'video' ? 295 : 260);
+    const pad = 8;
+    const { x, y } = contextMenu;
+
+    // Horizontal: default to opening right from cursor; if overflowing right, open left from cursor
+    let left = x;
+    if (x + width > window.innerWidth - pad) {
+      left = Math.max(pad, x - width);
+    }
+
+    // Vertical: default to opening down from cursor; if overflowing bottom, open up from cursor
+    // When opening up, top = y - height, so the bottom of the menu touches the cursor exactly at y
+    let top = y;
+    if (y + height > window.innerHeight - pad) {
+      top = Math.max(pad, y - height);
+    }
+
+    setMenuStyle({
+      position: 'fixed',
+      top: `${top}px`,
+      left: `${left}px`,
+      zIndex: 50,
+      visibility: 'visible',
+    });
   }, [contextMenu]);
 
   // Drag Clip (Both Horizontally in Time & Vertically between Tracks)
@@ -438,8 +462,8 @@ export const ClipItem: React.FC<ClipItemProps> = ({ clip, isLocked }) => {
       {contextMenu && (
         <div
           ref={contextMenuRef}
-          style={{ top: `${contextMenu.y}px`, left: `${contextMenu.x}px` }}
-          className="fixed z-50 min-w-[200px] max-h-[calc(100vh-24px)] overflow-y-auto rounded-xl border border-neutral-200 bg-white/95 p-1.5 shadow-2xl backdrop-blur-md text-xs text-neutral-900 select-none animate-in fade-in zoom-in-95 duration-100 dark:border-[#2e2e34] dark:bg-[#18181b]/95 dark:text-[#f4f4f5]"
+          style={menuStyle}
+          className="min-w-[200px] max-h-[calc(100vh-24px)] overflow-y-auto rounded-xl border border-neutral-200 bg-white/95 p-1.5 shadow-2xl backdrop-blur-md text-xs text-neutral-900 select-none animate-in fade-in zoom-in-95 duration-75 dark:border-[#2e2e34] dark:bg-[#18181b]/95 dark:text-[#f4f4f5]"
         >
           <div className="px-2.5 py-1 text-[10px] font-semibold text-neutral-500 dark:text-neutral-400 border-b border-neutral-200 dark:border-[#2e2e34] mb-1 truncate">
             {clip.name}
