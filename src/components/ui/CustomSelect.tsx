@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { ChevronDown, Check } from 'lucide-react';
 
 export interface SelectOption<T = string | number> {
@@ -23,6 +24,16 @@ export interface CustomSelectProps<T = string | number> {
   prefix?: string;
 }
 
+interface DropdownCoords {
+  top?: number;
+  bottom?: number;
+  left?: number;
+  right?: number;
+  width: number;
+  maxHeight: number;
+  placement: 'top' | 'bottom';
+}
+
 export function CustomSelect<T extends string | number>({
   value,
   onChange,
@@ -37,19 +48,95 @@ export function CustomSelect<T extends string | number>({
   prefix,
 }: CustomSelectProps<T>) {
   const [isOpen, setIsOpen] = useState(false);
+  const [coords, setCoords] = useState<DropdownCoords | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Compute position relative to viewport with auto-flip when space below is limited
+  const updatePosition = () => {
+    if (!buttonRef.current) return;
+    const rect = buttonRef.current.getBoundingClientRect();
+    const viewportHeight = window.innerHeight;
+    const viewportWidth = window.innerWidth;
+
+    const spaceBelow = viewportHeight - rect.bottom - 12;
+    const spaceAbove = rect.top - 12;
+
+    // Smart flip: open upwards if space below is tighter than 300px or space above is larger
+    const shouldOpenUpwards = (spaceBelow < 300 || spaceAbove > spaceBelow + 50) && spaceAbove > 160;
+
+    let maxHeight = 220;
+    let top: number | undefined;
+    let bottom: number | undefined;
+
+    if (shouldOpenUpwards) {
+      maxHeight = Math.max(100, Math.min(220, spaceAbove));
+      bottom = viewportHeight - rect.top + 4;
+    } else {
+      maxHeight = Math.max(100, Math.min(220, spaceBelow));
+      top = rect.bottom + 4;
+    }
+
+    let left: number | undefined;
+    let right: number | undefined;
+
+    if (align === 'right') {
+      right = Math.max(8, viewportWidth - rect.right);
+    } else {
+      left = Math.max(8, Math.min(rect.left, viewportWidth - Math.max(rect.width, 160) - 8));
+    }
+
+    setCoords({
+      top,
+      bottom,
+      left,
+      right,
+      width: rect.width,
+      maxHeight,
+      placement: shouldOpenUpwards ? 'top' : 'bottom',
+    });
+  };
+
+  useLayoutEffect(() => {
+    if (isOpen) {
+      updatePosition();
+    }
+  }, [isOpen]);
+
+  // Update position on scroll/resize anywhere in the window
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleScrollOrResize = () => {
+      updatePosition();
+    };
+
+    window.addEventListener('scroll', handleScrollOrResize, true);
+    window.addEventListener('resize', handleScrollOrResize);
+
+    return () => {
+      window.removeEventListener('scroll', handleScrollOrResize, true);
+      window.removeEventListener('resize', handleScrollOrResize);
+    };
+  }, [isOpen, align]);
 
   // Close on outside click
   useEffect(() => {
+    if (!isOpen) return;
+
     const handleOutsideClick = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setIsOpen(false);
+      const target = e.target as Node;
+      if (
+        buttonRef.current?.contains(target) ||
+        menuRef.current?.contains(target)
+      ) {
+        return;
       }
+      setIsOpen(false);
     };
 
-    if (isOpen) {
-      document.addEventListener('mousedown', handleOutsideClick);
-    }
+    document.addEventListener('mousedown', handleOutsideClick);
     return () => {
       document.removeEventListener('mousedown', handleOutsideClick);
     };
@@ -57,14 +144,15 @@ export function CustomSelect<T extends string | number>({
 
   // Close on Escape key
   useEffect(() => {
+    if (!isOpen) return;
+
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen) {
+      if (e.key === 'Escape') {
         setIsOpen(false);
       }
     };
-    if (isOpen) {
-      window.addEventListener('keydown', handleKeyDown);
-    }
+
+    window.addEventListener('keydown', handleKeyDown);
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
@@ -90,6 +178,7 @@ export function CustomSelect<T extends string | number>({
     >
       {/* Trigger Button */}
       <button
+        ref={buttonRef}
         type="button"
         disabled={disabled}
         onClick={() => setIsOpen((prev) => !prev)}
@@ -112,68 +201,79 @@ export function CustomSelect<T extends string | number>({
         />
       </button>
 
-      {/* Floating Dropdown Menu */}
-      {isOpen && (
-        <div
-          role="listbox"
-          tabIndex={-1}
-          className={`absolute z-50 mt-1.5 min-w-[140px] max-h-60 overflow-y-auto rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-[#111114] p-1 shadow-2xl backdrop-blur-md transition-all ${
-            align === 'right' ? 'right-0' : 'left-0'
-          } ${menuClassName}`}
-          style={{ minWidth: 'max(100%, 140px)' }}
-        >
-          {options.map((option) => {
-            const isSelected = option.value === value;
-            return (
-              <div
-                key={String(option.value)}
-                role="option"
-                aria-selected={isSelected}
-                onClick={() => handleSelect(option)}
-                className={`group flex items-center justify-between rounded-lg px-2.5 py-1.5 text-xs font-medium cursor-pointer transition-colors duration-150 ${
-                  option.disabled
-                    ? 'opacity-40 cursor-not-allowed'
-                    : isSelected
-                    ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 font-semibold shadow-xs'
-                    : 'text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800/70 hover:text-neutral-950 dark:hover:text-white'
-                }`}
-              >
-                <div className="flex items-center gap-2 overflow-hidden truncate">
-                  {option.icon && (
-                    <span
-                      className={`shrink-0 ${
-                        isSelected
-                          ? 'text-white dark:text-neutral-900'
-                          : 'text-neutral-500 dark:text-neutral-400 group-hover:text-neutral-900 dark:group-hover:text-white'
-                      }`}
-                    >
-                      {option.icon}
-                    </span>
-                  )}
-                  <div className="flex flex-col truncate">
-                    <span className="truncate">{option.label}</span>
-                    {option.description && (
+      {/* Portal Dropdown Menu: rendered at document.body with auto-flip & viewport safety */}
+      {isOpen &&
+        coords &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div
+            ref={menuRef}
+            role="listbox"
+            tabIndex={-1}
+            className={`fixed z-[9999] overflow-y-auto rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-[#111114] p-1 shadow-2xl backdrop-blur-md transition-all animate-in fade-in zoom-in-95 duration-100 ${menuClassName}`}
+            style={{
+              top: coords.top !== undefined ? `${coords.top}px` : undefined,
+              bottom: coords.bottom !== undefined ? `${coords.bottom}px` : undefined,
+              left: coords.left !== undefined ? `${coords.left}px` : undefined,
+              right: coords.right !== undefined ? `${coords.right}px` : undefined,
+              width: `${coords.width}px`,
+              minWidth: 'max(100%, 160px)',
+              maxHeight: `${coords.maxHeight}px`,
+            }}
+          >
+            {options.map((option) => {
+              const isSelected = option.value === value;
+              return (
+                <div
+                  key={String(option.value)}
+                  role="option"
+                  aria-selected={isSelected}
+                  onClick={() => handleSelect(option)}
+                  className={`group flex items-center justify-between rounded-lg px-2.5 py-1.5 text-xs font-medium cursor-pointer transition-colors duration-150 ${
+                    option.disabled
+                      ? 'opacity-40 cursor-not-allowed'
+                      : isSelected
+                      ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 font-semibold shadow-xs'
+                      : 'text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800/70 hover:text-neutral-950 dark:hover:text-white'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 overflow-hidden truncate">
+                    {option.icon && (
                       <span
-                        className={`text-[10px] ${
+                        className={`shrink-0 ${
                           isSelected
-                            ? 'text-white/80 dark:text-neutral-600'
-                            : 'text-neutral-500 dark:text-neutral-400'
+                            ? 'text-white dark:text-neutral-900'
+                            : 'text-neutral-500 dark:text-neutral-400 group-hover:text-neutral-900 dark:group-hover:text-white'
                         }`}
                       >
-                        {option.description}
+                        {option.icon}
                       </span>
                     )}
+                    <div className="flex flex-col truncate">
+                      <span className="truncate">{option.label}</span>
+                      {option.description && (
+                        <span
+                          className={`text-[10px] ${
+                            isSelected
+                              ? 'text-white/80 dark:text-neutral-600'
+                              : 'text-neutral-500 dark:text-neutral-400'
+                          }`}
+                        >
+                          {option.description}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                </div>
 
-                {isSelected && (
-                  <Check className="h-3.5 w-3.5 shrink-0 ml-2" />
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
+                  {isSelected && (
+                    <Check className="h-3.5 w-3.5 shrink-0 ml-2" />
+                  )}
+                </div>
+              );
+            })}
+          </div>,
+          document.body
+        )}
     </div>
   );
 }
