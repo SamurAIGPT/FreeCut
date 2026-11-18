@@ -18,7 +18,6 @@ export const Timeline: React.FC = () => {
   const clips = useEditorStore((s) => s.clips);
   const zoom = useEditorStore((s) => s.zoom);
   const duration = useEditorStore((s) => s.duration);
-  const playhead = useEditorStore((s) => s.playhead);
   const selectedClipId = useEditorStore((s) => s.selectedClipId);
   const splitClip = useEditorStore((s) => s.splitClip);
   const splitLeft = useEditorStore((s) => s.splitLeft);
@@ -180,7 +179,7 @@ export const Timeline: React.FC = () => {
           {/* Add Bookmark / Marker (M) */}
           <Tooltip content="Add bookmark" shortcut="M" side="top">
             <button
-              onClick={() => addMarker(playhead)}
+              onClick={() => addMarker(useEditorStore.getState().playhead)}
               className="flex items-center gap-1.5 h-[34px] rounded-lg px-3 py-1.5 text-xs font-medium border border-neutral-300 bg-neutral-100 text-blue-600 hover:bg-blue-500/10 transition cursor-pointer dark:border-[#27272a] dark:bg-[#18181b] dark:text-blue-400 dark:hover:bg-blue-500/15"
             >
               <Bookmark className="h-3.5 w-3.5" />
@@ -313,8 +312,12 @@ export const Timeline: React.FC = () => {
           {/* Magnetic Vertical Snap Guide Line */}
           {snapGuideX !== null && (
             <div
-              style={{ left: `${snapGuideX * zoom}px`, height: `${timelineHeight}px` }}
-              className="pointer-events-none absolute top-0 z-40 w-px bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.8)]"
+              style={{
+                transform: `translate3d(${Math.round(snapGuideX * zoom)}px, 0, 0)`,
+                height: `${timelineHeight}px`,
+                willChange: 'transform',
+              }}
+              className="pointer-events-none absolute top-0 left-0 z-40 w-px bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.8)]"
             >
               <div className="absolute top-0 -left-1.5 h-3 w-3 rounded-full bg-cyan-400" />
             </div>

@@ -217,6 +217,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   setPlayhead: (time) => {
     const duration = get().duration;
     const clamped = Math.max(0, Math.min(time, duration));
+    if (Math.abs(get().playhead - clamped) < 0.0001) return;
     set({ playhead: clamped });
   },
 

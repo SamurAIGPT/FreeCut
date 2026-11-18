@@ -81,6 +81,11 @@ const VideoAutoThumbnail: React.FC<{ url: string; alt: string }> = ({ url, alt }
   );
 };
 
+const PlayheadPositionBadge: React.FC = () => {
+  const playhead = useEditorStore((s) => s.playhead);
+  return <span className="font-mono text-app-text">{playhead.toFixed(2)}s</span>;
+};
+
 export const SidebarContent: React.FC = () => {
   const activeTab = useEditorStore((s) => s.activeSidebarTab);
   const assets = useEditorStore((s) => s.assets);
@@ -89,7 +94,6 @@ export const SidebarContent: React.FC = () => {
   const tracks = useEditorStore((s) => s.tracks);
   const addTrack = useEditorStore((s) => s.addTrack);
   const clips = useEditorStore((s) => s.clips);
-  const playhead = useEditorStore((s) => s.playhead);
   const selectedClipId = useEditorStore((s) => s.selectedClipId);
   const setSelectedClipId = useEditorStore((s) => s.setSelectedClipId);
   const updateClipFilter = useEditorStore((s) => s.updateClipFilter);
@@ -288,13 +292,15 @@ export const SidebarContent: React.FC = () => {
       const videoTrack = tracks.find((t) => t.type === 'video');
       const audioTrack = tracks.find((t) => t.type === 'audio');
 
+      const currentPlayhead = useEditorStore.getState().playhead;
+
       if (videoTrack) {
         addClip({
           trackId: videoTrack.id,
           assetId: videoAsset.id,
           name: videoAsset.name,
           type: 'video',
-          start: playhead,
+          start: currentPlayhead,
           duration: videoAsset.duration,
           trimStart: 0,
           trimEnd: videoAsset.duration,
@@ -311,7 +317,7 @@ export const SidebarContent: React.FC = () => {
           assetId: audioAsset.id,
           name: audioAsset.name,
           type: 'audio',
-          start: playhead,
+          start: currentPlayhead,
           duration: audioAsset.duration,
           trimStart: 0,
           trimEnd: audioAsset.duration,
@@ -360,12 +366,13 @@ export const SidebarContent: React.FC = () => {
     const audioTrack = tracks.find((t) => t.type === 'audio') || tracks[0];
     const asset = await generateSoundEffect(sfx.type, `${sfx.name}.wav`, sfx.duration);
     addAsset(asset);
+    const currentPlayhead = useEditorStore.getState().playhead;
     addClip({
       trackId: audioTrack.id,
       assetId: asset.id,
       name: sfx.name,
       type: 'audio',
-      start: playhead,
+      start: currentPlayhead,
       duration: sfx.duration,
       trimStart: 0,
       trimEnd: sfx.duration,
@@ -390,6 +397,7 @@ export const SidebarContent: React.FC = () => {
 
   const handleAddText = (preset: typeof TEXT_PRESETS[0]) => {
     const textTrack = tracks.find((t) => t.type === 'text') || tracks[0];
+    const currentPlayhead = useEditorStore.getState().playhead;
     const newId = addClip({
       trackId: textTrack.id,
       name: preset.title,
@@ -399,7 +407,7 @@ export const SidebarContent: React.FC = () => {
       fontColor: preset.fontColor,
       backgroundColor: preset.bg,
       fontFamily: 'Inter, system-ui',
-      start: playhead,
+      start: currentPlayhead,
       duration: 3.5,
       trimStart: 0,
       trimEnd: 3.5,
@@ -510,12 +518,13 @@ export const SidebarContent: React.FC = () => {
     }
 
     const overlayTrack = tracks.find((t) => t.id === 'track-video-2') || tracks.find((t) => t.type === 'video') || tracks[0];
+    const currentPlayhead = useEditorStore.getState().playhead;
     const newId = addClip({
       trackId: overlayTrack.id,
       assetId: existingAsset.id,
       name: sticker.name,
       type: 'image',
-      start: playhead,
+      start: currentPlayhead,
       duration: 3.5,
       trimStart: 0,
       trimEnd: 3.5,
@@ -545,9 +554,10 @@ export const SidebarContent: React.FC = () => {
     let targetClipId = selectedClipId;
     if (!targetClipId) {
       // Auto-find clip under playhead
+      const curPlayhead = useEditorStore.getState().playhead;
       const allClips = useEditorStore.getState().clips;
       const clipUnderPlayhead = allClips.find(
-        (c) => c.type !== 'audio' && c.start <= playhead && playhead <= c.start + c.duration
+        (c) => c.type !== 'audio' && c.start <= curPlayhead && curPlayhead <= c.start + c.duration
       ) || allClips.find((c) => c.type !== 'audio');
 
       if (clipUnderPlayhead) {
@@ -834,11 +844,12 @@ export const SidebarContent: React.FC = () => {
       textTrackId = addTrack('text', 'Subtitles');
     }
 
+    const currentPlayhead = useEditorStore.getState().playhead;
     addClip({
       trackId: textTrackId,
       name: manualCaptionText.slice(0, 24),
       type: 'text',
-      start: playhead,
+      start: currentPlayhead,
       duration: 3.0,
       trimStart: 0,
       trimEnd: 3.0,
@@ -852,7 +863,7 @@ export const SidebarContent: React.FC = () => {
     });
 
     setManualCaptionText('');
-    showToast(`Added subtitle at ${playhead.toFixed(1)}s`);
+    showToast(`Added subtitle at ${currentPlayhead.toFixed(1)}s`);
   };
 
   const timelineSubtitles = clips.filter((c) => c.type === 'text');
@@ -881,7 +892,6 @@ export const SidebarContent: React.FC = () => {
 
   // 9. Adjustments
   const targetAdjustmentClip = clips.find((c) => c.id === selectedClipId)
-    || clips.find((c) => playhead >= c.start && playhead < c.start + c.duration && (c.type === 'video' || c.type === 'image'))
     || clips.find((c) => c.type === 'video' || c.type === 'image');
 
   const currentFilter = targetAdjustmentClip?.filter || { brightness: 1, contrast: 1, saturation: 1, blur: 0 };
@@ -1125,12 +1135,13 @@ export const SidebarContent: React.FC = () => {
                             onClick={() => {
                               const track = tracks.find((t) => t.type === (asset.type === 'audio' ? 'audio' : 'video'));
                               if (track) {
+                                const currentPlayhead = useEditorStore.getState().playhead;
                                 addClip({
                                   trackId: track.id,
                                   assetId: asset.id,
                                   name: asset.name,
                                   type: asset.type,
-                                  start: playhead,
+                                  start: currentPlayhead,
                                   duration: asset.duration,
                                   trimStart: 0,
                                   trimEnd: asset.duration,
@@ -1509,7 +1520,7 @@ export const SidebarContent: React.FC = () => {
             {/* Manual Subtitle Insertion */}
             <div className="rounded-xl border border-app-border bg-app-elevated p-3.5 space-y-2.5">
               <h4 className="text-xs font-semibold text-app-text flex items-center gap-1.5">
-                <Plus className="h-3.5 w-3.5 text-app-text-muted" /> Add Caption at Needle ({playhead.toFixed(1)}s)
+                <Plus className="h-3.5 w-3.5 text-app-text-muted" /> Add Caption at Needle
               </h4>
               <div className="space-y-2">
                 <input
@@ -1840,7 +1851,7 @@ export const SidebarContent: React.FC = () => {
                   </div>
                   <div className="flex justify-between text-app-text-muted">
                     <span>Playhead Position:</span>
-                    <span className="font-mono text-app-text">{playhead.toFixed(2)}s</span>
+                    <PlayheadPositionBadge />
                   </div>
                 </div>
               </div>

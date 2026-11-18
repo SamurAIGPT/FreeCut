@@ -13,12 +13,11 @@ interface ClipItemProps {
   isLocked?: boolean;
 }
 
-export const ClipItem: React.FC<ClipItemProps> = ({ clip, isLocked }) => {
+export const ClipItem: React.FC<ClipItemProps> = React.memo(({ clip, isLocked }) => {
   const zoom = useEditorStore((s) => s.zoom);
   const selectedClipId = useEditorStore((s) => s.selectedClipId);
   const setSelectedClipId = useEditorStore((s) => s.setSelectedClipId);
   const updateClip = useEditorStore((s) => s.updateClip);
-  const playhead = useEditorStore((s) => s.playhead);
   const isSnapping = useEditorStore((s) => s.isSnapping);
   const activeTool = useEditorStore((s) => s.activeTool);
   const splitClip = useEditorStore((s) => s.splitClip);
@@ -147,8 +146,9 @@ export const ClipItem: React.FC<ClipItemProps> = ({ clip, isLocked }) => {
     const initialTrackId = clip.trackId;
 
     // Precalculate snap targets (playhead, markers, other clip starts & ends)
+    const currentPlayhead = useEditorStore.getState().playhead;
     const snapTargets = [
-      playhead,
+      currentPlayhead,
       ...markers.map((m) => m.time),
       ...clips.filter((c) => c.id !== clip.id).flatMap((c) => [c.start, c.start + c.duration]),
     ];
@@ -235,11 +235,12 @@ export const ClipItem: React.FC<ClipItemProps> = ({ clip, isLocked }) => {
       let newDuration = Math.max(0.2, initialDuration - timeDelta);
 
       // Snap trim to playhead
-      if (isSnapping && Math.abs(newStart - playhead) < 8 / zoom) {
-        const diff = playhead - initialStart;
-        newStart = playhead;
+      const currentPlayhead = useEditorStore.getState().playhead;
+      if (isSnapping && Math.abs(newStart - currentPlayhead) < 8 / zoom) {
+        const diff = currentPlayhead - initialStart;
+        newStart = currentPlayhead;
         newDuration = initialDuration - diff;
-        setSnapGuideX(playhead);
+        setSnapGuideX(currentPlayhead);
       } else {
         setSnapGuideX(null);
       }
@@ -278,9 +279,10 @@ export const ClipItem: React.FC<ClipItemProps> = ({ clip, isLocked }) => {
       let newDuration = Math.max(0.2, initialDuration + timeDelta);
 
       // Snap trim to playhead
-      if (isSnapping && Math.abs(clip.start + newDuration - playhead) < 8 / zoom) {
-        newDuration = Math.max(0.2, playhead - clip.start);
-        setSnapGuideX(playhead);
+      const currentPlayhead = useEditorStore.getState().playhead;
+      if (isSnapping && Math.abs(clip.start + newDuration - currentPlayhead) < 8 / zoom) {
+        newDuration = Math.max(0.2, currentPlayhead - clip.start);
+        setSnapGuideX(currentPlayhead);
       } else {
         setSnapGuideX(null);
       }
@@ -305,6 +307,22 @@ export const ClipItem: React.FC<ClipItemProps> = ({ clip, isLocked }) => {
 
   const leftPos = clip.start * zoom;
   const clipWidth = Math.max(20, clip.duration * zoom);
+
+  // Memoize audio waveform bars so they are never recalculated on re-renders
+  const waveformBars = React.useMemo(() => {
+    if (clip.type !== 'audio') return null;
+    const barCount = Math.min(80, Math.max(8, Math.floor(clipWidth / 4)));
+    return Array.from({ length: barCount }).map((_, i) => {
+      const h = 25 + Math.sin(i * 0.5) * 45 + Math.cos(i * 1.2) * 25 + (i % 4) * 8;
+      return (
+        <div
+          key={i}
+          style={{ height: `${Math.max(20, Math.min(95, h))}%` }}
+          className="w-0.5 rounded-full bg-white"
+        />
+      );
+    });
+  }, [clip.type, clipWidth]);
 
   const getThemeStyles = () => {
     switch (clip.type) {
@@ -421,16 +439,7 @@ export const ClipItem: React.FC<ClipItemProps> = ({ clip, isLocked }) => {
           {/* Audio Waveform Canvas/Bars (fills lower area below header) */}
           {clip.type === 'audio' && (
             <div className="pointer-events-none absolute inset-x-1.5 top-4.5 bottom-1 flex items-end justify-between opacity-60 dark:opacity-50">
-              {Array.from({ length: Math.min(80, Math.floor(clipWidth / 4)) }).map((_, i) => {
-                const h = 25 + Math.sin(i * 0.5) * 45 + Math.cos(i * 1.2) * 25 + (i % 4) * 8;
-                return (
-                  <div
-                    key={i}
-                    style={{ height: `${Math.max(20, Math.min(95, h))}%` }}
-                    className="w-0.5 rounded-full bg-white"
-                  />
-                );
-              })}
+              {waveformBars}
             </div>
           )}
 
@@ -584,6 +593,6 @@ export const ClipItem: React.FC<ClipItemProps> = ({ clip, isLocked }) => {
       )}
     </>
   );
-};
+});
 
 export default ClipItem;

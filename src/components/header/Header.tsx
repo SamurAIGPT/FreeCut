@@ -4,6 +4,18 @@ import { useEditorStore } from '@/store/useEditorStore';
 import { formatTimecode } from '@/utils/time';
 import { ExportModal } from './ExportModal';
 
+const HeaderTimecode: React.FC = () => {
+  const playhead = useEditorStore((s) => s.playhead);
+  return (
+    <div className="flex items-center gap-2 rounded-lg border border-app-border bg-app-bg px-3 py-1">
+      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+      <span className="font-mono text-xs font-bold tracking-widest text-app-text">
+        {formatTimecode(playhead)}
+      </span>
+    </div>
+  );
+};
+
 export const Header: React.FC = () => {
   const [isExportOpen, setIsExportOpen] = useState(false);
 
@@ -12,7 +24,6 @@ export const Header: React.FC = () => {
   const toggleTheme = useEditorStore((s) => s.toggleTheme);
   const projectTitle = useEditorStore((s) => s.projectTitle);
   const setProjectTitle = useEditorStore((s) => s.setProjectTitle);
-  const playhead = useEditorStore((s) => s.playhead);
   const undo = useEditorStore((s) => s.undo);
   const redo = useEditorStore((s) => s.redo);
   const canUndo = useEditorStore((s) => s.history.past.length > 0);
@@ -66,12 +77,7 @@ export const Header: React.FC = () => {
             </button>
           </div>
 
-          <div className="flex items-center gap-2 rounded-lg border border-app-border bg-app-bg px-3 py-1">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="font-mono text-xs font-bold tracking-widest text-app-text">
-              {formatTimecode(playhead)}
-            </span>
-          </div>
+          <HeaderTimecode />
         </div>
 
         {/* Right: Theme Toggle & Export Button */}

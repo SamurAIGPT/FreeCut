@@ -12,7 +12,7 @@ interface TrackHeaderProps {
   totalTracks: number;
 }
 
-export const TrackHeader: React.FC<TrackHeaderProps> = ({ track, totalTracks }) => {
+export const TrackHeader: React.FC<TrackHeaderProps> = React.memo(({ track, totalTracks }) => {
   const toggleTrackMute = useEditorStore((s) => s.toggleTrackMute);
   const toggleTrackLock = useEditorStore((s) => s.toggleTrackLock);
   const toggleTrackVisibility = useEditorStore((s) => s.toggleTrackVisibility);
@@ -121,6 +121,6 @@ export const TrackHeader: React.FC<TrackHeaderProps> = ({ track, totalTracks }) 
       </div>
     </div>
   );
-};
+});
 
 export default TrackHeader;

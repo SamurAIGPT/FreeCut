@@ -1,54 +1,52 @@
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { useEditorStore } from '@/store/useEditorStore';
 import { audioEngine } from '@/engine/audioEngine';
 
+/**
+ * High-performance animation loop for timeline playback.
+ * Does NOT subscribe to playhead to avoid triggering re-render cascades
+ * in App or parent components at 60 FPS.
+ */
 export function useAnimationLoop() {
   const isPlaying = useEditorStore((s) => s.isPlaying);
-  const playhead = useEditorStore((s) => s.playhead);
-  const duration = useEditorStore((s) => s.duration);
-  const setPlayhead = useEditorStore((s) => s.setPlayhead);
-  const setIsPlaying = useEditorStore((s) => s.setIsPlaying);
-  const tracks = useEditorStore((s) => s.tracks);
-  const clips = useEditorStore((s) => s.clips);
-  const assets = useEditorStore((s) => s.assets);
-
-  const lastTimeRef = useRef<number | null>(null);
 
   useEffect(() => {
+    if (!isPlaying) {
+      const state = useEditorStore.getState();
+      audioEngine.sync(state.playhead, false, state.tracks, state.clips, state.assets);
+      return;
+    }
+
     let animId: number;
+    let lastTime: number | null = null;
 
     const loop = (timestamp: number) => {
-      if (!lastTimeRef.current) {
-        lastTimeRef.current = timestamp;
+      if (lastTime === null) {
+        lastTime = timestamp;
       }
 
-      const delta = (timestamp - lastTimeRef.current) / 1000;
-      lastTimeRef.current = timestamp;
+      const delta = (timestamp - lastTime) / 1000;
+      lastTime = timestamp;
 
-      if (isPlaying) {
-        const nextTime = playhead + delta;
-        if (nextTime >= duration) {
-          setPlayhead(0); // Loop to start
-        } else {
-          setPlayhead(nextTime);
-        }
+      const state = useEditorStore.getState();
+      const nextTime = state.playhead + delta;
+
+      if (nextTime >= state.duration) {
+        state.setPlayhead(0);
+      } else {
+        state.setPlayhead(nextTime);
       }
 
       // Synchronize audio engine
-      audioEngine.sync(playhead, isPlaying, tracks, clips, assets);
+      audioEngine.sync(nextTime, true, state.tracks, state.clips, state.assets);
 
       animId = requestAnimationFrame(loop);
     };
 
-    if (isPlaying) {
-      lastTimeRef.current = null;
-      animId = requestAnimationFrame(loop);
-    } else {
-      audioEngine.sync(playhead, false, tracks, clips, assets);
-    }
+    animId = requestAnimationFrame(loop);
 
     return () => {
       cancelAnimationFrame(animId);
     };
-  }, [isPlaying, playhead, duration, setPlayhead, setIsPlaying, tracks, clips, assets]);
+  }, [isPlaying]);
 }
