@@ -5,7 +5,8 @@ import {
 } from 'lucide-react';
 import { useEditorStore } from '@/store/useEditorStore';
 import { Clip } from '@/types/editor';
-import { formatShortTime } from '@/utils/time';
+import { formatDuration, formatShortTime } from '@/utils/time';
+import { getClipThumbnail } from '@/utils/thumbnail';
 
 interface ClipItemProps {
   clip: Clip;
@@ -30,6 +31,7 @@ export const ClipItem: React.FC<ClipItemProps> = ({ clip, isLocked }) => {
   const moveClipToTrack = useEditorStore((s) => s.moveClipToTrack);
   const tracks = useEditorStore((s) => s.tracks);
   const clips = useEditorStore((s) => s.clips);
+  const assets = useEditorStore((s) => s.assets);
   const markers = useEditorStore((s) => s.markers);
   const setSnapGuideX = useEditorStore((s) => s.setSnapGuideX);
 
@@ -38,6 +40,13 @@ export const ClipItem: React.FC<ClipItemProps> = ({ clip, isLocked }) => {
   const contextMenuRef = useRef<HTMLDivElement>(null);
 
   const isSelected = selectedClipId === clip.id;
+
+  const imageUrl = getClipThumbnail(clip, assets);
+  const isTiledMedia = (clip.type === 'video' || clip.type === 'image') && Boolean(imageUrl);
+
+  const THUMBNAIL_ASPECT_RATIO = 16 / 9;
+  const trackHeight = 36;
+  const tileWidth = Math.round(trackHeight * THUMBNAIL_ASPECT_RATIO);
 
   // Close context menu on outside click
   useEffect(() => {
@@ -253,7 +262,15 @@ export const ClipItem: React.FC<ClipItemProps> = ({ clip, isLocked }) => {
           icon: Type,
         };
       case 'video':
+      case 'image':
       default:
+        if (isTiledMedia) {
+          return {
+            bg: 'bg-[#18181b] text-white',
+            border: 'border-neutral-700/80',
+            icon: Film,
+          };
+        }
         return {
           bg: 'bg-slate-200 hover:bg-slate-100 text-slate-800 dark:bg-[#24252a] dark:hover:bg-[#2c2d34] dark:text-white',
           border: 'border-slate-300 dark:border-[#3a3c46]',
@@ -271,7 +288,7 @@ export const ClipItem: React.FC<ClipItemProps> = ({ clip, isLocked }) => {
         style={{ left: `${leftPos}px`, width: `${clipWidth}px` }}
         onMouseDown={handleMouseDown}
         onContextMenu={handleContextMenu}
-        className={`group absolute inset-y-0.5 flex cursor-grab active:cursor-grabbing items-center justify-between rounded-sm border select-none transition-all duration-100 ${
+        className={`group absolute inset-y-0.5 flex cursor-grab active:cursor-grabbing items-center justify-between rounded-sm border select-none transition-all duration-100 overflow-hidden ${
           theme.bg
         } ${theme.border} ${
           isSelected
@@ -279,6 +296,24 @@ export const ClipItem: React.FC<ClipItemProps> = ({ clip, isLocked }) => {
             : 'hover:brightness-105 z-10'
         } ${clip.isMuted ? 'opacity-50' : ''}`}
       >
+        {/* Repeating tiled filmstrip background for video and image clips */}
+        {isTiledMedia && (
+          <>
+            <div
+              className="pointer-events-none absolute inset-0"
+              style={{
+                backgroundColor: '#18181b',
+                backgroundImage: `url(${imageUrl})`,
+                backgroundRepeat: 'repeat-x',
+                backgroundSize: `${tileWidth}px ${trackHeight}px`,
+                backgroundPosition: 'left center',
+              }}
+            />
+            {/* Top scrim gradient to ensure text readability */}
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-5 bg-gradient-to-b from-black/60 via-black/25 to-transparent z-[5]" />
+          </>
+        )}
+
         {/* Left Trim Handle */}
         <div
           onMouseDown={handleTrimLeft}
@@ -314,23 +349,29 @@ export const ClipItem: React.FC<ClipItemProps> = ({ clip, isLocked }) => {
           {/* Clean Single-Line Clip Header: Icon + Name + Duration */}
           <div className="relative z-10 flex w-full items-center gap-1.5 overflow-hidden">
             <Icon className={`h-3 w-3 shrink-0 ${
-              clip.type === 'video'
+              isTiledMedia
+                ? 'text-white/90 drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]'
+                : clip.type === 'video'
                 ? 'text-slate-700 dark:text-white/80'
                 : 'text-white/90'
             }`} />
             <span className={`truncate text-xs font-semibold leading-none ${
-              clip.type === 'video'
+              isTiledMedia
+                ? 'text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]'
+                : clip.type === 'video'
                 ? 'text-slate-900 dark:text-white'
                 : 'text-white'
             }`}>
               {clip.name}
             </span>
             <span className={`shrink-0 font-mono text-[9px] ml-auto pl-1 ${
-              clip.type === 'video'
+              isTiledMedia
+                ? 'text-white/85 drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]'
+                : clip.type === 'video'
                 ? 'text-slate-600 dark:text-white/60'
                 : 'text-white/75'
             }`}>
-              {clip.duration.toFixed(1)}s
+              {formatDuration(clip.duration)}
             </span>
           </div>
 

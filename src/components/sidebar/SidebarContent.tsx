@@ -17,6 +17,8 @@ import {
   SoundEffectType 
 } from '@/utils/sampleMedia';
 
+import { formatDuration } from '@/utils/time';
+
 /**
  * Auto-generating video thumbnail component that displays the video frame
  * and caches a canvas snapshot to ensure instant subsequent rendering.
@@ -77,23 +79,6 @@ const VideoAutoThumbnail: React.FC<{ url: string; alt: string }> = ({ url, alt }
       className="h-full w-full object-cover pointer-events-none"
     />
   );
-};
-
-/**
- * Formats duration in seconds into standard video editor time format M:SS or H:MM:SS
- */
-const formatDuration = (seconds?: number): string => {
-  if (typeof seconds !== 'number' || isNaN(seconds) || !isFinite(seconds) || seconds <= 0) {
-    return '0:00';
-  }
-  const total = Math.round(seconds);
-  const hrs = Math.floor(total / 3600);
-  const mins = Math.floor((total % 3600) / 60);
-  const secs = total % 60;
-  if (hrs > 0) {
-    return `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  }
-  return `${mins}:${secs.toString().padStart(2, '0')}`;
 };
 
 export const SidebarContent: React.FC = () => {
@@ -316,6 +301,7 @@ export const SidebarContent: React.FC = () => {
           transform: { x: 0, y: 0, scale: 1, rotation: 0, opacity: 1 },
           volume: 1,
           color: '#2563eb',
+          thumbnailUrl: videoAsset.thumbnailUrl,
         });
       }
 
@@ -1151,6 +1137,8 @@ export const SidebarContent: React.FC = () => {
                                   transform: { x: 0, y: 0, scale: 1, rotation: 0, opacity: 1 },
                                   volume: 1,
                                   color: asset.type === 'audio' ? '#059669' : '#2563eb',
+                                  thumbnailUrl: asset.thumbnailUrl,
+                                  url: asset.url,
                                 });
                                 showToast(`Inserted ${asset.name} at playhead`);
                               }

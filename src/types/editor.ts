@@ -62,6 +62,8 @@ export interface Clip {
   // Audio specific
   fadeIn?: number;
   fadeOut?: number;
+  thumbnailUrl?: string;
+  url?: string;
 }
 
 export interface Track {
