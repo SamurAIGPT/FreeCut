@@ -41,6 +41,37 @@ const QUALITY_MAP = {
 };
 
 /**
+ * Computes high-fidelity target video bitrates matching professional export standards.
+ * 4K: 38 Mbps (High), 24 Mbps (Medium), 14 Mbps (Low)
+ * 1080p: 16 Mbps (High), 10 Mbps (Medium), 6 Mbps (Low)
+ * 720p: 8 Mbps (High), 5 Mbps (Medium), 3 Mbps (Low)
+ */
+export function computeExportBitrate(
+  resolution: '1080p' | '720p' | '4k',
+  fps: number = 30,
+  quality: 'high' | 'medium' | 'low' = 'high'
+): number {
+  let baseBitrate: number;
+  if (resolution === '4k') {
+    baseBitrate = quality === 'high' ? 38_000_000 : quality === 'medium' ? 24_000_000 : 14_000_000;
+  } else if (resolution === '720p') {
+    baseBitrate = quality === 'high' ? 8_000_000 : quality === 'medium' ? 5_000_000 : 3_000_000;
+  } else {
+    // 1080p default
+    baseBitrate = quality === 'high' ? 16_000_000 : quality === 'medium' ? 10_000_000 : 6_000_000;
+  }
+
+  // Motion cadence factor for 60fps or cinematic 24fps
+  if (fps >= 60) {
+    baseBitrate = Math.round(baseBitrate * 1.35);
+  } else if (fps <= 24) {
+    baseBitrate = Math.round(baseBitrate * 0.9);
+  }
+
+  return baseBitrate;
+}
+
+/**
  * Mixes timeline audio tracks into a single AudioBuffer using OfflineAudioContext.
  */
 async function mixTimelineAudio(
@@ -207,6 +238,7 @@ export async function exportTimelineVideo(
       fps,
       totalFrames,
       format,
+      resolution,
       quality,
       includeAudio,
       onProgress,
@@ -224,6 +256,8 @@ export async function exportTimelineVideo(
     height,
     fps,
     totalFrames,
+    resolution,
+    quality,
     onProgress,
   });
 }
@@ -242,6 +276,7 @@ async function exportWithMediabunny(params: {
   fps: number;
   totalFrames: number;
   format: 'webm' | 'mp4';
+  resolution: '1080p' | '720p' | '4k';
   quality: 'high' | 'medium' | 'low';
   includeAudio: boolean;
   onProgress?: (p: ExportProgress) => void;
@@ -257,6 +292,7 @@ async function exportWithMediabunny(params: {
     fps,
     totalFrames,
     format,
+    resolution,
     quality,
     includeAudio,
     onProgress,
@@ -273,10 +309,11 @@ async function exportWithMediabunny(params: {
     target,
   });
 
+  const targetBitrate = computeExportBitrate(resolution, fps, quality);
   const videoCodec = format === 'mp4' ? 'avc' : 'vp9';
   const videoSource = new CanvasSource(offscreenCanvas, {
     codec: videoCodec,
-    quality: QUALITY_MAP[quality],
+    bitrate: targetBitrate,
   });
 
   output.addVideoTrack(videoSource, { frameRate: fps });
@@ -317,7 +354,7 @@ async function exportWithMediabunny(params: {
   for (let frame = 0; frame < totalFrames; frame++) {
     const playhead = frame / fps;
     await prepareFrameAssets(playhead, clips, assets);
-    compositor.render(offscreenCanvas, playhead, aspect, tracks, clips, assets);
+    compositor.render(offscreenCanvas, playhead, aspect, tracks, clips, assets, false, { width, height });
 
     // Exact timestamp in seconds, exact frame duration (1 / fps)
     await videoSource.add(playhead, 1 / fps);
@@ -363,6 +400,8 @@ async function exportWithMediaRecorderFallback(params: {
   height: number;
   fps: number;
   totalFrames: number;
+  resolution: '1080p' | '720p' | '4k';
+  quality: 'high' | 'medium' | 'low';
   onProgress?: (p: ExportProgress) => void;
 }): Promise<Blob> {
   const {
@@ -375,6 +414,8 @@ async function exportWithMediaRecorderFallback(params: {
     height,
     fps,
     totalFrames,
+    resolution,
+    quality,
     onProgress,
   } = params;
 
@@ -389,9 +430,11 @@ async function exportWithMediaRecorderFallback(params: {
     mimeType = 'video/webm';
   }
 
+  const targetBitrate = computeExportBitrate(resolution, fps, quality);
+
   const recorder = new MediaRecorder(stream, {
     mimeType,
-    videoBitsPerSecond: 8_000_000,
+    videoBitsPerSecond: targetBitrate,
   });
 
   const chunks: Blob[] = [];
@@ -419,7 +462,7 @@ async function exportWithMediaRecorderFallback(params: {
 
       const playhead = frame / fps;
       await prepareFrameAssets(playhead, clips, assets);
-      compositor.render(offscreenCanvas, playhead, aspect, tracks, clips, assets);
+      compositor.render(offscreenCanvas, playhead, aspect, tracks, clips, assets, false, { width, height });
 
       if (onProgress) {
         onProgress({

@@ -200,16 +200,20 @@ class CanvasCompositor {
     tracks: Track[],
     clips: Clip[],
     assets: MediaAsset[],
-    showGrid = false
+    showGrid = false,
+    customDimensions?: { width: number; height: number }
   ) {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const { width, height } = this.getDimensions(aspect);
+    const baseDim = this.getDimensions(aspect);
+    const width = customDimensions?.width || baseDim.width;
+    const height = customDimensions?.height || baseDim.height;
     if (canvas.width !== width || canvas.height !== height) {
       canvas.width = width;
       canvas.height = height;
     }
+    const scaleFactor = width / baseDim.width;
 
     // 1. Canvas letterbox background (customizable from Settings or default Obsidian Black)
     const canvasBg = useEditorStore.getState().canvasBg;
@@ -398,14 +402,16 @@ class CanvasCompositor {
       }
 
       // Transform (offset from center)
-      const centerX = width / 2 + clip.transform.x;
-      const centerY = height / 2 + clip.transform.y;
+      const centerX = width / 2 + clip.transform.x * scaleFactor;
+      const centerY = height / 2 + clip.transform.y * scaleFactor;
 
       ctx.translate(centerX, centerY);
       ctx.rotate((clip.transform.rotation * Math.PI) / 180);
 
-      const scaleX = clip.transform.scaleX !== undefined ? clip.transform.scaleX : clip.transform.scale;
-      const scaleY = clip.transform.scaleY !== undefined ? clip.transform.scaleY : clip.transform.scale;
+      const baseScaleX = clip.transform.scaleX !== undefined ? clip.transform.scaleX : clip.transform.scale;
+      const baseScaleY = clip.transform.scaleY !== undefined ? clip.transform.scaleY : clip.transform.scale;
+      const scaleX = baseScaleX * scaleFactor;
+      const scaleY = baseScaleY * scaleFactor;
       ctx.scale(scaleX, scaleY);
       ctx.globalAlpha = clip.transform.opacity * transitionAlpha;
 
@@ -423,7 +429,7 @@ class CanvasCompositor {
               }
               const vWidth = video.videoWidth || asset?.width || 1280;
               const vHeight = video.videoHeight || asset?.height || 720;
-              const scale = Math.min(width / vWidth, height / vHeight);
+              const scale = Math.min(baseDim.width / vWidth, baseDim.height / vHeight);
               const dw = vWidth * scale;
               const dh = vHeight * scale;
               targetCtx.drawImage(video, -dw / 2, -dh / 2, dw, dh);
@@ -444,13 +450,13 @@ class CanvasCompositor {
           }
 
           if (!videoDrawn) {
-            this.drawProceduralVideoFrame(targetCtx, clip, relativeTime, width, height);
+            this.drawProceduralVideoFrame(targetCtx, clip, relativeTime, baseDim.width, baseDim.height);
           }
         } else if (clip.type === 'image' && asset) {
           const img = this.getOrCreateImage(asset);
           const iWidth = asset.width || (img.naturalWidth > 0 ? img.naturalWidth : 800);
           const iHeight = asset.height || (img.naturalHeight > 0 ? img.naturalHeight : 600);
-          const scale = Math.min(width / iWidth, height / iHeight);
+          const scale = Math.min(baseDim.width / iWidth, baseDim.height / iHeight);
           const dw = iWidth * scale;
           const dh = iHeight * scale;
 
@@ -560,8 +566,8 @@ class CanvasCompositor {
           // -----------------------------------------------------------------
           // SOFT FEATHERED / TEXT MASK (Offscreen destination-in composite)
           // -----------------------------------------------------------------
-          const bufW = Math.max(width, 1920);
-          const bufH = Math.max(height, 1080);
+          const bufW = baseDim.width;
+          const bufH = baseDim.height;
           const { offscreen, offCtx, mask: maskBuf, maskCtx } = this.getBuffers(bufW, bufH);
 
           offCtx.clearRect(0, 0, bufW, bufH);

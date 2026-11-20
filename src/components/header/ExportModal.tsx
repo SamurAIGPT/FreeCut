@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Download, Film, Loader2, X, Monitor, Video, Gauge, Sliders, Volume2 } from 'lucide-react';
 import { useEditorStore } from '@/store/useEditorStore';
-import { exportTimelineVideo, ExportProgress } from '@/engine/exporter';
+import { exportTimelineVideo, ExportProgress, computeExportBitrate } from '@/engine/exporter';
 import { CustomSelect, SelectOption } from '@/components/ui/CustomSelect';
 import { formatDuration } from '@/utils/time';
 
@@ -59,6 +59,19 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose }) => 
   if (!isOpen) return null;
 
   const activeDuration = exportRange === 'content' && contentDuration > 0 ? contentDuration : duration;
+
+  const videoBitrate = computeExportBitrate(
+    resolution as '1080p' | '720p' | '4k',
+    fps,
+    quality as 'high' | 'medium' | 'low'
+  );
+  const audioBitrate = includeAudio ? (quality === 'low' ? 96000 : quality === 'medium' ? 128000 : 192000) : 0;
+  const totalBitrate = videoBitrate + audioBitrate;
+  const estimatedBytes = (totalBitrate * activeDuration) / 8;
+  const estimatedSizeMb = (estimatedBytes / (1024 * 1024)).toFixed(1);
+  const estimatedSizeFormatted = Number(estimatedSizeMb) >= 1000
+    ? `${(Number(estimatedSizeMb) / 1024).toFixed(2)} GB`
+    : `${estimatedSizeMb} MB`;
 
   const handleStartExport = async () => {
     try {
@@ -161,15 +174,21 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose }) => 
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-2.5">
             <div className="rounded-lg border border-app-border bg-app-elevated p-2.5">
-              <span className="text-app-text-muted">Aspect Ratio</span>
-              <p className="mt-0.5 text-sm font-bold text-app-text">{aspect}</p>
+              <span className="text-app-text-muted text-[11px] block">Aspect Ratio</span>
+              <p className="mt-0.5 text-xs font-bold text-app-text truncate">{aspect}</p>
             </div>
             <div className="rounded-lg border border-app-border bg-app-elevated p-2.5">
-              <span className="text-app-text-muted">Export Duration</span>
-              <p className="mt-0.5 text-sm font-bold text-blue-500">
+              <span className="text-app-text-muted text-[11px] block">Export Duration</span>
+              <p className="mt-0.5 text-xs font-bold text-blue-500 truncate">
                 {formatDuration(activeDuration)} ({activeDuration.toFixed(1)}s)
+              </p>
+            </div>
+            <div className="rounded-lg border border-app-border bg-app-elevated p-2.5">
+              <span className="text-app-text-muted text-[11px] block">Estimated Size</span>
+              <p className="mt-0.5 text-xs font-bold text-emerald-400 truncate">
+                ~{estimatedSizeFormatted}
               </p>
             </div>
           </div>
