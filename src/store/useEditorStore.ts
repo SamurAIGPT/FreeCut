@@ -66,6 +66,8 @@ interface EditorState {
   
   // Markers
   addMarker: (time?: number, label?: string, color?: string) => void;
+  moveMarker: (id: string, newTime: number) => void;
+  updateMarker: (id: string, updates: Partial<TimelineMarker>) => void;
   deleteMarker: (id: string) => void;
 
   // Asset Management
@@ -334,6 +336,19 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       color: color || '#3b82f6',
     };
     set({ markers: [...state.markers, newMarker] });
+  },
+
+  moveMarker: (id, newTime) => {
+    const clamped = Math.max(0, Math.round(newTime * 100) / 100);
+    set((state) => ({
+      markers: state.markers.map((m) => (m.id === id ? { ...m, time: clamped } : m)),
+    }));
+  },
+
+  updateMarker: (id, updates) => {
+    set((state) => ({
+      markers: state.markers.map((m) => (m.id === id ? { ...m, ...updates } : m)),
+    }));
   },
 
   deleteMarker: (id) =>

@@ -774,8 +774,11 @@ export const Timeline: React.FC = () => {
           onDrop={handleDrop}
           className="relative flex-1 overflow-x-auto overflow-y-auto bg-app-bg"
         >
-          {/* Time Ruler with Markers */}
-          <TimeRuler scrollLeft={scrollLeft} />
+          {/* Time Ruler with Interactive Moving Markers */}
+          <TimeRuler
+            scrollLeft={scrollLeft}
+            timelineHeight={Math.max(timelineHeight, (tracks.length + (dropTarget?.isNewTrack ? 1 : 0)) * TRACK_HEIGHT + 32)}
+          />
 
           {/* Scrubbing Playhead Needle */}
           <Playhead timelineHeight={Math.max(timelineHeight, (tracks.length + (dropTarget?.isNewTrack ? 1 : 0)) * TRACK_HEIGHT + 32)} />
