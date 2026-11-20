@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Download, Film, Loader2, X, Monitor, Video, Gauge, Sliders, Volume2 } from 'lucide-react';
 import { useEditorStore } from '@/store/useEditorStore';
-import { exportTimelineVideo, ExportProgress, computeExportBitrate } from '@/engine/exporter';
+import { exportTimelineVideo, ExportProgress, computeExportBitrate, ExportQuality } from '@/engine/exporter';
 import { CustomSelect, SelectOption } from '@/components/ui/CustomSelect';
 import { formatDuration } from '@/utils/time';
 
@@ -23,6 +23,7 @@ const FPS_OPTIONS: SelectOption<number>[] = [
 ];
 
 const QUALITY_OPTIONS: SelectOption<string>[] = [
+  { value: 'very_high', label: 'Very High (Master)', description: 'Maximum visual detail & bit allocation' },
   { value: 'high', label: 'High Quality', description: 'Crisp visual fidelity & rich colors' },
   { value: 'medium', label: 'Balanced Quality', description: 'Good trade-off between size and fidelity' },
   { value: 'low', label: 'Fast Draft', description: 'Quick rendering and smaller download' },
@@ -63,9 +64,17 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose }) => 
   const videoBitrate = computeExportBitrate(
     resolution as '1080p' | '720p' | '4k',
     fps,
-    quality as 'high' | 'medium' | 'low'
+    quality as ExportQuality
   );
-  const audioBitrate = includeAudio ? (quality === 'low' ? 96000 : quality === 'medium' ? 128000 : 192000) : 0;
+  const audioBitrate = includeAudio
+    ? quality === 'low'
+      ? 96000
+      : quality === 'medium'
+      ? 128000
+      : quality === 'very_high'
+      ? 256000
+      : 192000
+    : 0;
   const totalBitrate = videoBitrate + audioBitrate;
   const estimatedBytes = (totalBitrate * activeDuration) / 8;
   const estimatedSizeMb = (estimatedBytes / (1024 * 1024)).toFixed(1);
@@ -89,7 +98,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose }) => 
           format: format as 'webm' | 'mp4',
           resolution: resolution as '1080p' | '720p' | '4k',
           fps,
-          quality: quality as 'high' | 'medium' | 'low',
+          quality: quality as ExportQuality,
           includeAudio,
         }
       );

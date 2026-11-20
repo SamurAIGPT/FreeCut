@@ -7,10 +7,13 @@ import {
   BufferTarget,
   CanvasSource,
   AudioBufferSource,
+  QUALITY_VERY_HIGH,
   QUALITY_HIGH,
   QUALITY_MEDIUM,
   QUALITY_LOW
 } from 'mediabunny';
+
+export type ExportQuality = 'very_high' | 'high' | 'medium' | 'low';
 
 export interface ExportProgress {
   progress: number; // 0.0 to 1.0
@@ -29,7 +32,7 @@ export interface ExportTimelineOptions {
   format?: 'webm' | 'mp4';
   resolution?: '1080p' | '720p' | '4k';
   fps?: number;
-  quality?: 'high' | 'medium' | 'low';
+  quality?: ExportQuality;
   includeAudio?: boolean;
   onProgress?: (p: ExportProgress) => void;
 }
@@ -38,27 +41,43 @@ const QUALITY_MAP = {
   low: QUALITY_LOW,
   medium: QUALITY_MEDIUM,
   high: QUALITY_HIGH,
+  very_high: QUALITY_VERY_HIGH,
 };
 
 /**
  * Computes high-fidelity target video bitrates matching professional export standards.
- * 4K: 38 Mbps (High), 24 Mbps (Medium), 14 Mbps (Low)
- * 1080p: 16 Mbps (High), 10 Mbps (Medium), 6 Mbps (Low)
- * 720p: 8 Mbps (High), 5 Mbps (Medium), 3 Mbps (Low)
+ * 4K: 55 Mbps (Very High), 38 Mbps (High), 24 Mbps (Medium), 14 Mbps (Low)
+ * 1080p: 24 Mbps (Very High), 16 Mbps (High), 10 Mbps (Medium), 6 Mbps (Low)
+ * 720p: 12 Mbps (Very High), 8 Mbps (High), 5 Mbps (Medium), 3 Mbps (Low)
  */
 export function computeExportBitrate(
   resolution: '1080p' | '720p' | '4k',
   fps: number = 30,
-  quality: 'high' | 'medium' | 'low' = 'high'
+  quality: ExportQuality = 'high'
 ): number {
   let baseBitrate: number;
   if (resolution === '4k') {
-    baseBitrate = quality === 'high' ? 38_000_000 : quality === 'medium' ? 24_000_000 : 14_000_000;
+    switch (quality) {
+      case 'very_high': baseBitrate = 55_000_000; break;
+      case 'high': baseBitrate = 38_000_000; break;
+      case 'medium': baseBitrate = 24_000_000; break;
+      case 'low': baseBitrate = 14_000_000; break;
+    }
   } else if (resolution === '720p') {
-    baseBitrate = quality === 'high' ? 8_000_000 : quality === 'medium' ? 5_000_000 : 3_000_000;
+    switch (quality) {
+      case 'very_high': baseBitrate = 12_000_000; break;
+      case 'high': baseBitrate = 8_000_000; break;
+      case 'medium': baseBitrate = 5_000_000; break;
+      case 'low': baseBitrate = 3_000_000; break;
+    }
   } else {
     // 1080p default
-    baseBitrate = quality === 'high' ? 16_000_000 : quality === 'medium' ? 10_000_000 : 6_000_000;
+    switch (quality) {
+      case 'very_high': baseBitrate = 24_000_000; break;
+      case 'high': baseBitrate = 16_000_000; break;
+      case 'medium': baseBitrate = 10_000_000; break;
+      case 'low': baseBitrate = 6_000_000; break;
+    }
   }
 
   // Motion cadence factor for 60fps or cinematic 24fps
@@ -203,7 +222,7 @@ export async function exportTimelineVideo(
     format?: 'webm' | 'mp4';
     resolution?: '1080p' | '720p' | '4k';
     fps?: number;
-    quality?: 'high' | 'medium' | 'low';
+    quality?: ExportQuality;
     includeAudio?: boolean;
   }
 ): Promise<Blob> {
@@ -277,7 +296,7 @@ async function exportWithMediabunny(params: {
   totalFrames: number;
   format: 'webm' | 'mp4';
   resolution: '1080p' | '720p' | '4k';
-  quality: 'high' | 'medium' | 'low';
+  quality: ExportQuality;
   includeAudio: boolean;
   onProgress?: (p: ExportProgress) => void;
 }): Promise<Blob> {
@@ -337,7 +356,7 @@ async function exportWithMediabunny(params: {
 
       audioSource = new AudioBufferSource({
         codec: audioCodec,
-        bitrate: quality === 'low' ? 96000 : quality === 'medium' ? 128000 : 192000,
+        bitrate: quality === 'low' ? 96000 : quality === 'medium' ? 128000 : quality === 'very_high' ? 256000 : 192000,
       });
       output.addAudioTrack(audioSource);
     }
@@ -401,7 +420,7 @@ async function exportWithMediaRecorderFallback(params: {
   fps: number;
   totalFrames: number;
   resolution: '1080p' | '720p' | '4k';
-  quality: 'high' | 'medium' | 'low';
+  quality: ExportQuality;
   onProgress?: (p: ExportProgress) => void;
 }): Promise<Blob> {
   const {
