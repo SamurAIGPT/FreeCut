@@ -495,7 +495,7 @@ export const Timeline: React.FC = () => {
     <div className="relative flex h-56 sm:h-64 lg:h-72 w-full shrink-0 flex-col border-t border-app-border bg-app-bg select-none transition-colors duration-200">
       {/* Toast Notification */}
       {toastMessage && (
-        <div className="absolute top-2 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 rounded-xl border border-app-border bg-app-surface/95 px-4 py-2 text-xs font-semibold text-app-text shadow-2xl backdrop-blur-md animate-in fade-in duration-200">
+        <div className="absolute top-2 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-[#141417] px-4 py-2 text-xs font-semibold text-neutral-900 dark:text-neutral-100 shadow-2xl animate-in fade-in duration-200">
           <CheckCircle2 className="h-4 w-4 text-emerald-500" />
           <span>{toastMessage}</span>
         </div>

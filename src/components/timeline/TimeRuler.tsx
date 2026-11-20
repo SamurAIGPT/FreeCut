@@ -355,9 +355,9 @@ export const TimeRuler: React.FC<TimeRulerProps> = ({ scrollLeft, timelineHeight
               zIndex: 99999,
             }}
             onClick={(e) => e.stopPropagation()}
-            className="w-48 overflow-hidden rounded-xl border border-app-border bg-app-surface/98 backdrop-blur-md p-1 shadow-2xl text-xs text-app-text select-none animate-in fade-in zoom-in-95 duration-100"
+            className="w-48 overflow-hidden rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-[#141417] p-1 shadow-2xl text-xs text-neutral-900 dark:text-neutral-100 select-none animate-in fade-in zoom-in-95 duration-100"
           >
-            <div className="px-2.5 py-1.5 text-[10px] font-semibold text-app-text-muted border-b border-app-border/60 uppercase tracking-wider flex items-center justify-between">
+            <div className="px-2.5 py-1.5 text-[10px] font-semibold text-neutral-500 dark:text-neutral-400 border-b border-neutral-200 dark:border-neutral-800 uppercase tracking-wider flex items-center justify-between">
               <span className="truncate max-w-[100px]">{markerContextMenu.marker.label}</span>
               <span className="font-mono text-[9px]">{formatShortTime(markerContextMenu.marker.time)}</span>
             </div>

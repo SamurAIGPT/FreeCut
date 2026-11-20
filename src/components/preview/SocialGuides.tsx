@@ -55,83 +55,184 @@ export const GridGuide: React.FC<{ config: GridConfig }> = ({ config }) => {
 
 /**
  * TikTok Safe Area UI Overlay
- * Standard 9:16 layout showing where TikTok's UI covers video content
+ * Standard responsive 9:16 vector overlay that maintains exact proportions at any canvas size
  */
-export const TikTokGuide: React.FC<GuideProps> = () => {
+export const TikTokGuide: React.FC<GuideProps> = ({ aspectRatio }) => {
   return (
-    <div className="absolute inset-0 pointer-events-none select-none z-10 overflow-hidden font-sans text-white">
-      {/* Top Header Safe Margin */}
-      <div className="absolute top-0 left-0 right-0 h-[14%] bg-gradient-to-b from-black/50 to-transparent flex items-start justify-between px-4 pt-4">
-        <div className="flex items-center gap-4 text-xs font-semibold opacity-90 drop-shadow">
-          <span className="opacity-60">Following</span>
-          <span className="border-b-2 border-white pb-0.5">For You</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="h-6 w-6 rounded-full border border-white/40 flex items-center justify-center text-[10px]">
-            🔍
-          </div>
-        </div>
-      </div>
+    <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none z-10 overflow-hidden">
+      <div className="relative h-full aspect-[9/16] max-w-full flex items-center justify-center">
+        {aspectRatio !== '9:16' && (
+          <div className="absolute inset-0 shadow-[0_0_0_9999px_rgba(0,0,0,0.5)] pointer-events-none" />
+        )}
+        <svg
+          viewBox="0 0 1080 1920"
+          className="h-full w-full object-contain pointer-events-none select-none"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          {/* Top Header */}
+          <g>
+            <text
+              x="390"
+              y="120"
+              textAnchor="middle"
+              fill="white"
+              fillOpacity="0.65"
+              fontSize="38"
+              fontWeight="700"
+              fontFamily="system-ui, -apple-system, sans-serif"
+            >
+              Following
+            </text>
+            <text
+              x="560"
+              y="120"
+              textAnchor="middle"
+              fill="white"
+              fontSize="38"
+              fontWeight="700"
+              fontFamily="system-ui, -apple-system, sans-serif"
+            >
+              For You
+            </text>
+            <line x1="510" y1="140" x2="610" y2="140" stroke="white" strokeWidth="6" strokeLinecap="round" />
+            {/* Search Glass */}
+            <circle cx="1000" cy="105" r="22" stroke="white" strokeWidth="5" fill="none" />
+            <line x1="1016" y1="121" x2="1038" y2="143" stroke="white" strokeWidth="5" strokeLinecap="round" />
+          </g>
 
-      {/* Right Action Column Safe Zone */}
-      <div className="absolute right-2 bottom-16 flex flex-col items-center gap-3.5 w-12 text-center drop-shadow-md">
-        {/* Avatar with follow */}
-        <div className="relative mb-1">
-          <div className="h-9 w-9 rounded-full border-2 border-white bg-neutral-600 flex items-center justify-center text-xs">
-            👤
-          </div>
-          <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 h-3.5 w-3.5 rounded-full bg-rose-500 text-white flex items-center justify-center text-[10px] font-bold">
-            +
-          </div>
-        </div>
+          {/* Right Action Stack */}
+          <g transform="translate(990, 780)">
+            {/* Avatar with follow */}
+            <g transform="translate(0, 0)">
+              <circle cx="0" cy="0" r="48" fill="#374151" stroke="white" strokeWidth="4" />
+              <path d="M0 -16 A16 16 0 1 1 0 16 A16 16 0 1 1 0 -16 M-24 38 C-20 20, 20 20, 24 38" fill="white" />
+              <circle cx="0" cy="48" r="16" fill="#F43F5E" />
+              <path d="M-7 48 H7 M0 41 V55" stroke="white" strokeWidth="4" strokeLinecap="round" />
+            </g>
 
-        {/* Likes */}
-        <div className="flex flex-col items-center">
-          <div className="h-7 w-7 flex items-center justify-center text-base">❤️</div>
-          <span className="text-[9px] font-semibold tracking-tight">124K</span>
-        </div>
+            {/* Heart / Likes */}
+            <g transform="translate(0, 140)">
+              <path
+                d="M0 -15 C-25 -40, -50 -10, -50 15 C-50 45, 0 65, 0 80 C0 65, 50 45, 50 15 C50 -10, 25 -40, 0 -15 Z"
+                fill="white"
+                transform="scale(0.65) translate(0, -25)"
+              />
+              <text
+                x="0"
+                y="70"
+                textAnchor="middle"
+                fill="white"
+                fontSize="26"
+                fontWeight="700"
+                fontFamily="system-ui, -apple-system, sans-serif"
+              >
+                124K
+              </text>
+            </g>
 
-        {/* Comments */}
-        <div className="flex flex-col items-center">
-          <div className="h-7 w-7 flex items-center justify-center text-base">💬</div>
-          <span className="text-[9px] font-semibold tracking-tight">3.8K</span>
-        </div>
+            {/* Comments */}
+            <g transform="translate(0, 270)">
+              <path
+                d="M-28 -28 H28 C34 -28, 38 -24, 38 -18 V18 C38 24, 34 28, 28 28 H-6 L-24 44 V28 H-28 C-34 28, -38 24, -38 18 V-18 C-38 -24, -34 -28, -28 -28 Z"
+                fill="white"
+              />
+              <circle cx="-14" cy="0" r="4" fill="#1F2937" />
+              <circle cx="0" cy="0" r="4" fill="#1F2937" />
+              <circle cx="14" cy="0" r="4" fill="#1F2937" />
+              <text
+                x="0"
+                y="75"
+                textAnchor="middle"
+                fill="white"
+                fontSize="26"
+                fontWeight="700"
+                fontFamily="system-ui, -apple-system, sans-serif"
+              >
+                3.8K
+              </text>
+            </g>
 
-        {/* Bookmark */}
-        <div className="flex flex-col items-center">
-          <div className="h-7 w-7 flex items-center justify-center text-base">🔖</div>
-          <span className="text-[9px] font-semibold tracking-tight">12.1K</span>
-        </div>
+            {/* Bookmark */}
+            <g transform="translate(0, 400)">
+              <path d="M-22 -30 H22 V34 L0 18 L-22 34 Z" fill="white" />
+              <text
+                x="0"
+                y="70"
+                textAnchor="middle"
+                fill="white"
+                fontSize="26"
+                fontWeight="700"
+                fontFamily="system-ui, -apple-system, sans-serif"
+              >
+                12.1K
+              </text>
+            </g>
 
-        {/* Share */}
-        <div className="flex flex-col items-center">
-          <div className="h-7 w-7 flex items-center justify-center text-base">↪️</div>
-          <span className="text-[9px] font-semibold tracking-tight">Share</span>
-        </div>
+            {/* Share */}
+            <g transform="translate(0, 530)">
+              <path
+                d="M-15 -10 L15 -32 L15 -18 C35 -18, 48 -5, 45 22 C38 2, 28 -5, 15 -5 L15 10 Z"
+                fill="white"
+              />
+              <text
+                x="0"
+                y="65"
+                textAnchor="middle"
+                fill="white"
+                fontSize="24"
+                fontWeight="600"
+                fontFamily="system-ui, -apple-system, sans-serif"
+              >
+                Share
+              </text>
+            </g>
 
-        {/* Music Disc */}
-        <div className="h-7 w-7 rounded-full border-2 border-neutral-700 bg-neutral-900 animate-spin flex items-center justify-center text-[9px]">
-          🎵
-        </div>
-      </div>
+            {/* Rotating Disc */}
+            <g transform="translate(0, 680)">
+              <circle cx="0" cy="0" r="44" fill="#111827" stroke="#374151" strokeWidth="6" />
+              <circle cx="0" cy="0" r="14" fill="#F43F5E" />
+              <path d="M-4 6 A5 5 0 1 1 -9 1 L-9 -10 L4 -14 L4 3 A5 5 0 1 1 -1 -2 L-1 -10" fill="white" />
+            </g>
+          </g>
 
-      {/* Bottom Caption & Audio Safe Area */}
-      <div className="absolute bottom-0 left-0 right-14 h-[22%] bg-gradient-to-t from-black/70 via-black/30 to-transparent flex flex-col justify-end p-3 pb-4">
-        <div className="text-xs font-bold drop-shadow">@creator</div>
-        <div className="mt-1 text-[11px] leading-tight text-white/90 line-clamp-2 drop-shadow">
-          Your caption & text safely fit here without being hidden by platform buttons #video #edit
-        </div>
-        <div className="mt-1.5 flex items-center gap-1.5 text-[10px] text-white/80">
-          <span>🎵</span>
-          <span className="truncate">Original Sound - Creator Audio • 60 BPM</span>
-        </div>
-      </div>
+          {/* Bottom Creator Caption */}
+          <g transform="translate(50, 1620)">
+            <text x="0" y="40" fill="white" fontSize="36" fontWeight="800" fontFamily="system-ui, -apple-system, sans-serif">
+              @creator
+            </text>
+            <text x="0" y="90" fill="#F3F4F6" fontSize="28" fontFamily="system-ui, -apple-system, sans-serif">
+              Your caption &amp; text safely fit here without being hidden
+            </text>
+            <text x="0" y="130" fill="#93C5FD" fontSize="26" fontFamily="system-ui, -apple-system, sans-serif">
+              #video #edit #creative #freecut
+            </text>
+            <g transform="translate(0, 155)">
+              <path d="M4 12 A6 6 0 1 1 -2 6 L-2 -8 L12 -12 L12 4 A6 6 0 1 1 6 -2 L6 -8" fill="#E5E7EB" />
+              <text x="32" y="8" fill="#E5E7EB" fontSize="24" fontFamily="system-ui, -apple-system, sans-serif">
+                Original Sound - Creator Audio • 60 BPM
+              </text>
+            </g>
+          </g>
 
-      {/* Safe Area Boundary Outlines */}
-      <div className="absolute inset-x-2 top-14 bottom-14 border border-dashed border-cyan-400/50 rounded-lg pointer-events-none">
-        <span className="absolute top-1 left-2 text-[8px] font-mono uppercase tracking-wider text-cyan-300/80 bg-black/60 px-1 py-0.5 rounded">
-          TikTok Safe Zone
-        </span>
+          {/* Safe Area Box */}
+          <rect
+            x="50"
+            y="170"
+            width="880"
+            height="1400"
+            rx="24"
+            fill="none"
+            stroke="#22D3EE"
+            strokeWidth="3.5"
+            strokeDasharray="14 14"
+            strokeOpacity="0.75"
+          />
+          <rect x="75" y="195" width="220" height="42" rx="8" fill="rgba(0,0,0,0.65)" />
+          <text x="185" y="224" textAnchor="middle" fill="#67E8F9" fontSize="20" fontWeight="700" fontFamily="monospace">
+            TIKTOK SAFE ZONE
+          </text>
+        </svg>
       </div>
     </div>
   );
@@ -139,53 +240,143 @@ export const TikTokGuide: React.FC<GuideProps> = () => {
 
 /**
  * Instagram Reels Safe Area Overlay
+ * Standard responsive 9:16 vector overlay
  */
-export const InstagramReelsGuide: React.FC<GuideProps> = () => {
+export const InstagramReelsGuide: React.FC<GuideProps> = ({ aspectRatio }) => {
   return (
-    <div className="absolute inset-0 pointer-events-none select-none z-10 overflow-hidden font-sans text-white">
-      {/* Top Header */}
-      <div className="absolute top-0 left-0 right-0 h-[10%] flex items-center justify-between px-3 pt-2 bg-gradient-to-b from-black/40 to-transparent">
-        <span className="text-xs font-bold tracking-tight">Reels</span>
-        <div className="text-xs">📷</div>
-      </div>
+    <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none z-10 overflow-hidden">
+      <div className="relative h-full aspect-[9/16] max-w-full flex items-center justify-center">
+        {aspectRatio !== '9:16' && (
+          <div className="absolute inset-0 shadow-[0_0_0_9999px_rgba(0,0,0,0.5)] pointer-events-none" />
+        )}
+        <svg
+          viewBox="0 0 1080 1920"
+          className="h-full w-full object-contain pointer-events-none select-none"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          {/* Top Header */}
+          <g>
+            <text x="50" y="120" fill="white" fontSize="48" fontWeight="800" fontFamily="system-ui, -apple-system, sans-serif">
+              Reels
+            </text>
+            {/* Camera Icon */}
+            <rect x="970" y="80" width="56" height="42" rx="10" stroke="white" strokeWidth="5" fill="none" />
+            <circle cx="998" cy="101" r="11" stroke="white" strokeWidth="4" fill="none" />
+          </g>
 
-      {/* Right Engagement Column */}
-      <div className="absolute right-2 bottom-12 flex flex-col items-center gap-3 w-10 text-center drop-shadow-md">
-        <div className="flex flex-col items-center">
-          <div className="text-sm">❤️</div>
-          <span className="text-[9px] font-medium">85.4K</span>
-        </div>
-        <div className="flex flex-col items-center">
-          <div className="text-sm">💬</div>
-          <span className="text-[9px] font-medium">1,420</span>
-        </div>
-        <div className="flex flex-col items-center">
-          <div className="text-sm">✈️</div>
-          <span className="text-[9px] font-medium">18.9K</span>
-        </div>
-        <div className="text-sm">⋯</div>
-        <div className="h-6 w-6 rounded-md border border-white/60 bg-neutral-800 flex items-center justify-center text-[8px]">
-          🎵
-        </div>
-      </div>
+          {/* Right Action Stack */}
+          <g transform="translate(990, 850)">
+            {/* Heart */}
+            <g transform="translate(0, 0)">
+              <path
+                d="M0 -15 C-25 -40, -50 -10, -50 15 C-50 45, 0 65, 0 80 C0 65, 50 45, 50 15 C50 -10, 25 -40, 0 -15 Z"
+                fill="white"
+                transform="scale(0.65) translate(0, -25)"
+              />
+              <text
+                x="0"
+                y="70"
+                textAnchor="middle"
+                fill="white"
+                fontSize="26"
+                fontWeight="700"
+                fontFamily="system-ui, -apple-system, sans-serif"
+              >
+                85.4K
+              </text>
+            </g>
 
-      {/* Bottom Profile & Caption */}
-      <div className="absolute bottom-0 left-0 right-14 h-[18%] bg-gradient-to-t from-black/60 to-transparent flex flex-col justify-end p-3 pb-3">
-        <div className="flex items-center gap-1.5">
-          <div className="h-5 w-5 rounded-full bg-neutral-500" />
-          <span className="text-xs font-semibold">reels_account</span>
-          <span className="rounded border border-white/40 px-1 text-[8px] font-bold">Follow</span>
-        </div>
-        <div className="mt-1 text-[10px] text-white/90 line-clamp-1">
-          Instagram safe area bounds for text and focal elements...
-        </div>
-      </div>
+            {/* Comments */}
+            <g transform="translate(0, 140)">
+              <path
+                d="M-28 -28 H28 C34 -28, 38 -24, 38 -18 V18 C38 24, 34 28, 28 28 H-6 L-24 44 V28 H-28 C-34 28, -38 24, -38 18 V-18 C-38 -24, -34 -28, -28 -28 Z"
+                fill="white"
+              />
+              <text
+                x="0"
+                y="75"
+                textAnchor="middle"
+                fill="white"
+                fontSize="26"
+                fontWeight="700"
+                fontFamily="system-ui, -apple-system, sans-serif"
+              >
+                1,420
+              </text>
+            </g>
 
-      {/* Safe Area Box */}
-      <div className="absolute inset-x-3 top-12 bottom-12 border border-dashed border-pink-400/50 rounded-lg pointer-events-none">
-        <span className="absolute top-1 left-2 text-[8px] font-mono uppercase tracking-wider text-pink-300/80 bg-black/60 px-1 py-0.5 rounded">
-          Reels Safe Zone
-        </span>
+            {/* Paper Airplane (Share) */}
+            <g transform="translate(0, 280)">
+              <path d="M-26 -20 L30 0 L-26 20 L-14 0 Z" fill="white" />
+              <text
+                x="0"
+                y="65"
+                textAnchor="middle"
+                fill="white"
+                fontSize="24"
+                fontWeight="600"
+                fontFamily="system-ui, -apple-system, sans-serif"
+              >
+                18.9K
+              </text>
+            </g>
+
+            {/* More dots */}
+            <g transform="translate(0, 400)">
+              <circle cx="-16" cy="0" r="5" fill="white" />
+              <circle cx="0" cy="0" r="5" fill="white" />
+              <circle cx="16" cy="0" r="5" fill="white" />
+            </g>
+
+            {/* Audio thumbnail */}
+            <g transform="translate(0, 520)">
+              <rect x="-30" y="-30" width="60" height="60" rx="12" fill="#262626" stroke="white" strokeWidth="3" />
+              <circle cx="0" cy="0" r="10" stroke="white" strokeWidth="3" fill="none" />
+            </g>
+          </g>
+
+          {/* Bottom Channel Info */}
+          <g transform="translate(50, 1630)">
+            <circle cx="36" cy="36" r="36" fill="#6B7280" />
+            <text x="90" y="46" fill="white" fontSize="34" fontWeight="700" fontFamily="system-ui, -apple-system, sans-serif">
+              reels_account
+            </text>
+            <rect x="360" y="16" width="130" height="44" rx="8" fill="none" stroke="white" strokeWidth="2.5" />
+            <text
+              x="425"
+              y="46"
+              textAnchor="middle"
+              fill="white"
+              fontSize="22"
+              fontWeight="700"
+              fontFamily="system-ui, -apple-system, sans-serif"
+            >
+              Follow
+            </text>
+            <text x="10" y="105" fill="#F3F4F6" fontSize="28" fontFamily="system-ui, -apple-system, sans-serif">
+              Instagram safe area bounds for text and focal elements...
+            </text>
+          </g>
+
+          {/* Safe Area Box */}
+          <rect
+            x="50"
+            y="170"
+            width="880"
+            height="1400"
+            rx="24"
+            fill="none"
+            stroke="#F472B6"
+            strokeWidth="3.5"
+            strokeDasharray="14 14"
+            strokeOpacity="0.75"
+          />
+          <rect x="75" y="195" width="220" height="42" rx="8" fill="rgba(0,0,0,0.65)" />
+          <text x="185" y="224" textAnchor="middle" fill="#F9A8D4" fontSize="20" fontWeight="700" fontFamily="monospace">
+            REELS SAFE ZONE
+          </text>
+        </svg>
       </div>
     </div>
   );
@@ -193,63 +384,195 @@ export const InstagramReelsGuide: React.FC<GuideProps> = () => {
 
 /**
  * YouTube Shorts Safe Area Overlay
+ * Standard responsive 9:16 vector overlay
  */
-export const YouTubeShortsGuide: React.FC<GuideProps> = () => {
+export const YouTubeShortsGuide: React.FC<GuideProps> = ({ aspectRatio }) => {
   return (
-    <div className="absolute inset-0 pointer-events-none select-none z-10 overflow-hidden font-sans text-white">
-      {/* Top Header */}
-      <div className="absolute top-0 left-0 right-0 h-[10%] flex items-center justify-between px-3 pt-2 bg-gradient-to-b from-black/40 to-transparent">
-        <span className="text-xs font-bold text-red-500">Shorts</span>
-        <div className="flex items-center gap-2 text-xs">
-          <span>🔍</span>
-          <span>⋮</span>
-        </div>
-      </div>
+    <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none z-10 overflow-hidden">
+      <div className="relative h-full aspect-[9/16] max-w-full flex items-center justify-center">
+        {aspectRatio !== '9:16' && (
+          <div className="absolute inset-0 shadow-[0_0_0_9999px_rgba(0,0,0,0.5)] pointer-events-none" />
+        )}
+        <svg
+          viewBox="0 0 1080 1920"
+          className="h-full w-full object-contain pointer-events-none select-none"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          {/* Top Header */}
+          <g>
+            <text x="50" y="120" fill="#EF4444" fontSize="48" fontWeight="800" fontFamily="system-ui, -apple-system, sans-serif">
+              Shorts
+            </text>
+            {/* Search Glass */}
+            <circle cx="940" cy="100" r="22" stroke="white" strokeWidth="5" fill="none" />
+            <line x1="956" y1="116" x2="978" y2="138" stroke="white" strokeWidth="5" strokeLinecap="round" />
+            {/* 3 Dots Menu */}
+            <circle cx="1025" cy="85" r="5" fill="white" />
+            <circle cx="1025" cy="105" r="5" fill="white" />
+            <circle cx="1025" cy="125" r="5" fill="white" />
+          </g>
 
-      {/* Right Engagement Column */}
-      <div className="absolute right-2 bottom-14 flex flex-col items-center gap-3.5 w-10 text-center drop-shadow-md">
-        <div className="flex flex-col items-center">
-          <div className="text-sm">👍</div>
-          <span className="text-[9px] font-medium">92K</span>
-        </div>
-        <div className="flex flex-col items-center">
-          <div className="text-sm">👎</div>
-          <span className="text-[9px] font-medium">Dislike</span>
-        </div>
-        <div className="flex flex-col items-center">
-          <div className="text-sm">💬</div>
-          <span className="text-[9px] font-medium">854</span>
-        </div>
-        <div className="flex flex-col items-center">
-          <div className="text-sm">↪️</div>
-          <span className="text-[9px] font-medium">Share</span>
-        </div>
-        <div className="flex flex-col items-center">
-          <div className="text-sm">✂️</div>
-          <span className="text-[9px] font-medium">Remix</span>
-        </div>
-        <div className="h-6 w-6 rounded bg-neutral-800 border border-white/40 flex items-center justify-center text-[8px]">
-          🎵
-        </div>
-      </div>
+          {/* Right Action Stack */}
+          <g transform="translate(980, 820)">
+            {/* Like (Thumbs Up) */}
+            <g transform="translate(0, 0)">
+              <path
+                d="M-20 -15 C-20 -30, -5 -40, 10 -40 C15 -40, 18 -36, 18 -30 L18 -10 L30 -10 C38 -10, 42 -5, 40 5 L30 45 C28 52, 20 55, 12 55 L-20 55 Z"
+                fill="white"
+                stroke="black"
+                strokeWidth="2"
+              />
+              <rect x="-35" y="-10" width="12" height="65" rx="3" fill="white" />
+              <text
+                x="0"
+                y="85"
+                textAnchor="middle"
+                fill="white"
+                fontSize="26"
+                fontWeight="700"
+                fontFamily="system-ui, -apple-system, sans-serif"
+              >
+                92K
+              </text>
+            </g>
 
-      {/* Bottom Channel Info */}
-      <div className="absolute bottom-0 left-0 right-14 h-[18%] bg-gradient-to-t from-black/60 to-transparent flex flex-col justify-end p-3 pb-3">
-        <div className="flex items-center gap-2">
-          <div className="h-5 w-5 rounded-full bg-neutral-600" />
-          <span className="text-xs font-semibold">@ChannelName</span>
-          <span className="rounded-full bg-red-600 px-2 py-0.5 text-[8px] font-bold">Subscribe</span>
-        </div>
-        <div className="mt-1 text-[10px] text-white/90 line-clamp-1">
-          YouTube Shorts safe viewing margins for vertical content
-        </div>
-      </div>
+            {/* Dislike (Thumbs Down) */}
+            <g transform="translate(0, 150)">
+              <path
+                d="M-20 15 C-20 30, -5 40, 10 40 C15 40, 18 36, 18 30 L18 10 L30 10 C38 10, 42 5, 40 -5 L30 -45 C28 -52, 20 -55, 12 -55 L-20 -55 Z"
+                fill="white"
+                stroke="black"
+                strokeWidth="2"
+              />
+              <rect x="-35" y="-55" width="12" height="65" rx="3" fill="white" />
+              <text
+                x="0"
+                y="85"
+                textAnchor="middle"
+                fill="white"
+                fontSize="24"
+                fontWeight="600"
+                fontFamily="system-ui, -apple-system, sans-serif"
+              >
+                Dislike
+              </text>
+            </g>
 
-      {/* Safe Area Box */}
-      <div className="absolute inset-x-3 top-12 bottom-12 border border-dashed border-red-400/50 rounded-lg pointer-events-none">
-        <span className="absolute top-1 left-2 text-[8px] font-mono uppercase tracking-wider text-red-300/80 bg-black/60 px-1 py-0.5 rounded">
-          Shorts Safe Zone
-        </span>
+            {/* Comments */}
+            <g transform="translate(0, 300)">
+              <path
+                d="M-28 -28 H28 C34 -28, 38 -24, 38 -18 V18 C38 24, 34 28, 28 28 H-6 L-24 44 V28 H-28 C-34 28, -38 24, -38 18 V-18 C-38 -24, -34 -28, -28 -28 Z"
+                fill="white"
+              />
+              <text
+                x="0"
+                y="75"
+                textAnchor="middle"
+                fill="white"
+                fontSize="26"
+                fontWeight="700"
+                fontFamily="system-ui, -apple-system, sans-serif"
+              >
+                854
+              </text>
+            </g>
+
+            {/* Share */}
+            <g transform="translate(0, 440)">
+              <path
+                d="M-15 -10 L15 -32 L15 -18 C35 -18, 48 -5, 45 22 C38 2, 28 -5, 15 -5 L15 10 Z"
+                fill="white"
+              />
+              <text
+                x="0"
+                y="70"
+                textAnchor="middle"
+                fill="white"
+                fontSize="24"
+                fontWeight="600"
+                fontFamily="system-ui, -apple-system, sans-serif"
+              >
+                Share
+              </text>
+            </g>
+
+            {/* Remix */}
+            <g transform="translate(0, 570)">
+              <circle cx="-10" cy="10" r="12" stroke="white" strokeWidth="5" fill="none" />
+              <circle cx="10" cy="10" r="12" stroke="white" strokeWidth="5" fill="none" />
+              <line x1="-3" y1="2" x2="18" y2="-28" stroke="white" strokeWidth="5" strokeLinecap="round" />
+              <line x1="3" y1="2" x2="-18" y2="-28" stroke="white" strokeWidth="5" strokeLinecap="round" />
+              <text
+                x="0"
+                y="70"
+                textAnchor="middle"
+                fill="white"
+                fontSize="24"
+                fontWeight="600"
+                fontFamily="system-ui, -apple-system, sans-serif"
+              >
+                Remix
+              </text>
+            </g>
+
+            {/* Sound Icon */}
+            <g transform="translate(0, 690)">
+              <rect x="-32" y="-32" width="64" height="64" rx="14" fill="#1C1C1E" stroke="#3A3A3C" strokeWidth="3" />
+              <path d="M-6 12 A8 8 0 1 1 -14 4 L-14 -16 L8 -22 L8 6 A8 8 0 1 1 0 -2 L0 -15" fill="white" />
+            </g>
+          </g>
+
+          {/* Bottom Channel Info */}
+          <g transform="translate(50, 1620)">
+            <circle cx="45" cy="45" r="42" fill="#4B5563" />
+            <path d="M45 25 A14 14 0 1 1 45 53 A14 14 0 1 1 45 25 M22 75 C24 58, 66 58, 68 75" fill="white" />
+            <text x="110" y="55" fill="white" fontSize="36" fontWeight="700" fontFamily="system-ui, -apple-system, sans-serif">
+              @ChannelName
+            </text>
+            <rect x="420" y="16" width="190" height="56" rx="28" fill="#DC2626" />
+            <text
+              x="515"
+              y="53"
+              textAnchor="middle"
+              fill="white"
+              fontSize="26"
+              fontWeight="700"
+              fontFamily="system-ui, -apple-system, sans-serif"
+            >
+              Subscribe
+            </text>
+            <text x="10" y="125" fill="#F3F4F6" fontSize="28" fontFamily="system-ui, -apple-system, sans-serif">
+              YouTube Shorts safe viewing margins for vertical content
+            </text>
+          </g>
+
+          {/* Safe Area Box */}
+          <rect
+            x="50"
+            y="170"
+            width="880"
+            height="1400"
+            rx="24"
+            fill="none"
+            stroke="#EF4444"
+            strokeWidth="3.5"
+            strokeDasharray="14 14"
+            strokeOpacity="0.75"
+          />
+          <rect x="75" y="195" width="230" height="42" rx="8" fill="rgba(0,0,0,0.65)" />
+          <text
+            x="190"
+            y="224"
+            textAnchor="middle"
+            fill="#FCA5A5"
+            fontSize="20"
+            fontWeight="700"
+            fontFamily="monospace"
+          >
+            SHORTS SAFE ZONE
+          </text>
+        </svg>
       </div>
     </div>
   );

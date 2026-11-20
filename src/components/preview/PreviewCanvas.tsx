@@ -1,32 +1,11 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Maximize, ZoomIn, Film, Copy, Download, Check, CheckCircle2, RotateCcw } from 'lucide-react';
+import { Copy, Download, Check, CheckCircle2, RotateCcw, Maximize, ZoomIn } from 'lucide-react';
 import { useEditorStore } from '@/store/useEditorStore';
 import { compositor } from '@/engine/compositor';
-import { AspectRatio } from '@/types/editor';
 import { TransportBar } from './TransportBar';
-import { CustomSelect, SelectOption } from '@/components/ui/CustomSelect';
-import { GuidePopover } from './GuidePopover';
 import { GridGuide, TikTokGuide, InstagramReelsGuide, YouTubeShortsGuide } from './SocialGuides';
 import { TransformOverlay } from './TransformOverlay';
-
-const ASPECT_OPTIONS: SelectOption<AspectRatio>[] = [
-  { value: '16:9', label: '16:9 Landscape', description: 'YouTube & Desktop standard' },
-  { value: '9:16', label: '9:16 Shorts / Reels', description: 'TikTok, Reels, Shorts' },
-  { value: '1:1', label: '1:1 Square', description: 'Instagram Feed' },
-  { value: '4:5', label: '4:5 Portrait', description: 'Social Feed' },
-  { value: '21:9', label: '21:9 UltraWide', description: 'Cinematic CinemaScope' },
-];
-
-const ZOOM_OPTIONS: SelectOption<number>[] = [
-  { value: 0, label: 'Fit' },
-  { value: 25, label: '25%' },
-  { value: 50, label: '50%' },
-  { value: 75, label: '75%' },
-  { value: 100, label: '100%' },
-  { value: 150, label: '150%' },
-  { value: 200, label: '200%' },
-];
 
 export const PreviewCanvas: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -35,7 +14,6 @@ export const PreviewCanvas: React.FC = () => {
 
   const playhead = useEditorStore((s) => s.playhead);
   const aspect = useEditorStore((s) => s.aspectRatio);
-  const setAspectRatio = useEditorStore((s) => s.setAspectRatio);
   const tracks = useEditorStore((s) => s.tracks);
   const clips = useEditorStore((s) => s.clips);
   const assets = useEditorStore((s) => s.assets);
@@ -217,19 +195,48 @@ export const PreviewCanvas: React.FC = () => {
     }
   };
 
+  // Measure viewport size to ensure pixel-perfect aspect ratio scaling without container collapse
+  const [viewportDims, setViewportDims] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
+
+  useEffect(() => {
+    const el = viewportRef.current;
+    if (!el) return;
+    const updateDims = () => {
+      setViewportDims({
+        width: el.clientWidth,
+        height: el.clientHeight,
+      });
+    };
+    updateDims();
+    const observer = new ResizeObserver(updateDims);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  const baseDim = compositor.getDimensions(aspect);
+  // Reserve padding for clean canvas frame (32px horizontal/vertical padding from p-4)
+  const availW = Math.max(0, viewportDims.width - 32);
+  const availH = Math.max(0, viewportDims.height - 32);
+  const fitScale = availW > 0 && availH > 0
+    ? Math.min(availW / baseDim.width, availH / baseDim.height)
+    : 0;
+
+  const displayWidth = fitScale > 0 ? Math.round(baseDim.width * fitScale) : undefined;
+  const displayHeight = fitScale > 0 ? Math.round(baseDim.height * fitScale) : undefined;
+
   const getAspectClass = () => {
     switch (aspect) {
       case '9:16':
-        return 'aspect-[9/16] max-h-[82%]';
+        return 'aspect-[9/16] h-full max-w-full';
       case '1:1':
-        return 'aspect-square max-h-[82%]';
+        return 'aspect-square h-full max-w-full';
       case '4:5':
-        return 'aspect-[4/5] max-h-[82%]';
+        return 'aspect-[4/5] h-full max-w-full';
       case '21:9':
-        return 'aspect-[21/9] max-w-[90%] max-h-[82%]';
+        return 'aspect-[21/9] w-full max-h-full';
       case '16:9':
       default:
-        return 'aspect-video max-w-[90%] max-h-[82%]';
+        return 'aspect-video w-full max-h-full';
     }
   };
 
@@ -238,51 +245,6 @@ export const PreviewCanvas: React.FC = () => {
       ref={containerRef}
       className="relative flex flex-1 min-h-0 min-w-0 flex-col overflow-hidden bg-app-bg select-none transition-colors duration-200"
     >
-      {/* Floating Viewport HUD */}
-      <div className="absolute top-3 left-4 right-4 z-30 flex items-center justify-between pointer-events-none">
-        {/* Aspect Ratio Custom Select */}
-        <div className="pointer-events-auto">
-          <CustomSelect<AspectRatio>
-            value={aspect}
-            onChange={(val) => setAspectRatio(val)}
-            options={ASPECT_OPTIONS}
-            size="sm"
-            prefix="Ratio:"
-            icon={<Film className="h-3 w-3" />}
-            className="w-44 shadow-sm"
-          />
-        </div>
-
-        {/* Viewport Scale & Guides & Fullscreen */}
-        <div className="pointer-events-auto flex items-center gap-1 rounded-xl border border-app-border bg-app-surface/90 p-1 text-xs text-app-text backdrop-blur-md shadow-sm">
-          {/* Zoom Select */}
-          <CustomSelect<number>
-            value={canvasZoom}
-            onChange={(val) => setCanvasZoom(val)}
-            options={ZOOM_OPTIONS}
-            size="sm"
-            icon={<ZoomIn className="h-3 w-3" />}
-            className="w-24"
-          />
-
-          <div className="h-3.5 w-px bg-app-border" />
-
-          {/* Guides Popover */}
-          <GuidePopover />
-
-          <div className="h-3.5 w-px bg-app-border" />
-
-          {/* Fullscreen */}
-          <button
-            onClick={handleToggleFullscreen}
-            title="Toggle Fullscreen"
-            className="rounded-lg p-1.5 text-app-text-muted hover:bg-app-elevated hover:text-app-text transition cursor-pointer"
-          >
-            <Maximize className="h-3.5 w-3.5" />
-          </button>
-        </div>
-      </div>
-
       {/* Canvas Viewport Frame with Smooth Pan & Zoom */}
       <div
         ref={viewportRef}
@@ -292,12 +254,14 @@ export const PreviewCanvas: React.FC = () => {
           e.preventDefault();
           setContextMenu({ x: e.clientX, y: e.clientY });
         }}
-        className={`flex flex-1 min-h-0 items-center justify-center p-4 pt-11 overflow-hidden ${
+        className={`flex flex-1 min-h-0 items-center justify-center p-4 overflow-hidden ${
           isPanning ? 'cursor-grabbing' : isSpaceHeld ? 'cursor-grab' : 'cursor-default'
         }`}
       >
         <div
           style={{
+            width: displayWidth ? `${displayWidth}px` : undefined,
+            height: displayHeight ? `${displayHeight}px` : undefined,
             transform:
               canvasZoom > 0
                 ? `translate(${panOffset.x}px, ${panOffset.y}px) scale(${canvasZoom / 100})`
@@ -305,7 +269,9 @@ export const PreviewCanvas: React.FC = () => {
             transformOrigin: 'center center',
             transition: isPanning ? 'none' : 'transform 0.15s ease-out',
           }}
-          className={`relative flex items-center justify-center ${getAspectClass()}`}
+          className={`relative flex items-center justify-center ${
+            !displayWidth ? getAspectClass() : ''
+          }`}
         >
           {/* Inner rounded container with overflow-hidden for the video canvas & guides */}
           <div className="relative h-full w-full rounded-xl border border-app-border bg-black shadow-2xl overflow-hidden flex items-center justify-center">
@@ -331,7 +297,7 @@ export const PreviewCanvas: React.FC = () => {
 
       {/* Toast Notification */}
       {toastMessage && (
-        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 rounded-xl border border-app-border bg-app-surface/95 px-3.5 py-1.5 text-xs font-semibold text-app-text shadow-2xl backdrop-blur-md animate-in fade-in duration-200">
+        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-[#141417] px-3.5 py-1.5 text-xs font-semibold text-neutral-900 dark:text-neutral-100 shadow-2xl animate-in fade-in duration-200">
           <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
           <span>{toastMessage}</span>
         </div>
@@ -449,7 +415,7 @@ export const PreviewCanvas: React.FC = () => {
       )}
 
       {/* Transport Controls Bar */}
-      <TransportBar />
+      <TransportBar onToggleFullscreen={handleToggleFullscreen} />
     </div>
   );
 };

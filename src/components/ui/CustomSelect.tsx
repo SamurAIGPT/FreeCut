@@ -5,6 +5,7 @@ import { ChevronDown, Check } from 'lucide-react';
 export interface SelectOption<T = string | number> {
   value: T;
   label: string;
+  shortLabel?: string;
   description?: string;
   icon?: React.ReactNode;
   disabled?: boolean;
@@ -78,7 +79,7 @@ export function CustomSelect<T extends string | number>({
       top = rect.bottom + 4;
     }
 
-    const menuWidth = Math.max(rect.width, 140);
+    const menuWidth = Math.max(rect.width, 180);
     let left: number | undefined;
     let right: number | undefined;
 
@@ -191,7 +192,7 @@ export function CustomSelect<T extends string | number>({
           {icon && <span className="shrink-0 text-neutral-500 dark:text-neutral-400">{icon}</span>}
           {prefix && <span className="shrink-0 text-[10px] text-neutral-500 dark:text-neutral-400 font-normal">{prefix}</span>}
           <span className="truncate">
-            {selectedOption ? selectedOption.label : placeholder}
+            {selectedOption ? (selectedOption.shortLabel || selectedOption.label) : placeholder}
           </span>
         </div>
 
