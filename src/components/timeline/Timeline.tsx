@@ -1,7 +1,8 @@
 import React, { useRef, useState } from 'react';
 import { 
   Magnet, Plus, Scissors, Trash2, ZoomIn, ZoomOut, MousePointer, 
-  Copy, Link2, Bookmark, Sparkles, AlignLeft, AlignRight, Maximize2 
+  Copy, Link2, Bookmark, Sparkles, AlignLeft, AlignRight, Maximize2,
+  Film, Music, Type, Wand2, CheckCircle2
 } from 'lucide-react';
 import { useEditorStore } from '@/store/useEditorStore';
 import { TrackHeader } from './TrackHeader';
@@ -9,10 +10,34 @@ import { TimeRuler } from './TimeRuler';
 import { Playhead } from './Playhead';
 import { ClipItem } from './ClipItem';
 import { Tooltip } from '@/components/ui/Tooltip';
+import { timelineDragSource, TimelineDragData } from '@/utils/dragSource';
+import { importMediaFiles } from '@/utils/mediaImporter';
+import { formatTimecode } from '@/utils/time';
+import { generateSoundEffect } from '@/utils/sampleMedia';
+import { TrackType } from '@/types/editor';
+
+interface DropTargetState {
+  trackId: string | null;
+  trackIndex: number;
+  time: number;
+  duration: number;
+  isNewTrack: boolean;
+  newTrackType?: TrackType;
+  targetClipId?: string | null;
+  isExternalFiles: boolean;
+  activeData: TimelineDragData | null;
+}
 
 export const Timeline: React.FC = () => {
   const [scrollLeft, setScrollLeft] = useState(0);
+  const [dropTarget, setDropTarget] = useState<DropTargetState | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3000);
+  };
 
   const tracks = useEditorStore((s) => s.tracks);
   const clips = useEditorStore((s) => s.clips);
@@ -27,13 +52,19 @@ export const Timeline: React.FC = () => {
   const rippleDelete = useEditorStore((s) => s.rippleDelete);
   const deleteClip = useEditorStore((s) => s.deleteClip);
   const addMarker = useEditorStore((s) => s.addMarker);
+  const markers = useEditorStore((s) => s.markers);
   const setZoom = useEditorStore((s) => s.setZoom);
   const isSnapping = useEditorStore((s) => s.isSnapping);
   const toggleSnapping = useEditorStore((s) => s.toggleSnapping);
   const addTrack = useEditorStore((s) => s.addTrack);
+  const addClip = useEditorStore((s) => s.addClip);
+  const updateClip = useEditorStore((s) => s.updateClip);
+  const addClipEffect = useEditorStore((s) => s.addClipEffect);
+  const addAsset = useEditorStore((s) => s.addAsset);
   const activeTool = useEditorStore((s) => s.activeTool);
   const setActiveTool = useEditorStore((s) => s.setActiveTool);
   const snapGuideX = useEditorStore((s) => s.snapGuideX);
+  const setSnapGuideX = useEditorStore((s) => s.setSnapGuideX);
 
   const selectedClip = clips.find((c) => c.id === selectedClipId);
   const isVideoSelected = selectedClip?.type === 'video';
@@ -53,8 +84,385 @@ export const Timeline: React.FC = () => {
   const TRACK_HEIGHT = 40;
   const timelineHeight = tracks.length * TRACK_HEIGHT + 32;
 
+  // ==================== DRAG & DROP HANDLERS ====================
+
+  const handleDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const isFiles = e.dataTransfer?.types ? Array.from(e.dataTransfer.types).includes('Files') : false;
+    const activeData = timelineDragSource.getActive();
+
+    if (!activeData && !isFiles) return;
+
+    if (e.dataTransfer) {
+      e.dataTransfer.dropEffect = 'copy';
+    }
+
+    if (!containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const scrollLeft = containerRef.current.scrollLeft;
+    const scrollTop = containerRef.current.scrollTop;
+
+    // Mouse coordinates relative to timeline tracks area (subtract 32px ruler offset)
+    const mouseX = Math.max(0, e.clientX - rect.left + scrollLeft);
+    const mouseY = Math.max(0, e.clientY - rect.top + scrollTop - 32);
+
+    let time = Math.max(0, mouseX / zoom);
+
+    // Magnetic Snapping
+    if (isSnapping) {
+      const snapThreshold = 12 / zoom;
+      const snapTargets = [
+        useEditorStore.getState().playhead,
+        ...markers.map((m) => m.time),
+        ...clips.flatMap((c) => [c.start, c.start + c.duration]),
+      ];
+
+      for (const target of snapTargets) {
+        if (Math.abs(time - target) < snapThreshold) {
+          time = target;
+          setSnapGuideX(target);
+          break;
+        }
+      }
+    }
+
+    const trackIndex = Math.max(0, Math.floor(mouseY / TRACK_HEIGHT));
+    const isNewTrack = trackIndex >= tracks.length;
+
+    let newTrackType: TrackType = 'video';
+    if (activeData) {
+      if (activeData.type === 'audio') newTrackType = 'audio';
+      else if (activeData.type === 'text' || activeData.type === 'sticker') newTrackType = 'text';
+      else newTrackType = 'video';
+    } else if (isFiles) {
+      newTrackType = 'video';
+    }
+
+    const hoveredTrack = !isNewTrack ? tracks[trackIndex] : null;
+    let targetClipId: string | null = null;
+
+    if (hoveredTrack) {
+      const trackClips = clips.filter((c) => c.trackId === hoveredTrack.id);
+      const hit = trackClips.find((c) => c.start <= time && time <= c.start + c.duration);
+      if (hit) {
+        targetClipId = hit.id;
+      }
+    }
+
+    let itemDuration = 4.0;
+    if (activeData?.duration) {
+      itemDuration = activeData.duration;
+    } else if (activeData?.type === 'audio') {
+      itemDuration = 3.0;
+    } else if (activeData?.type === 'text' || activeData?.type === 'sticker') {
+      itemDuration = 3.5;
+    }
+
+    setDropTarget({
+      trackId: hoveredTrack ? hoveredTrack.id : null,
+      trackIndex,
+      time,
+      duration: itemDuration,
+      isNewTrack,
+      newTrackType,
+      targetClipId,
+      isExternalFiles: isFiles && !activeData,
+      activeData,
+    });
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    if (containerRef.current && !containerRef.current.contains(e.relatedTarget as Node)) {
+      setDropTarget(null);
+      setSnapGuideX(null);
+    }
+  };
+
+  const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const currentDrop = dropTarget;
+    setDropTarget(null);
+    setSnapGuideX(null);
+
+    // 1. Files dropped from OS
+    if (e.dataTransfer?.files && e.dataTransfer.files.length > 0) {
+      const files = Array.from(e.dataTransfer.files);
+      const startTime = currentDrop
+        ? currentDrop.time
+        : Math.max(0, (e.clientX - (containerRef.current?.getBoundingClientRect().left || 0) + (containerRef.current?.scrollLeft || 0)) / zoom);
+
+      try {
+        const imported = await importMediaFiles(files);
+        let currTime = startTime;
+
+        for (const asset of imported) {
+          addAsset(asset);
+          const reqType: TrackType = asset.type === 'audio' ? 'audio' : 'video';
+
+          let track = currentDrop?.trackId ? tracks.find((t) => t.id === currentDrop.trackId) : null;
+          if (!track || track.type !== reqType) {
+            track = tracks.find((t) => t.type === reqType) || null;
+          }
+
+          const targetTrackId = track ? track.id : addTrack(reqType, reqType === 'audio' ? 'Audio Track' : 'Video Track');
+
+          addClip({
+            trackId: targetTrackId,
+            assetId: asset.id,
+            name: asset.name,
+            type: asset.type,
+            start: currTime,
+            duration: asset.duration,
+            trimStart: 0,
+            trimEnd: asset.duration,
+            transform: { x: 0, y: 0, scale: 1, rotation: 0, opacity: 1 },
+            volume: asset.type === 'audio' ? 0.9 : 1,
+            color: asset.type === 'audio' ? '#059669' : '#2563eb',
+            thumbnailUrl: asset.thumbnailUrl,
+            url: asset.url,
+          });
+
+          currTime += asset.duration;
+        }
+
+        showToast(`Imported & placed ${imported.length} file(s) on timeline`);
+      } catch (err) {
+        console.error('File drop error:', err);
+      }
+      return;
+    }
+
+    if (!currentDrop) return;
+    const { time, duration: itemDuration, isNewTrack, targetClipId, activeData } = currentDrop;
+
+    if (!activeData) return;
+
+    // 2. Effect dropped on clip or timeline
+    if (activeData.type === 'effect') {
+      const fx = activeData.payload;
+      if (targetClipId) {
+        addClipEffect(targetClipId, {
+          name: fx.name,
+          type: fx.effectType || 'blur',
+          enabled: true,
+          ...fx.defaultParam,
+        });
+        if (fx.filter) {
+          updateClip(targetClipId, { filter: fx.filter });
+        }
+        showToast(`Applied "${fx.name}" effect to clip`);
+      } else {
+        let track = !isNewTrack && currentDrop.trackId ? tracks.find((t) => t.id === currentDrop.trackId) : null;
+        if (!track || track.type !== 'video') {
+          track = tracks.find((t) => t.type === 'video') || null;
+        }
+        const targetTrackId = track ? track.id : addTrack('video', 'FX Track');
+        addClip({
+          trackId: targetTrackId,
+          name: `${fx.name} Layer`,
+          type: 'effect',
+          start: time,
+          duration: 4.0,
+          trimStart: 0,
+          trimEnd: 4.0,
+          transform: { x: 0, y: 0, scale: 1, rotation: 0, opacity: 1 },
+          volume: 0,
+          color: '#ec4899',
+          filter: fx.filter,
+          effects: [{
+            id: `effect-${Date.now()}`,
+            name: fx.name,
+            type: fx.effectType || 'blur',
+            enabled: true,
+            ...fx.defaultParam,
+          }],
+        });
+        showToast(`Added "${fx.name}" layer at ${formatTimecode(time)}`);
+      }
+      timelineDragSource.end();
+      return;
+    }
+
+    // 3. Transition dropped on clip
+    if (activeData.type === 'transition') {
+      const tr = activeData.payload;
+      if (targetClipId) {
+        updateClip(targetClipId, {
+          transitionIn: { type: tr.type, duration: 1.0 },
+        });
+        showToast(`Applied "${tr.name}" transition to clip`);
+      } else {
+        showToast(`Drop transition onto an existing clip to apply`);
+      }
+      timelineDragSource.end();
+      return;
+    }
+
+    // 4. Audio
+    if (activeData.type === 'audio') {
+      let track = !isNewTrack && currentDrop.trackId ? tracks.find((t) => t.id === currentDrop.trackId) : null;
+      if (!track || track.type !== 'audio') {
+        track = tracks.find((t) => t.type === 'audio') || null;
+      }
+      const targetTrackId = track ? track.id : addTrack('audio', 'Audio Track');
+
+      if (activeData.payload?.soundType) {
+        const sfx = activeData.payload;
+        const asset = await generateSoundEffect(sfx.soundType, `${activeData.name}.wav`, activeData.duration || 3.0);
+        addAsset(asset);
+        addClip({
+          trackId: targetTrackId,
+          assetId: asset.id,
+          name: activeData.name,
+          type: 'audio',
+          start: time,
+          duration: asset.duration,
+          trimStart: 0,
+          trimEnd: asset.duration,
+          transform: { x: 0, y: 0, scale: 1, rotation: 0, opacity: 1 },
+          volume: 0.9,
+          color: '#059669',
+        });
+      } else {
+        addClip({
+          trackId: targetTrackId,
+          assetId: activeData.id,
+          name: activeData.name,
+          type: 'audio',
+          start: time,
+          duration: itemDuration,
+          trimStart: 0,
+          trimEnd: itemDuration,
+          transform: { x: 0, y: 0, scale: 1, rotation: 0, opacity: 1 },
+          volume: 0.9,
+          color: '#059669',
+          url: activeData.url,
+        });
+      }
+      showToast(`Added "${activeData.name}" to audio track`);
+      timelineDragSource.end();
+      return;
+    }
+
+    // 5. Text Preset
+    if (activeData.type === 'text') {
+      let track = !isNewTrack && currentDrop.trackId ? tracks.find((t) => t.id === currentDrop.trackId) : null;
+      if (!track || track.type !== 'text') {
+        track = tracks.find((t) => t.type === 'text') || null;
+      }
+      const targetTrackId = track ? track.id : addTrack('text', 'Text Track');
+      const preset = activeData.payload || {};
+
+      addClip({
+        trackId: targetTrackId,
+        name: activeData.name,
+        type: 'text',
+        text: preset.text || activeData.name,
+        fontSize: preset.fontSize || 48,
+        fontColor: preset.fontColor || '#ffffff',
+        backgroundColor: preset.bg || 'transparent',
+        fontFamily: 'Inter, system-ui',
+        start: time,
+        duration: itemDuration,
+        trimStart: 0,
+        trimEnd: itemDuration,
+        transform: { x: 0, y: 0, scale: 1, rotation: 0, opacity: 1 },
+        volume: 1,
+        color: preset.color || '#d97706',
+        textAlign: 'center',
+      });
+      showToast(`Added text "${activeData.name}" to track`);
+      timelineDragSource.end();
+      return;
+    }
+
+    // 6. Sticker
+    if (activeData.type === 'sticker') {
+      let track = !isNewTrack && currentDrop.trackId ? tracks.find((t) => t.id === currentDrop.trackId) : null;
+      if (!track || track.type !== 'text') {
+        track = tracks.find((t) => t.type === 'text') || null;
+      }
+      const targetTrackId = track ? track.id : addTrack('text', 'Stickers');
+      const sticker = activeData.payload || {};
+
+      addClip({
+        trackId: targetTrackId,
+        name: activeData.name,
+        type: 'text',
+        text: sticker.display || '⭐',
+        fontSize: 96,
+        fontColor: '#ffffff',
+        backgroundColor: 'transparent',
+        start: time,
+        duration: itemDuration,
+        trimStart: 0,
+        trimEnd: itemDuration,
+        transform: { x: 0, y: 0, scale: 1, rotation: 0, opacity: 1 },
+        volume: 1,
+        color: '#e11d48',
+        textAlign: 'center',
+      });
+      showToast(`Added sticker "${activeData.name}" to track`);
+      timelineDragSource.end();
+      return;
+    }
+
+    // 7. Media (Video / Image)
+    if (activeData.type === 'media') {
+      const isAudioMedia = activeData.mediaType === 'audio';
+      const targetType: TrackType = isAudioMedia ? 'audio' : 'video';
+
+      let track = !isNewTrack && currentDrop.trackId ? tracks.find((t) => t.id === currentDrop.trackId) : null;
+      if (!track || track.type !== targetType) {
+        track = tracks.find((t) => t.type === targetType) || null;
+      }
+      const targetTrackId = track ? track.id : addTrack(targetType, targetType === 'audio' ? 'Audio Track' : 'Video Track');
+
+      addClip({
+        trackId: targetTrackId,
+        assetId: activeData.id,
+        name: activeData.name,
+        type: activeData.mediaType || 'video',
+        start: time,
+        duration: itemDuration,
+        trimStart: 0,
+        trimEnd: itemDuration,
+        transform: { x: 0, y: 0, scale: 1, rotation: 0, opacity: 1 },
+        volume: 1,
+        color: isAudioMedia ? '#059669' : '#2563eb',
+        thumbnailUrl: activeData.thumbnailUrl,
+        url: activeData.url,
+      });
+      showToast(`Added ${activeData.name} to ${track ? track.name : 'track'}`);
+      timelineDragSource.end();
+      return;
+    }
+  };
+
   return (
-    <div className="flex h-56 sm:h-64 lg:h-72 w-full shrink-0 flex-col border-t border-app-border bg-app-bg select-none transition-colors duration-200">
+    <div className="relative flex h-56 sm:h-64 lg:h-72 w-full shrink-0 flex-col border-t border-app-border bg-app-bg select-none transition-colors duration-200">
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className="absolute top-2 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 rounded-xl border border-app-border bg-app-surface/95 px-4 py-2 text-xs font-semibold text-app-text shadow-2xl backdrop-blur-md animate-in fade-in duration-200">
+          <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+          <span>{toastMessage}</span>
+        </div>
+      )}
+
+      {/* External Files Drop Banner */}
+      {dropTarget?.isExternalFiles && (
+        <div className="pointer-events-none absolute top-14 inset-x-8 z-50 flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-blue-500 bg-blue-500/20 py-2.5 text-xs font-bold text-blue-500 dark:text-blue-300 backdrop-blur-md shadow-2xl animate-pulse">
+          <Film className="h-4 w-4" />
+          <span>Drop media files to insert onto timeline at {formatTimecode(dropTarget.time)}</span>
+        </div>
+      )}
+
       {/* Timeline Pro Control Bar */}
       <div className="flex h-12 w-full items-center justify-between border-b border-app-border bg-app-surface px-3.5 gap-2.5 overflow-x-auto scrollbar-hidden">
         {/* Left Section: Generous Padding Labeled & Icon Editing Tools with Hover Tooltips */}
@@ -301,13 +709,17 @@ export const Timeline: React.FC = () => {
           id="timeline-tracks-container"
           ref={containerRef}
           onScroll={handleScroll}
+          onDragEnter={handleDragEnter}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
           className="relative flex-1 overflow-x-auto overflow-y-auto bg-app-bg"
         >
           {/* Time Ruler with Markers */}
           <TimeRuler scrollLeft={scrollLeft} />
 
           {/* Scrubbing Playhead Needle */}
-          <Playhead timelineHeight={timelineHeight} />
+          <Playhead timelineHeight={Math.max(timelineHeight, (tracks.length + (dropTarget?.isNewTrack ? 1 : 0)) * TRACK_HEIGHT + 32)} />
 
           {/* Magnetic Vertical Snap Guide Line */}
           {snapGuideX !== null && (
@@ -324,32 +736,92 @@ export const Timeline: React.FC = () => {
           )}
 
           {/* Multi-Track Rows and Clip Drop Targets */}
-          <div style={{ width: `${(duration + 15) * zoom}px` }} className="relative">
-            {tracks.map((track) => {
+          <div style={{ width: `${Math.max(duration + 15, (dropTarget?.time || 0) + (dropTarget?.duration || 0) + 10) * zoom}px` }} className="relative">
+            {tracks.map((track, idx) => {
               const trackClips = clips.filter((c) => c.trackId === track.id);
               const isTrackEmpty = trackClips.length === 0;
+              const isTrackHovered = dropTarget && !dropTarget.isNewTrack && dropTarget.trackId === track.id;
 
               return (
                 <div
                   key={track.id}
                   data-track-id={track.id}
                   style={{ height: `${TRACK_HEIGHT}px` }}
-                  className="relative border-b border-neutral-200 bg-white/70 hover:bg-white transition-colors dark:border-[#222226] dark:bg-[#0c0c0e]/80 dark:hover:bg-[#141418]"
+                  className={`relative border-b transition-colors duration-150 ${
+                    isTrackHovered
+                      ? 'border-cyan-400 bg-cyan-500/10 dark:bg-cyan-500/15 ring-1 ring-cyan-400/60'
+                      : 'border-neutral-200 bg-white/70 hover:bg-white dark:border-[#222226] dark:bg-[#0c0c0e]/80 dark:hover:bg-[#141418]'
+                  }`}
                 >
                   {/* Empty Track Dashed Dropzone */}
-                  {isTrackEmpty && (
+                  {isTrackEmpty && !isTrackHovered && (
                     <div className="pointer-events-none absolute inset-x-3 inset-y-1 flex items-center justify-center rounded border border-dashed border-neutral-300 text-[10px] text-neutral-400 dark:border-neutral-800 dark:text-neutral-500">
-                      Empty {track.type} track — Drag clips here or add from left panel
+                      Empty {track.type} track — Drag clips or items here
                     </div>
                   )}
 
                   {/* Render Track Clips */}
                   {trackClips.map((clip) => (
-                    <ClipItem key={clip.id} clip={clip} isLocked={track.isLocked} />
+                    <ClipItem 
+                      key={clip.id} 
+                      clip={clip} 
+                      isLocked={track.isLocked} 
+                      isDropTarget={clip.id === dropTarget?.targetClipId}
+                    />
                   ))}
+
+                  {/* Drop Indicator Line on Hovered Track */}
+                  {isTrackHovered && (
+                    <div
+                      style={{ transform: `translate3d(${Math.round(dropTarget.time * zoom)}px, 0, 0)` }}
+                      className="pointer-events-none absolute top-0 bottom-0 z-35 w-0.5 bg-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.9)]"
+                    >
+                      <div className="absolute top-0 -left-1.5 h-3 w-3 rounded-full bg-cyan-400 shadow-md flex items-center justify-center">
+                        <div className="h-1 w-1 rounded-full bg-white" />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Ghost Placement Preview Box on Hovered Track */}
+                  {isTrackHovered && (
+                    <div
+                      style={{
+                        transform: `translate3d(${Math.round(dropTarget.time * zoom)}px, 0, 0)`,
+                        width: `${Math.max(36, dropTarget.duration * zoom)}px`,
+                      }}
+                      className="pointer-events-none absolute inset-y-1 z-30 flex items-center justify-between rounded-md border-2 border-dashed border-cyan-400 bg-cyan-500/25 px-2 backdrop-blur-xs text-white shadow-[0_0_15px_rgba(34,211,238,0.4)] animate-pulse select-none overflow-hidden"
+                    >
+                      <div className="flex items-center gap-1.5 truncate text-[11px] font-bold">
+                        {dropTarget.activeData?.type === 'audio' && <Music className="h-3.5 w-3.5 text-emerald-300 shrink-0" />}
+                        {dropTarget.activeData?.type === 'text' && <Type className="h-3.5 w-3.5 text-amber-300 shrink-0" />}
+                        {dropTarget.activeData?.type === 'effect' && <Sparkles className="h-3.5 w-3.5 text-pink-300 shrink-0" />}
+                        {dropTarget.activeData?.type === 'transition' && <Wand2 className="h-3.5 w-3.5 text-purple-300 shrink-0" />}
+                        {(!dropTarget.activeData || dropTarget.activeData.type === 'media' || dropTarget.activeData.type === 'sticker') && (
+                          <Film className="h-3.5 w-3.5 text-cyan-300 shrink-0" />
+                        )}
+                        <span className="truncate text-cyan-100">{dropTarget.activeData?.name || 'Drop Media'}</span>
+                      </div>
+                      <span className="shrink-0 rounded bg-cyan-950/80 px-1 py-0.5 font-mono text-[9px] font-semibold text-cyan-300">
+                        {dropTarget.duration.toFixed(1)}s
+                      </span>
+                    </div>
+                  )}
                 </div>
               );
             })}
+
+            {/* Ghost New Track Drop Zone below existing tracks */}
+            {dropTarget && dropTarget.isNewTrack && (
+              <div
+                style={{ height: `${TRACK_HEIGHT}px` }}
+                className="relative border-2 border-dashed border-cyan-400 bg-cyan-500/10 flex items-center justify-center rounded-lg mt-1 text-xs font-semibold text-cyan-600 dark:text-cyan-300 shadow-sm"
+              >
+                <Plus className="h-4 w-4 mr-1.5 text-cyan-500 animate-bounce" />
+                <span>
+                  Drop here to create new {dropTarget.newTrackType?.toUpperCase() || 'VIDEO'} track at {formatTimecode(dropTarget.time)}
+                </span>
+              </div>
+            )}
           </div>
         </div>
       </div>

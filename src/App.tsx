@@ -103,7 +103,7 @@ export const App: React.FC = () => {
           if (!project) {
             // Ensure starter project exists if loading default
             const initialList = await projectService.ensureInitialProjects();
-            project = initialList.find((p) => p.id === activeProjectId) || null;
+            project = initialList.find((p) => p.id === activeProjectId) || initialList[0] || null;
           }
 
           if (isCancelled) return;
@@ -118,9 +118,7 @@ export const App: React.FC = () => {
           console.error('Failed to load project from storage:', err);
           handleBackToProjects();
         } finally {
-          if (!isCancelled) {
-            setIsLoadingProject(false);
-          }
+          setIsLoadingProject(false);
         }
       };
 

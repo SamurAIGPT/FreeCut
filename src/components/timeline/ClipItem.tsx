@@ -11,9 +11,10 @@ import { getClipThumbnail } from '@/utils/thumbnail';
 interface ClipItemProps {
   clip: Clip;
   isLocked?: boolean;
+  isDropTarget?: boolean;
 }
 
-export const ClipItem: React.FC<ClipItemProps> = React.memo(({ clip, isLocked }) => {
+export const ClipItem: React.FC<ClipItemProps> = React.memo(({ clip, isLocked, isDropTarget }) => {
   const zoom = useEditorStore((s) => s.zoom);
   const selectedClipId = useEditorStore((s) => s.selectedClipId);
   const setSelectedClipId = useEditorStore((s) => s.setSelectedClipId);
@@ -180,27 +181,23 @@ export const ClipItem: React.FC<ClipItemProps> = React.memo(({ clip, isLocked })
         setSnapGuideX(activeSnapPoint);
       }
 
-      // Vertical Track Detection
-      const deltaY = moveEvent.clientY - startY;
-      if (Math.abs(deltaY) > 20) {
-        // Find which track row the cursor is currently over
-        const trackElements = document.querySelectorAll('[data-track-id]');
-        for (let i = 0; i < trackElements.length; i++) {
-          const el = trackElements[i] as HTMLElement;
-          const rect = el.getBoundingClientRect();
-          if (moveEvent.clientY >= rect.top && moveEvent.clientY <= rect.bottom) {
-            const targetTrackId = el.getAttribute('data-track-id');
-            if (targetTrackId && targetTrackId !== clip.trackId) {
-              const targetTrack = tracks.find((t) => t.id === targetTrackId);
-              // Check type compatibility
-              if (
-                targetTrack &&
-                ((clip.type === 'audio' && targetTrack.type === 'audio') ||
-                  (clip.type !== 'audio' && targetTrack.type !== 'audio'))
-              ) {
-                moveClipToTrack(clip.id, targetTrackId, newStart);
-                return;
-              }
+      // Vertical Track Detection (Drag between tracks)
+      const trackElements = document.querySelectorAll('[data-track-id]');
+      for (let i = 0; i < trackElements.length; i++) {
+        const el = trackElements[i] as HTMLElement;
+        const rect = el.getBoundingClientRect();
+        if (moveEvent.clientY >= rect.top && moveEvent.clientY <= rect.bottom) {
+          const targetTrackId = el.getAttribute('data-track-id');
+          if (targetTrackId && targetTrackId !== clip.trackId) {
+            const targetTrack = tracks.find((t) => t.id === targetTrackId);
+            if (
+              targetTrack &&
+              !targetTrack.isLocked &&
+              ((clip.type === 'audio' && targetTrack.type === 'audio') ||
+                (clip.type !== 'audio' && targetTrack.type !== 'audio'))
+            ) {
+              moveClipToTrack(clip.id, targetTrackId, newStart);
+              break;
             }
           }
         }
@@ -368,7 +365,9 @@ export const ClipItem: React.FC<ClipItemProps> = React.memo(({ clip, isLocked })
         className={`group absolute inset-y-0.5 flex cursor-grab active:cursor-grabbing items-center justify-between rounded-sm border select-none transition-all duration-100 overflow-hidden ${
           theme.bg
         } ${theme.border} ${
-          isSelected
+          isDropTarget
+            ? 'ring-2 ring-purple-500 shadow-[0_0_18px_rgba(168,85,247,0.85)] brightness-125 z-30 animate-pulse'
+            : isSelected
             ? 'ring-[1.5px] ring-[#009dff] shadow-[0_0_12px_rgba(0,157,255,0.4)] z-20'
             : 'hover:brightness-105 z-10'
         } ${clip.isMuted ? 'opacity-50' : ''}`}

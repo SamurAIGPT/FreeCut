@@ -18,6 +18,7 @@ import {
 } from '@/utils/sampleMedia';
 
 import { formatDuration } from '@/utils/time';
+import { timelineDragSource } from '@/utils/dragSource';
 
 /**
  * Auto-generating video thumbnail component that displays the video frame
@@ -1143,7 +1144,22 @@ export const SidebarContent: React.FC = () => {
                     .map((asset) => (
                       <div
                         key={asset.id}
-                        className="group relative flex flex-col overflow-hidden rounded-xl border border-app-border bg-app-elevated hover:border-neutral-400 dark:hover:border-neutral-600 transition shadow-xs"
+                        draggable
+                        onDragStart={(e) => {
+                          timelineDragSource.begin({
+                            type: 'media',
+                            id: asset.id,
+                            name: asset.name,
+                            mediaType: asset.type,
+                            duration: asset.duration,
+                            url: asset.url,
+                            thumbnailUrl: asset.thumbnailUrl,
+                            width: asset.width,
+                            height: asset.height,
+                          }, e);
+                        }}
+                        onDragEnd={() => timelineDragSource.end()}
+                        className="group relative flex flex-col overflow-hidden rounded-xl border border-app-border bg-app-elevated hover:border-neutral-400 dark:hover:border-neutral-600 transition shadow-xs cursor-grab active:cursor-grabbing"
                       >
                         {/* Media Preview Box */}
                         <div className="relative flex h-24 w-full items-center justify-center bg-app-surface overflow-hidden select-none">
@@ -1316,7 +1332,19 @@ export const SidebarContent: React.FC = () => {
                   return (
                     <div
                       key={sfx.id}
-                      className="group flex items-center justify-between rounded-xl border border-app-border bg-app-elevated p-2.5 hover:border-neutral-400 dark:hover:border-neutral-600 transition"
+                      draggable
+                      onDragStart={(e) => {
+                        timelineDragSource.begin({
+                          type: 'audio',
+                          id: sfx.id,
+                          name: sfx.name,
+                          duration: sfx.duration,
+                          mediaType: 'audio',
+                          payload: { soundType: sfx.type, cat: sfx.cat },
+                        }, e);
+                      }}
+                      onDragEnd={() => timelineDragSource.end()}
+                      className="group flex items-center justify-between rounded-xl border border-app-border bg-app-elevated p-2.5 hover:border-neutral-400 dark:hover:border-neutral-600 transition cursor-grab active:cursor-grabbing"
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
                         {/* Play / Preview Button */}
@@ -1364,8 +1392,18 @@ export const SidebarContent: React.FC = () => {
                 BASIC TEXT
               </span>
               <div
+                draggable
+                onDragStart={(e) => {
+                  timelineDragSource.begin({
+                    type: 'text',
+                    name: TEXT_PRESETS[0].title,
+                    duration: 3.5,
+                    payload: TEXT_PRESETS[0],
+                  }, e);
+                }}
+                onDragEnd={() => timelineDragSource.end()}
                 onClick={() => handleAddText(TEXT_PRESETS[0])}
-                className="group flex cursor-pointer flex-col items-center justify-center rounded-xl border border-app-border bg-app-elevated p-4 hover:border-neutral-400 dark:hover:border-neutral-600 transition relative"
+                className="group flex cursor-grab active:cursor-grabbing flex-col items-center justify-center rounded-xl border border-app-border bg-app-elevated p-4 hover:border-neutral-400 dark:hover:border-neutral-600 transition relative"
               >
                 <div className="flex h-16 w-full items-center justify-center rounded-lg bg-neutral-900/5 dark:bg-white/5 border border-dashed border-app-border">
                   <span className="text-sm font-semibold text-app-text">Default text</span>
@@ -1393,8 +1431,18 @@ export const SidebarContent: React.FC = () => {
                   .map((preset, idx) => (
                     <div
                       key={idx}
+                      draggable
+                      onDragStart={(e) => {
+                        timelineDragSource.begin({
+                          type: 'text',
+                          name: preset.title,
+                          duration: 3.5,
+                          payload: preset,
+                        }, e);
+                      }}
+                      onDragEnd={() => timelineDragSource.end()}
                       onClick={() => handleAddText(preset)}
-                      className="group flex cursor-pointer items-center justify-between rounded-xl border border-app-border bg-app-elevated p-3 hover:border-neutral-400 dark:hover:border-neutral-600 transition"
+                      className="group flex cursor-grab active:cursor-grabbing items-center justify-between rounded-xl border border-app-border bg-app-elevated p-3 hover:border-neutral-400 dark:hover:border-neutral-600 transition"
                     >
                       <div className="min-w-0 pr-2">
                         <h4 className="text-xs font-semibold text-app-text">{preset.title}</h4>
@@ -1449,8 +1497,19 @@ export const SidebarContent: React.FC = () => {
                 .map((sticker) => (
                   <div
                     key={sticker.id}
+                    draggable
+                    onDragStart={(e) => {
+                      timelineDragSource.begin({
+                        type: 'sticker',
+                        id: sticker.id,
+                        name: sticker.name,
+                        duration: 3.5,
+                        payload: sticker,
+                      }, e);
+                    }}
+                    onDragEnd={() => timelineDragSource.end()}
                     onClick={() => handleAddSticker(sticker)}
-                    className="group relative flex flex-col items-center justify-center rounded-xl border border-app-border bg-app-elevated p-3 hover:border-neutral-400 dark:hover:border-neutral-600 transition cursor-pointer hover:shadow-xs aspect-square"
+                    className="group relative flex flex-col items-center justify-center rounded-xl border border-app-border bg-app-elevated p-3 hover:border-neutral-400 dark:hover:border-neutral-600 transition cursor-grab active:cursor-grabbing hover:shadow-xs aspect-square"
                     title={sticker.name}
                   >
                     <div className="flex items-center justify-center text-3xl group-hover:scale-110 transition">
@@ -1505,8 +1564,17 @@ export const SidebarContent: React.FC = () => {
                     return (
                       <div
                         key={idx}
+                        draggable
+                        onDragStart={(e) => {
+                          timelineDragSource.begin({
+                            type: 'effect',
+                            name: fx.name,
+                            payload: fx,
+                          }, e);
+                        }}
+                        onDragEnd={() => timelineDragSource.end()}
                         onClick={() => handleApplyEffect(fx)}
-                        className={`group relative flex flex-col justify-between rounded-xl border p-3 transition cursor-pointer min-h-[96px] ${
+                        className={`group relative flex flex-col justify-between rounded-xl border p-3 transition cursor-grab active:cursor-grabbing min-h-[96px] ${
                           isApplied
                             ? 'border-emerald-500 bg-emerald-500/10 shadow-sm'
                             : 'border-app-border bg-app-elevated hover:border-neutral-400 dark:hover:border-neutral-600'
@@ -1598,8 +1666,17 @@ export const SidebarContent: React.FC = () => {
                     return (
                       <div
                         key={idx}
+                        draggable
+                        onDragStart={(e) => {
+                          timelineDragSource.begin({
+                            type: 'transition',
+                            name: tr.name,
+                            payload: tr,
+                          }, e);
+                        }}
+                        onDragEnd={() => timelineDragSource.end()}
                         onClick={() => handleApplyTransition(tr)}
-                        className={`group flex flex-col items-center justify-center rounded-xl border p-3 text-center transition cursor-pointer ${
+                        className={`group flex flex-col items-center justify-center rounded-xl border p-3 text-center transition cursor-grab active:cursor-grabbing ${
                           isApplied
                             ? 'border-purple-500 bg-purple-500/10 shadow-sm'
                             : 'border-app-border bg-app-elevated hover:border-neutral-400 dark:hover:border-neutral-600'
