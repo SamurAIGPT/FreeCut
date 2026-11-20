@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   Film, Music, Type, Scissors, Copy, Trash2, 
   Volume2, VolumeX, Eye, EyeOff, Link2, Sparkles, MoveHorizontal 
@@ -25,6 +26,8 @@ export const ClipItem: React.FC<ClipItemProps> = React.memo(({ clip, isLocked, i
   const splitLeft = useEditorStore((s) => s.splitLeft);
   const splitRight = useEditorStore((s) => s.splitRight);
   const duplicateClip = useEditorStore((s) => s.duplicateClip);
+  const copyClip = useEditorStore((s) => s.copyClip);
+  const toggleClipHidden = useEditorStore((s) => s.toggleClipHidden);
   const extractAudio = useEditorStore((s) => s.extractAudio);
   const rippleDelete = useEditorStore((s) => s.rippleDelete);
   const deleteClip = useEditorStore((s) => s.deleteClip);
@@ -68,11 +71,15 @@ export const ClipItem: React.FC<ClipItemProps> = React.memo(({ clip, isLocked, i
 
     if (contextMenu) {
       document.addEventListener('mousedown', handleOutside);
+      window.addEventListener('click', handleClose);
+      window.addEventListener('contextmenu', handleClose);
       window.addEventListener('resize', handleClose);
       window.addEventListener('scroll', handleClose, true);
     }
     return () => {
       document.removeEventListener('mousedown', handleOutside);
+      window.removeEventListener('click', handleClose);
+      window.removeEventListener('contextmenu', handleClose);
       window.removeEventListener('resize', handleClose);
       window.removeEventListener('scroll', handleClose, true);
     };
@@ -375,7 +382,7 @@ export const ClipItem: React.FC<ClipItemProps> = React.memo(({ clip, isLocked, i
             : isSelected
             ? 'ring-[1.5px] ring-[#009dff] shadow-[0_0_12px_rgba(0,157,255,0.4)] z-20'
             : 'hover:brightness-105 z-10'
-        } ${clip.isMuted ? 'opacity-50' : ''}`}
+        } ${clip.isMuted ? 'opacity-70' : ''} ${clip.isHidden ? 'opacity-40 grayscale-[50%] border-dashed' : ''}`}
       >
         {/* Repeating tiled filmstrip background for video and image clips */}
         {isTiledMedia && (
@@ -471,129 +478,184 @@ export const ClipItem: React.FC<ClipItemProps> = React.memo(({ clip, isLocked, i
         </div>
       </div>
 
-      {/* Right-Click Pro Context Menu */}
-      {contextMenu && (
+      {/* Right-Click Pro Context Menu Portaled to Body */}
+      {contextMenu && typeof document !== 'undefined' && createPortal(
         <div
-          ref={contextMenuRef}
-          style={menuStyle}
-          className="min-w-[200px] max-h-[calc(100vh-24px)] overflow-y-auto rounded-xl border border-neutral-200 bg-white/95 p-1.5 shadow-2xl backdrop-blur-md text-xs text-neutral-900 select-none animate-in fade-in zoom-in-95 duration-75 dark:border-[#2e2e34] dark:bg-[#18181b]/95 dark:text-[#f4f4f5]"
+          className="fixed inset-0 z-[99999]"
+          onClick={() => setContextMenu(null)}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            setContextMenu(null);
+          }}
         >
-          <div className="px-2.5 py-1 text-[10px] font-semibold text-neutral-500 dark:text-neutral-400 border-b border-neutral-200 dark:border-[#2e2e34] mb-1 truncate">
-            {clip.name}
-          </div>
-
-          <button
-            onClick={() => {
-              splitClip(clip.id);
-              setContextMenu(null);
-            }}
-            className="flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 hover:bg-app-elevated transition"
+          <div
+            ref={contextMenuRef}
+            style={menuStyle}
+            onClick={(e) => e.stopPropagation()}
+            className="min-w-[210px] max-h-[calc(100vh-24px)] overflow-y-auto rounded-xl border border-neutral-200 bg-white/95 p-1.5 shadow-2xl backdrop-blur-md text-xs text-neutral-900 select-none animate-in fade-in zoom-in-95 duration-75 dark:border-[#2e2e34] dark:bg-[#18181b]/95 dark:text-[#f4f4f5]"
           >
-            <div className="flex items-center gap-2">
-              <Scissors className="h-3.5 w-3.5" />
-              <span>Split at Playhead</span>
+            <div className="px-2.5 py-1 text-[10px] font-semibold text-neutral-500 dark:text-neutral-400 border-b border-neutral-200 dark:border-[#2e2e34] mb-1 truncate flex items-center justify-between">
+              <span className="truncate">{clip.name}</span>
+              <span className="shrink-0 uppercase text-[9px] opacity-60 ml-2">{clip.type}</span>
             </div>
-            <kbd className="text-[10px] text-app-text-muted">S</kbd>
-          </button>
 
-          <button
-            onClick={() => {
-              splitLeft(clip.id);
-              setContextMenu(null);
-            }}
-            className="flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 hover:bg-app-elevated transition"
-          >
-            <div className="flex items-center gap-2">
-              <MoveHorizontal className="h-3.5 w-3.5" />
-              <span>Split Left (Trim start)</span>
-            </div>
-            <kbd className="text-[10px] text-app-text-muted">Q</kbd>
-          </button>
-
-          <button
-            onClick={() => {
-              splitRight(clip.id);
-              setContextMenu(null);
-            }}
-            className="flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 hover:bg-app-elevated transition"
-          >
-            <div className="flex items-center gap-2">
-              <MoveHorizontal className="h-3.5 w-3.5" />
-              <span>Split Right (Trim end)</span>
-            </div>
-            <kbd className="text-[10px] text-app-text-muted">W</kbd>
-          </button>
-
-          <div className="my-1 h-px bg-app-border" />
-
-          {clip.type === 'video' && (
             <button
               onClick={() => {
-                extractAudio(clip.id);
+                splitClip(clip.id);
                 setContextMenu(null);
               }}
-              className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 hover:bg-app-elevated transition text-emerald-500 font-medium"
+              className="flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer"
             >
-              <Link2 className="h-3.5 w-3.5" />
-              <span>Extract / Separate Audio</span>
+              <div className="flex items-center gap-2">
+                <Scissors className="h-3.5 w-3.5 text-neutral-500 dark:text-neutral-400" />
+                <span>Split at Playhead</span>
+              </div>
+              <kbd className="text-[10px] text-app-text-muted">S</kbd>
             </button>
-          )}
 
-          <button
-            onClick={() => {
-              duplicateClip(clip.id);
-              setContextMenu(null);
-            }}
-            className="flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 hover:bg-app-elevated transition"
-          >
-            <div className="flex items-center gap-2">
-              <Copy className="h-3.5 w-3.5" />
-              <span>Duplicate Clip</span>
-            </div>
-            <kbd className="text-[10px] text-app-text-muted">Ctrl+D</kbd>
-          </button>
+            <button
+              onClick={() => {
+                splitLeft(clip.id);
+                setContextMenu(null);
+              }}
+              className="flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer"
+            >
+              <div className="flex items-center gap-2">
+                <MoveHorizontal className="h-3.5 w-3.5 text-neutral-500 dark:text-neutral-400" />
+                <span>Split Left (Trim start)</span>
+              </div>
+              <kbd className="text-[10px] text-app-text-muted">Q</kbd>
+            </button>
 
-          <button
-            onClick={() => {
-              updateClip(clip.id, { isMuted: !clip.isMuted, volume: clip.isMuted ? 1 : 0 });
-              setContextMenu(null);
-            }}
-            className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 hover:bg-app-elevated transition"
-          >
-            {clip.isMuted ? <Volume2 className="h-3.5 w-3.5" /> : <VolumeX className="h-3.5 w-3.5" />}
-            <span>{clip.isMuted ? 'Unmute Audio' : 'Mute Audio'}</span>
-          </button>
+            <button
+              onClick={() => {
+                splitRight(clip.id);
+                setContextMenu(null);
+              }}
+              className="flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer"
+            >
+              <div className="flex items-center gap-2">
+                <MoveHorizontal className="h-3.5 w-3.5 text-neutral-500 dark:text-neutral-400" />
+                <span>Split Right (Trim end)</span>
+              </div>
+              <kbd className="text-[10px] text-app-text-muted">W</kbd>
+            </button>
 
-          <div className="my-1 h-px bg-app-border" />
+            <div className="my-1 h-px bg-neutral-200 dark:bg-neutral-800" />
 
-          <button
-            onClick={() => {
-              rippleDelete(clip.id);
-              setContextMenu(null);
-            }}
-            className="flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 hover:bg-amber-500/15 text-amber-500 font-medium transition"
-          >
-            <div className="flex items-center gap-2">
-              <Sparkles className="h-3.5 w-3.5" />
-              <span>Ripple Delete (Close Gap)</span>
-            </div>
-            <kbd className="text-[10px] opacity-75">Shift+Del</kbd>
-          </button>
+            {/* Copy Clip */}
+            <button
+              onClick={() => {
+                copyClip(clip.id);
+                setContextMenu(null);
+              }}
+              className="flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer"
+            >
+              <div className="flex items-center gap-2">
+                <Copy className="h-3.5 w-3.5 text-neutral-500 dark:text-neutral-400" />
+                <span>Copy Clip</span>
+              </div>
+              <kbd className="text-[10px] text-app-text-muted">Ctrl+C</kbd>
+            </button>
 
-          <button
-            onClick={() => {
-              deleteClip(clip.id);
-              setContextMenu(null);
-            }}
-            className="flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 hover:bg-red-500/15 text-red-500 font-medium transition"
-          >
-            <div className="flex items-center gap-2">
-              <Trash2 className="h-3.5 w-3.5" />
-              <span>Delete Clip</span>
-            </div>
-            <kbd className="text-[10px] opacity-75">Del</kbd>
-          </button>
-        </div>
+            {/* Duplicate Clip */}
+            <button
+              onClick={() => {
+                duplicateClip(clip.id);
+                setContextMenu(null);
+              }}
+              className="flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer"
+            >
+              <div className="flex items-center gap-2">
+                <Copy className="h-3.5 w-3.5 text-neutral-500 dark:text-neutral-400" />
+                <span>Duplicate Clip</span>
+              </div>
+              <kbd className="text-[10px] text-app-text-muted">Ctrl+D</kbd>
+            </button>
+
+            {/* Show / Hide Clip */}
+            <button
+              onClick={() => {
+                toggleClipHidden(clip.id);
+                setContextMenu(null);
+              }}
+              className="flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer"
+            >
+              <div className="flex items-center gap-2">
+                {clip.isHidden ? (
+                  <Eye className="h-3.5 w-3.5 text-amber-500" />
+                ) : (
+                  <EyeOff className="h-3.5 w-3.5 text-neutral-500 dark:text-neutral-400" />
+                )}
+                <span>{clip.isHidden ? 'Show Clip' : 'Hide Clip'}</span>
+              </div>
+              <kbd className="text-[10px] text-app-text-muted">H</kbd>
+            </button>
+
+            {/* Mute / Unmute Audio */}
+            <button
+              onClick={() => {
+                updateClip(clip.id, { isMuted: !clip.isMuted, volume: clip.isMuted ? 1 : 0 });
+                setContextMenu(null);
+              }}
+              className="flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer"
+            >
+              <div className="flex items-center gap-2">
+                {clip.isMuted ? (
+                  <Volume2 className="h-3.5 w-3.5 text-emerald-500" />
+                ) : (
+                  <VolumeX className="h-3.5 w-3.5 text-neutral-500 dark:text-neutral-400" />
+                )}
+                <span>{clip.isMuted ? 'Unmute Audio' : 'Mute Audio'}</span>
+              </div>
+              <kbd className="text-[10px] text-app-text-muted">M</kbd>
+            </button>
+
+            {clip.type === 'video' && (
+              <button
+                onClick={() => {
+                  extractAudio(clip.id);
+                  setContextMenu(null);
+                }}
+                className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 transition text-emerald-600 dark:text-emerald-400 font-medium cursor-pointer"
+              >
+                <Link2 className="h-3.5 w-3.5 text-emerald-500" />
+                <span>Extract / Separate Audio</span>
+              </button>
+            )}
+
+            <div className="my-1 h-px bg-neutral-200 dark:bg-neutral-800" />
+
+            <button
+              onClick={() => {
+                rippleDelete(clip.id);
+                setContextMenu(null);
+              }}
+              className="flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 hover:bg-amber-500/15 text-amber-600 dark:text-amber-400 font-medium transition cursor-pointer"
+            >
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+                <span>Ripple Delete (Close Gap)</span>
+              </div>
+              <kbd className="text-[10px] opacity-75">Shift+Del</kbd>
+            </button>
+
+            <button
+              onClick={() => {
+                deleteClip(clip.id);
+                setContextMenu(null);
+              }}
+              className="flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 hover:bg-red-500/15 text-red-600 dark:text-red-400 font-medium transition cursor-pointer"
+            >
+              <div className="flex items-center gap-2">
+                <Trash2 className="h-3.5 w-3.5 text-red-500" />
+                <span>Delete Clip</span>
+              </div>
+              <kbd className="text-[10px] opacity-75">Del</kbd>
+            </button>
+          </div>
+        </div>,
+        document.body
       )}
     </>
   );

@@ -10,6 +10,9 @@ export function useKeyboardShortcuts() {
   const splitLeft = useEditorStore((s) => s.splitLeft);
   const splitRight = useEditorStore((s) => s.splitRight);
   const duplicateClip = useEditorStore((s) => s.duplicateClip);
+  const copyClip = useEditorStore((s) => s.copyClip);
+  const pasteClip = useEditorStore((s) => s.pasteClip);
+  const toggleClipHidden = useEditorStore((s) => s.toggleClipHidden);
   const addMarker = useEditorStore((s) => s.addMarker);
   const setActiveTool = useEditorStore((s) => s.setActiveTool);
   const undo = useEditorStore((s) => s.undo);
@@ -74,6 +77,28 @@ export function useKeyboardShortcuts() {
         addMarker(playhead);
       }
 
+      // H -> Toggle Show / Hide Selected Clip
+      if (e.code === 'KeyH' && !e.ctrlKey && !e.metaKey) {
+        if (selectedClipId) {
+          e.preventDefault();
+          toggleClipHidden(selectedClipId);
+        }
+      }
+
+      // Ctrl + C -> Copy Selected Clip
+      if ((e.ctrlKey || e.metaKey) && e.code === 'KeyC') {
+        if (selectedClipId) {
+          e.preventDefault();
+          copyClip(selectedClipId);
+        }
+      }
+
+      // Ctrl + V -> Paste Copied Clip at Playhead
+      if ((e.ctrlKey || e.metaKey) && e.code === 'KeyV') {
+        e.preventDefault();
+        pasteClip();
+      }
+
       // Ctrl + D -> Duplicate Selected Clip
       if ((e.ctrlKey || e.metaKey) && e.code === 'KeyD') {
         if (selectedClipId) {
@@ -124,5 +149,23 @@ export function useKeyboardShortcuts() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [togglePlay, selectedClipId, deleteClip, splitClip, undo, redo, playhead, setPlayhead]);
+  }, [
+    togglePlay,
+    selectedClipId,
+    deleteClip,
+    rippleDelete,
+    splitClip,
+    splitLeft,
+    splitRight,
+    duplicateClip,
+    copyClip,
+    pasteClip,
+    toggleClipHidden,
+    addMarker,
+    setActiveTool,
+    undo,
+    redo,
+    playhead,
+    setPlayhead,
+  ]);
 }

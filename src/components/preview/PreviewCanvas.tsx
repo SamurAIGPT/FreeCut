@@ -1,5 +1,6 @@
-import React, { useEffect, useRef } from 'react';
-import { Grid, Maximize, ZoomIn, Film } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { Grid, Maximize, ZoomIn, Film, Camera, Copy, Download, Check, CheckCircle2 } from 'lucide-react';
 import { useEditorStore } from '@/store/useEditorStore';
 import { compositor } from '@/engine/compositor';
 import { AspectRatio } from '@/types/editor';
@@ -35,6 +36,64 @@ export const PreviewCanvas: React.FC = () => {
   const toggleShowGrid = useEditorStore((s) => s.toggleShowGrid);
   const canvasZoom = useEditorStore((s) => s.canvasZoom);
   const setCanvasZoom = useEditorStore((s) => s.setCanvasZoom);
+
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleClose = () => setContextMenu(null);
+    if (contextMenu) {
+      window.addEventListener('click', handleClose);
+      window.addEventListener('contextmenu', handleClose);
+      window.addEventListener('resize', handleClose);
+    }
+    return () => {
+      window.removeEventListener('click', handleClose);
+      window.removeEventListener('contextmenu', handleClose);
+      window.removeEventListener('resize', handleClose);
+    };
+  }, [contextMenu]);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 2500);
+  };
+
+  const handleSaveSnapshot = () => {
+    if (!canvasRef.current) return;
+    try {
+      const dataUrl = canvasRef.current.toDataURL('image/png');
+      const a = document.createElement('a');
+      a.href = dataUrl;
+      a.download = `snapshot-${Math.round(playhead * 1000)}ms.png`;
+      a.click();
+      showToast('Snapshot saved as PNG');
+    } catch {
+      showToast('Could not save snapshot');
+    }
+  };
+
+  const handleCopySnapshot = () => {
+    if (!canvasRef.current) return;
+    try {
+      canvasRef.current.toBlob(async (blob) => {
+        if (!blob) {
+          showToast('Failed to create snapshot blob');
+          return;
+        }
+        try {
+          await navigator.clipboard.write([
+            new ClipboardItem({ 'image/png': blob })
+          ]);
+          showToast('Snapshot copied to clipboard');
+        } catch {
+          showToast('Clipboard access restricted');
+        }
+      });
+    } catch {
+      showToast('Could not copy snapshot');
+    }
+  };
 
   useEffect(() => {
     if (canvasRef.current) {
@@ -125,7 +184,13 @@ export const PreviewCanvas: React.FC = () => {
       </div>
 
       {/* Canvas Viewport Frame */}
-      <div className="flex flex-1 min-h-0 items-center justify-center p-4 pt-11 overflow-hidden">
+      <div 
+        onContextMenu={(e) => {
+          e.preventDefault();
+          setContextMenu({ x: e.clientX, y: e.clientY });
+        }}
+        className="flex flex-1 min-h-0 items-center justify-center p-4 pt-11 overflow-hidden cursor-default"
+      >
         <div
           style={
             canvasZoom > 0
@@ -140,6 +205,147 @@ export const PreviewCanvas: React.FC = () => {
           />
         </div>
       </div>
+
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 rounded-xl border border-app-border bg-app-surface/95 px-3.5 py-1.5 text-xs font-semibold text-app-text shadow-2xl backdrop-blur-md animate-in fade-in duration-200">
+          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+          <span>{toastMessage}</span>
+        </div>
+      )}
+
+      {/* Preview Right-Click Context Menu */}
+      {contextMenu && typeof document !== 'undefined' && createPortal(
+        <div
+          className="fixed inset-0 z-[99999]"
+          onClick={() => setContextMenu(null)}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            setContextMenu(null);
+          }}
+        >
+          <div
+            style={{
+              position: 'fixed',
+              left: Math.max(10, Math.min(window.innerWidth - 220, contextMenu.x)),
+              top: Math.max(10, Math.min(window.innerHeight - 290, contextMenu.y)),
+            }}
+            onClick={(e) => e.stopPropagation()}
+            className="w-52 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white/95 dark:bg-neutral-900/95 p-1.5 shadow-2xl backdrop-blur-md text-neutral-900 dark:text-neutral-100 select-none animate-in fade-in zoom-in-95 duration-100 text-xs"
+          >
+            <div className="px-2.5 py-1 text-[10px] font-semibold text-neutral-500 dark:text-neutral-400 border-b border-neutral-200 dark:border-neutral-800 mb-1">
+              Preview Player
+            </div>
+
+            {/* Fit to screen */}
+            <button
+              onClick={() => {
+                setCanvasZoom(0);
+                setContextMenu(null);
+              }}
+              className="flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer"
+            >
+              <div className="flex items-center gap-2">
+                <ZoomIn className="h-3.5 w-3.5 text-neutral-500 dark:text-neutral-400" />
+                <span>Fit to screen</span>
+              </div>
+              {canvasZoom === 0 && <Check className="h-3.5 w-3.5 text-blue-500" />}
+            </button>
+
+            {/* 50% Zoom */}
+            <button
+              onClick={() => {
+                setCanvasZoom(50);
+                setContextMenu(null);
+              }}
+              className="flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer"
+            >
+              <span>50%</span>
+              {canvasZoom === 50 && <Check className="h-3.5 w-3.5 text-blue-500" />}
+            </button>
+
+            {/* 75% Zoom */}
+            <button
+              onClick={() => {
+                setCanvasZoom(75);
+                setContextMenu(null);
+              }}
+              className="flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer"
+            >
+              <span>75%</span>
+              {canvasZoom === 75 && <Check className="h-3.5 w-3.5 text-blue-500" />}
+            </button>
+
+            {/* 100% Zoom */}
+            <button
+              onClick={() => {
+                setCanvasZoom(100);
+                setContextMenu(null);
+              }}
+              className="flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer"
+            >
+              <span>100%</span>
+              {canvasZoom === 100 && <Check className="h-3.5 w-3.5 text-blue-500" />}
+            </button>
+
+            <div className="my-1 h-px bg-neutral-200 dark:bg-neutral-800" />
+
+            {/* Fullscreen */}
+            <button
+              onClick={() => {
+                handleToggleFullscreen();
+                setContextMenu(null);
+              }}
+              className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer"
+            >
+              <Maximize className="h-3.5 w-3.5 text-neutral-500 dark:text-neutral-400" />
+              <span>Full screen</span>
+            </button>
+
+            {/* Save snapshot */}
+            <button
+              onClick={() => {
+                setContextMenu(null);
+                handleSaveSnapshot();
+              }}
+              className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer"
+            >
+              <Download className="h-3.5 w-3.5 text-neutral-500 dark:text-neutral-400" />
+              <span>Save snapshot</span>
+            </button>
+
+            {/* Copy snapshot */}
+            <button
+              onClick={() => {
+                setContextMenu(null);
+                handleCopySnapshot();
+              }}
+              className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer"
+            >
+              <Copy className="h-3.5 w-3.5 text-neutral-500 dark:text-neutral-400" />
+              <span>Copy snapshot</span>
+            </button>
+
+            <div className="my-1 h-px bg-neutral-200 dark:bg-neutral-800" />
+
+            {/* Safe Area / Grid */}
+            <button
+              onClick={() => {
+                toggleShowGrid();
+                setContextMenu(null);
+              }}
+              className="flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer"
+            >
+              <div className="flex items-center gap-2">
+                <Grid className="h-3.5 w-3.5 text-neutral-500 dark:text-neutral-400" />
+                <span>Safe Area / Grid</span>
+              </div>
+              {showGrid && <Check className="h-3.5 w-3.5 text-blue-500" />}
+            </button>
+          </div>
+        </div>,
+        document.body
+      )}
 
       {/* Transport Controls Bar */}
       <TransportBar />

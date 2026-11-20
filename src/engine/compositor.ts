@@ -217,6 +217,7 @@ class CanvasCompositor {
 
     // 3. Find active clips at current playhead time
     const activeClips = clips.filter((clip) => {
+      if (clip.isHidden) return false;
       if (!visibleTrackIds.has(clip.trackId)) return false;
       return playhead >= clip.start && playhead < clip.start + clip.duration;
     });

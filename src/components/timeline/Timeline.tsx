@@ -1,8 +1,9 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   Magnet, Plus, Scissors, Trash2, ZoomIn, ZoomOut, MousePointer, 
   Copy, Link2, Bookmark, Sparkles, AlignLeft, AlignRight, Maximize2,
-  Film, Music, Type, Wand2, CheckCircle2
+  Film, Music, Type, Wand2, CheckCircle2, Eye, EyeOff, Volume2, VolumeX, Lock, Unlock, ClipboardPaste, X
 } from 'lucide-react';
 import { useEditorStore } from '@/store/useEditorStore';
 import { TrackHeader } from './TrackHeader';
@@ -14,7 +15,7 @@ import { timelineDragSource, TimelineDragData } from '@/utils/dragSource';
 import { importMediaFiles } from '@/utils/mediaImporter';
 import { formatTimecode } from '@/utils/time';
 import { generateSoundEffect } from '@/utils/sampleMedia';
-import { TrackType } from '@/types/editor';
+import { Track, TrackType } from '@/types/editor';
 
 interface DropTargetState {
   trackId: string | null;
@@ -32,6 +33,34 @@ export const Timeline: React.FC = () => {
   const [scrollLeft, setScrollLeft] = useState(0);
   const [dropTarget, setDropTarget] = useState<DropTargetState | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [trackContextMenu, setTrackContextMenu] = useState<{
+    track: Track;
+    x: number;
+    y: number;
+    time: number;
+  } | null>(null);
+  const [emptyContextMenu, setEmptyContextMenu] = useState<{
+    x: number;
+    y: number;
+    time: number;
+  } | null>(null);
+
+  useEffect(() => {
+    const handleClose = () => {
+      setTrackContextMenu(null);
+      setEmptyContextMenu(null);
+    };
+    if (trackContextMenu || emptyContextMenu) {
+      window.addEventListener('click', handleClose);
+      window.addEventListener('contextmenu', handleClose);
+      window.addEventListener('resize', handleClose);
+    }
+    return () => {
+      window.removeEventListener('click', handleClose);
+      window.removeEventListener('contextmenu', handleClose);
+      window.removeEventListener('resize', handleClose);
+    };
+  }, [trackContextMenu, emptyContextMenu]);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const showToast = (msg: string) => {
@@ -43,7 +72,16 @@ export const Timeline: React.FC = () => {
   const clips = useEditorStore((s) => s.clips);
   const zoom = useEditorStore((s) => s.zoom);
   const duration = useEditorStore((s) => s.duration);
+  const playhead = useEditorStore((s) => s.playhead);
   const selectedClipId = useEditorStore((s) => s.selectedClipId);
+  const setSelectedClipId = useEditorStore((s) => s.setSelectedClipId);
+  const copiedClip = useEditorStore((s) => s.copiedClip);
+  const copyClip = useEditorStore((s) => s.copyClip);
+  const pasteClip = useEditorStore((s) => s.pasteClip);
+  const deleteTrack = useEditorStore((s) => s.deleteTrack);
+  const toggleTrackMute = useEditorStore((s) => s.toggleTrackMute);
+  const toggleTrackLock = useEditorStore((s) => s.toggleTrackLock);
+  const toggleTrackVisibility = useEditorStore((s) => s.toggleTrackVisibility);
   const splitClip = useEditorStore((s) => s.splitClip);
   const splitLeft = useEditorStore((s) => s.splitLeft);
   const splitRight = useEditorStore((s) => s.splitRight);
@@ -71,6 +109,14 @@ export const Timeline: React.FC = () => {
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     setScrollLeft(e.currentTarget.scrollLeft);
+  };
+
+  const getTimeFromClientX = (clientX: number) => {
+    if (!containerRef.current) return playhead;
+    const rect = containerRef.current.getBoundingClientRect();
+    const scrollX = containerRef.current.scrollLeft;
+    const x = Math.max(0, clientX - rect.left + scrollX);
+    return Math.max(0, x / zoom);
   };
 
   const handleFitToZoom = () => {
@@ -694,12 +740,25 @@ export const Timeline: React.FC = () => {
           </div>
           <div className="flex-1 overflow-y-auto">
             {tracks.map((track, idx) => (
-              <TrackHeader 
-                key={track.id} 
-                track={track} 
-                index={idx} 
-                totalTracks={tracks.length} 
-              />
+              <div
+                key={track.id}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setTrackContextMenu({
+                    track,
+                    x: e.clientX,
+                    y: e.clientY,
+                    time: playhead,
+                  });
+                }}
+              >
+                <TrackHeader 
+                  track={track} 
+                  index={idx} 
+                  totalTracks={tracks.length} 
+                />
+              </div>
             ))}
           </div>
         </div>
@@ -747,6 +806,17 @@ export const Timeline: React.FC = () => {
                   key={track.id}
                   data-track-id={track.id}
                   style={{ height: `${TRACK_HEIGHT}px` }}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const t = getTimeFromClientX(e.clientX);
+                    setTrackContextMenu({
+                      track,
+                      x: e.clientX,
+                      y: e.clientY,
+                      time: t,
+                    });
+                  }}
                   className={`relative border-b transition-colors duration-150 ${
                     isTrackHovered
                       ? 'border-cyan-400 bg-cyan-500/10 dark:bg-cyan-500/15 ring-1 ring-cyan-400/60'
@@ -822,9 +892,271 @@ export const Timeline: React.FC = () => {
                 </span>
               </div>
             )}
+
+            {/* Clickable empty timeline area below tracks */}
+            <div
+              className="h-36 w-full cursor-default"
+              onContextMenu={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const t = getTimeFromClientX(e.clientX);
+                setEmptyContextMenu({
+                  x: e.clientX,
+                  y: e.clientY,
+                  time: t,
+                });
+              }}
+            />
           </div>
         </div>
       </div>
+
+      {/* Track Right-Click Context Menu */}
+      {trackContextMenu && typeof document !== 'undefined' && createPortal(
+        <div
+          className="fixed inset-0 z-[99999]"
+          onClick={() => setTrackContextMenu(null)}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            setTrackContextMenu(null);
+          }}
+        >
+          <div
+            style={{
+              position: 'fixed',
+              left: Math.max(10, Math.min(window.innerWidth - 230, trackContextMenu.x)),
+              top: Math.max(10, Math.min(window.innerHeight - 340, trackContextMenu.y)),
+            }}
+            onClick={(e) => e.stopPropagation()}
+            className="w-56 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white/95 dark:bg-neutral-900/95 p-1.5 shadow-2xl backdrop-blur-md text-neutral-900 dark:text-neutral-100 select-none animate-in fade-in zoom-in-95 duration-100 text-xs"
+          >
+            <div className="px-2.5 py-1 text-[10px] font-semibold text-neutral-500 dark:text-neutral-400 border-b border-neutral-200 dark:border-neutral-800 mb-1 flex items-center justify-between">
+              <span className="truncate">{trackContextMenu.track.name}</span>
+              <span className="shrink-0 uppercase text-[9px] opacity-60 ml-2">{trackContextMenu.track.type}</span>
+            </div>
+
+            {/* Paste Elements */}
+            <button
+              disabled={!copiedClip}
+              onClick={() => {
+                pasteClip(trackContextMenu.track.id, trackContextMenu.time);
+                showToast(`Pasted "${copiedClip?.name}" to track`);
+                setTrackContextMenu(null);
+              }}
+              className="flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 disabled:opacity-40 transition cursor-pointer"
+            >
+              <div className="flex items-center gap-2">
+                <ClipboardPaste className="h-3.5 w-3.5 text-neutral-500 dark:text-neutral-400" />
+                <span>Paste elements</span>
+              </div>
+              <kbd className="text-[10px] text-app-text-muted">Ctrl+V</kbd>
+            </button>
+
+            <div className="my-1 h-px bg-neutral-200 dark:bg-neutral-800" />
+
+            {/* Mute Track */}
+            {trackContextMenu.track.type !== 'text' && (
+              <button
+                onClick={() => {
+                  toggleTrackMute(trackContextMenu.track.id);
+                  setTrackContextMenu(null);
+                }}
+                className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer"
+              >
+                {trackContextMenu.track.isMuted ? (
+                  <Volume2 className="h-3.5 w-3.5 text-emerald-500" />
+                ) : (
+                  <VolumeX className="h-3.5 w-3.5 text-neutral-500 dark:text-neutral-400" />
+                )}
+                <span>{trackContextMenu.track.isMuted ? 'Unmute Track' : 'Mute Track'}</span>
+              </button>
+            )}
+
+            {/* Hide / Show Track */}
+            <button
+              onClick={() => {
+                toggleTrackVisibility(trackContextMenu.track.id);
+                setTrackContextMenu(null);
+              }}
+              className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer"
+            >
+              {trackContextMenu.track.isVisible === false ? (
+                <Eye className="h-3.5 w-3.5 text-emerald-500" />
+              ) : (
+                <EyeOff className="h-3.5 w-3.5 text-neutral-500 dark:text-neutral-400" />
+              )}
+              <span>{trackContextMenu.track.isVisible === false ? 'Show Track' : 'Hide Track'}</span>
+            </button>
+
+            {/* Lock / Unlock Track */}
+            <button
+              onClick={() => {
+                toggleTrackLock(trackContextMenu.track.id);
+                setTrackContextMenu(null);
+              }}
+              className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer"
+            >
+              {trackContextMenu.track.isLocked ? (
+                <Unlock className="h-3.5 w-3.5 text-amber-500" />
+              ) : (
+                <Lock className="h-3.5 w-3.5 text-neutral-500 dark:text-neutral-400" />
+              )}
+              <span>{trackContextMenu.track.isLocked ? 'Unlock Track' : 'Lock Track'}</span>
+            </button>
+
+            {/* Delete Track */}
+            <button
+              disabled={tracks.length <= 1}
+              onClick={() => {
+                deleteTrack(trackContextMenu.track.id);
+                showToast(`Deleted track`);
+                setTrackContextMenu(null);
+              }}
+              className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 hover:bg-red-50 dark:hover:bg-red-950/30 text-red-600 dark:text-red-400 disabled:opacity-40 transition cursor-pointer"
+            >
+              <Trash2 className="h-3.5 w-3.5 text-red-500" />
+              <span>Delete Track</span>
+            </button>
+
+            <div className="my-1 h-px bg-neutral-200 dark:bg-neutral-800" />
+
+            {/* Add Tracks */}
+            <button
+              onClick={() => {
+                addTrack('video', 'Video Track');
+                showToast('Added video track');
+                setTrackContextMenu(null);
+              }}
+              className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer"
+            >
+              <Film className="h-3.5 w-3.5 text-blue-500" />
+              <span>Add Video Track</span>
+            </button>
+
+            <button
+              onClick={() => {
+                addTrack('audio', 'Audio Track');
+                showToast('Added audio track');
+                setTrackContextMenu(null);
+              }}
+              className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer"
+            >
+              <Music className="h-3.5 w-3.5 text-emerald-500" />
+              <span>Add Audio Track</span>
+            </button>
+
+            <button
+              onClick={() => {
+                addTrack('text', 'Text Track');
+                showToast('Added text track');
+                setTrackContextMenu(null);
+              }}
+              className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer"
+            >
+              <Type className="h-3.5 w-3.5 text-amber-500" />
+              <span>Add Text Track</span>
+            </button>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Empty Timeline Right-Click Context Menu */}
+      {emptyContextMenu && typeof document !== 'undefined' && createPortal(
+        <div
+          className="fixed inset-0 z-[99999]"
+          onClick={() => setEmptyContextMenu(null)}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            setEmptyContextMenu(null);
+          }}
+        >
+          <div
+            style={{
+              position: 'fixed',
+              left: Math.max(10, Math.min(window.innerWidth - 220, emptyContextMenu.x)),
+              top: Math.max(10, Math.min(window.innerHeight - 250, emptyContextMenu.y)),
+            }}
+            onClick={(e) => e.stopPropagation()}
+            className="w-52 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white/95 dark:bg-neutral-900/95 p-1.5 shadow-2xl backdrop-blur-md text-neutral-900 dark:text-neutral-100 select-none animate-in fade-in zoom-in-95 duration-100 text-xs"
+          >
+            <div className="px-2.5 py-1 text-[10px] font-semibold text-neutral-500 dark:text-neutral-400 border-b border-neutral-200 dark:border-neutral-800 mb-1">
+              Timeline Space
+            </div>
+
+            {/* Paste */}
+            <button
+              disabled={!copiedClip}
+              onClick={() => {
+                pasteClip(undefined, emptyContextMenu.time);
+                showToast(`Pasted "${copiedClip?.name}"`);
+                setEmptyContextMenu(null);
+              }}
+              className="flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 disabled:opacity-40 transition cursor-pointer"
+            >
+              <div className="flex items-center gap-2">
+                <ClipboardPaste className="h-3.5 w-3.5 text-neutral-500 dark:text-neutral-400" />
+                <span>Paste elements</span>
+              </div>
+              <kbd className="text-[10px] text-app-text-muted">Ctrl+V</kbd>
+            </button>
+
+            <div className="my-1 h-px bg-neutral-200 dark:bg-neutral-800" />
+
+            {/* Add Tracks */}
+            <button
+              onClick={() => {
+                addTrack('video', 'Video Track');
+                showToast('Added video track');
+                setEmptyContextMenu(null);
+              }}
+              className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer"
+            >
+              <Film className="h-3.5 w-3.5 text-blue-500" />
+              <span>Add Video Track</span>
+            </button>
+
+            <button
+              onClick={() => {
+                addTrack('audio', 'Audio Track');
+                showToast('Added audio track');
+                setEmptyContextMenu(null);
+              }}
+              className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer"
+            >
+              <Music className="h-3.5 w-3.5 text-emerald-500" />
+              <span>Add Audio Track</span>
+            </button>
+
+            <button
+              onClick={() => {
+                addTrack('text', 'Text Track');
+                showToast('Added text track');
+                setEmptyContextMenu(null);
+              }}
+              className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer"
+            >
+              <Type className="h-3.5 w-3.5 text-amber-500" />
+              <span>Add Text Track</span>
+            </button>
+
+            <div className="my-1 h-px bg-neutral-200 dark:bg-neutral-800" />
+
+            {/* Clear Selection */}
+            <button
+              onClick={() => {
+                setSelectedClipId(null);
+                setEmptyContextMenu(null);
+              }}
+              className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-600 dark:text-neutral-400 transition cursor-pointer"
+            >
+              <X className="h-3.5 w-3.5" />
+              <span>Clear Selection</span>
+            </button>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 };

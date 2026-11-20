@@ -1,10 +1,11 @@
 import React, { useRef, useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   Upload, Film, Music, Plus, Sparkles, Search, Palette, Wand2, Type, Smile, 
   Image as ImageIcon, Play, Pause, Square, Check, ArrowRight, Zap, Flame, Star, 
   Heart, PartyPopper, Rocket, Lightbulb, ThumbsUp, Target, Clapperboard, 
   Bell, Volume2, Subtitles, SlidersHorizontal, Settings, Globe, FileText, 
-  RotateCcw, Monitor, RefreshCw, Loader2, Info, Trash2
+  RotateCcw, Monitor, RefreshCw, Loader2, Info, Trash2, Download, Copy
 } from 'lucide-react';
 import { useEditorStore } from '@/store/useEditorStore';
 import { MediaAsset, ColorFilter, AspectRatio, ClipEffect, ClipTransition } from '@/types/editor';
@@ -91,6 +92,7 @@ export const SidebarContent: React.FC = () => {
   const activeTab = useEditorStore((s) => s.activeSidebarTab);
   const assets = useEditorStore((s) => s.assets);
   const addAsset = useEditorStore((s) => s.addAsset);
+  const deleteAsset = useEditorStore((s) => s.deleteAsset);
   const addClip = useEditorStore((s) => s.addClip);
   const tracks = useEditorStore((s) => s.tracks);
   const addTrack = useEditorStore((s) => s.addTrack);
@@ -121,6 +123,25 @@ export const SidebarContent: React.FC = () => {
   const [playingSoundId, setPlayingSoundId] = useState<string | null>(null);
   const stopLiveAudioRef = useRef<(() => void) | null>(null);
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
+  const [assetContextMenu, setAssetContextMenu] = useState<{
+    asset: MediaAsset;
+    x: number;
+    y: number;
+  } | null>(null);
+
+  useEffect(() => {
+    const handleClose = () => setAssetContextMenu(null);
+    if (assetContextMenu) {
+      window.addEventListener('click', handleClose);
+      window.addEventListener('contextmenu', handleClose);
+      window.addEventListener('resize', handleClose);
+    }
+    return () => {
+      window.removeEventListener('click', handleClose);
+      window.removeEventListener('contextmenu', handleClose);
+      window.removeEventListener('resize', handleClose);
+    };
+  }, [assetContextMenu]);
 
   // Captions state
   const [selectedLanguage, setSelectedLanguage] = useState('auto');
@@ -1144,6 +1165,7 @@ export const SidebarContent: React.FC = () => {
                     .map((asset) => (
                       <div
                         key={asset.id}
+                        data-asset-id={asset.id}
                         draggable
                         onDragStart={(e) => {
                           timelineDragSource.begin({
@@ -1159,6 +1181,15 @@ export const SidebarContent: React.FC = () => {
                           }, e);
                         }}
                         onDragEnd={() => timelineDragSource.end()}
+                        onContextMenu={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setAssetContextMenu({
+                            asset,
+                            x: e.clientX,
+                            y: e.clientY,
+                          });
+                        }}
                         className="group relative flex flex-col overflow-hidden rounded-xl border border-app-border bg-app-elevated hover:border-neutral-400 dark:hover:border-neutral-600 transition shadow-xs cursor-grab active:cursor-grabbing"
                       >
                         {/* Media Preview Box */}
@@ -2206,6 +2237,111 @@ export const SidebarContent: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Asset Bin Right-Click Context Menu */}
+      {assetContextMenu && typeof document !== 'undefined' && createPortal(
+        <div
+          className="fixed inset-0 z-[99999]"
+          onClick={() => setAssetContextMenu(null)}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            setAssetContextMenu(null);
+          }}
+        >
+          <div
+            style={{
+              position: 'fixed',
+              left: Math.max(10, Math.min(window.innerWidth - 220, assetContextMenu.x)),
+              top: Math.max(10, Math.min(window.innerHeight - 240, assetContextMenu.y)),
+            }}
+            onClick={(e) => e.stopPropagation()}
+            className="w-56 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white/95 dark:bg-neutral-900/95 p-1.5 shadow-2xl backdrop-blur-md text-neutral-900 dark:text-neutral-100 select-none animate-in fade-in zoom-in-95 duration-100 text-xs"
+          >
+            <div className="px-2.5 py-1 text-[10px] font-semibold text-neutral-500 dark:text-neutral-400 border-b border-neutral-200 dark:border-neutral-800 mb-1 flex items-center justify-between">
+              <span className="truncate">{assetContextMenu.asset.name}</span>
+              <span className="shrink-0 uppercase text-[9px] opacity-60 ml-2">{assetContextMenu.asset.type}</span>
+            </div>
+
+            {/* Add to Timeline */}
+            <button
+              onClick={() => {
+                const asset = assetContextMenu.asset;
+                const track = tracks.find((t) => t.type === (asset.type === 'audio' ? 'audio' : 'video'));
+                if (track) {
+                  const currentPlayhead = useEditorStore.getState().playhead;
+                  addClip({
+                    trackId: track.id,
+                    assetId: asset.id,
+                    name: asset.name,
+                    type: asset.type,
+                    start: currentPlayhead,
+                    duration: asset.duration,
+                    trimStart: 0,
+                    trimEnd: asset.duration,
+                    transform: { x: 0, y: 0, scale: 1, rotation: 0, opacity: 1 },
+                    volume: 1,
+                    color: asset.type === 'audio' ? '#059669' : '#2563eb',
+                    thumbnailUrl: asset.thumbnailUrl,
+                    url: asset.url,
+                  });
+                  showToast(`Added ${asset.name} at playhead`);
+                }
+                setAssetContextMenu(null);
+              }}
+              className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer"
+            >
+              <Plus className="h-3.5 w-3.5 text-blue-500" />
+              <span>Add to Timeline</span>
+            </button>
+
+            {/* Download File */}
+            <button
+              onClick={() => {
+                const a = document.createElement('a');
+                a.href = assetContextMenu.asset.url;
+                a.download = assetContextMenu.asset.name;
+                a.click();
+                showToast(`Downloaded ${assetContextMenu.asset.name}`);
+                setAssetContextMenu(null);
+              }}
+              className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer"
+            >
+              <Download className="h-3.5 w-3.5 text-neutral-500 dark:text-neutral-400" />
+              <span>Download File</span>
+            </button>
+
+            {/* Copy Name */}
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(assetContextMenu.asset.name);
+                showToast(`Copied asset name`);
+                setAssetContextMenu(null);
+              }}
+              className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer"
+            >
+              <Copy className="h-3.5 w-3.5 text-neutral-500 dark:text-neutral-400" />
+              <span>Copy Asset Name</span>
+            </button>
+
+            <div className="my-1 h-px bg-neutral-200 dark:bg-neutral-800" />
+
+            {/* Delete Asset */}
+            <button
+              onClick={() => {
+                const asset = assetContextMenu.asset;
+                deleteAsset(asset.id);
+                showToast(`Deleted ${asset.name} from bin`);
+                setAssetContextMenu(null);
+              }}
+              className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 hover:bg-red-50 dark:hover:bg-red-950/30 text-red-600 dark:text-red-400 transition cursor-pointer"
+            >
+              <Trash2 className="h-3.5 w-3.5 text-red-500" />
+              <span>Delete from Bin</span>
+            </button>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 };

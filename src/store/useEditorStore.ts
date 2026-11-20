@@ -33,6 +33,7 @@ interface EditorState {
   fps: number;
   currentProjectId: string | null;
   isSaving: boolean;
+  copiedClip: Clip | null;
 
   // History
   history: {
@@ -69,6 +70,7 @@ interface EditorState {
 
   // Asset Management
   addAsset: (asset: MediaAsset) => void;
+  deleteAsset: (assetId: string) => void;
 
   // Track Management
   addTrack: (type: TrackType, name?: string) => string;
@@ -95,6 +97,9 @@ interface EditorState {
   splitLeft: (clipId: string) => void;
   splitRight: (clipId: string) => void;
   duplicateClip: (clipId: string) => void;
+  copyClip: (clipId: string) => void;
+  pasteClip: (targetTrackId?: string, targetTime?: number) => void;
+  toggleClipHidden: (clipId: string) => void;
   extractAudio: (clipId: string) => void;
   rippleDelete: (clipId: string) => void;
   moveClipToTrack: (clipId: string, targetTrackId: string, newStart?: number) => void;
@@ -207,6 +212,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   fps: 30,
   currentProjectId: null,
   isSaving: false,
+  copiedClip: null,
   history: { past: [], future: [] },
 
   setTheme: (theme) => {
@@ -334,6 +340,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     set((state) => ({ markers: state.markers.filter((m) => m.id !== id) })),
 
   addAsset: (asset) => set((state) => ({ assets: [...state.assets, asset] })),
+  deleteAsset: (id) => set((state) => ({ assets: state.assets.filter((a) => a.id !== id) })),
 
   addTrack: (type, name) => {
     const id = `track-${type}-${Date.now()}`;
@@ -664,6 +671,53 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       clips: [...state.clips, newClip],
       selectedClipId: newId,
       duration: Math.max(state.duration, newClip.start + newClip.duration),
+    });
+  },
+
+  copyClip: (clipId) => {
+    const state = get();
+    const clip = state.clips.find((c) => c.id === clipId);
+    if (clip) {
+      set({ copiedClip: { ...clip } });
+    }
+  },
+
+  pasteClip: (targetTrackId, targetTime) => {
+    const state = get();
+    if (!state.copiedClip) return;
+    const clipToCopy = state.copiedClip;
+    let track = targetTrackId ? state.tracks.find((t) => t.id === targetTrackId) : null;
+    if (!track) {
+      track = state.tracks.find((t) => t.id === clipToCopy.trackId) || state.tracks[0];
+    }
+    if (!track) return;
+
+    const time = targetTime !== undefined ? Math.max(0, targetTime) : state.playhead;
+    const newId = `clip-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+    const newClip: Clip = {
+      ...clipToCopy,
+      id: newId,
+      trackId: track.id,
+      start: time,
+      name: `${clipToCopy.name} (Copy)`,
+    };
+    const past = [...state.history.past, { tracks: state.tracks, clips: state.clips }];
+    set({
+      history: { past, future: [] },
+      clips: [...state.clips, newClip],
+      selectedClipId: newId,
+      duration: Math.max(state.duration, newClip.start + newClip.duration),
+    });
+  },
+
+  toggleClipHidden: (clipId) => {
+    const state = get();
+    const clip = state.clips.find((c) => c.id === clipId);
+    if (!clip) return;
+    const past = [...state.history.past, { tracks: state.tracks, clips: state.clips }];
+    set({
+      history: { past, future: [] },
+      clips: state.clips.map((c) => (c.id === clipId ? { ...c, isHidden: !c.isHidden } : c)),
     });
   },
 
