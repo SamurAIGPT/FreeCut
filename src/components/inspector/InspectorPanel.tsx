@@ -4,7 +4,7 @@ import {
   Trash2, Diamond, Link2, Unlink2, FlipHorizontal, FlipVertical, 
   Plus, Eye, EyeOff, AlignLeft, AlignCenter, AlignRight, Bold, 
   Italic, Underline, Strikethrough, Split, Square, Circle, Heart, 
-  Star, Film, Music, SlidersHorizontal
+  Star, Film, Music, SlidersHorizontal, RotateCcw, Info
 } from 'lucide-react';
 import { useEditorStore } from '@/store/useEditorStore';
 import { ClipMask, ClipEffect, MaskType, Transform } from '@/types/editor';
@@ -125,6 +125,12 @@ export const InspectorPanel: React.FC = () => {
           { id: 'transform', label: 'Transform', icon: Move },
           { id: 'blending', label: 'Blending', icon: Droplet },
         ];
+      case 'effect':
+        return [
+          { id: 'effects', label: 'Effects', icon: Sparkles },
+          { id: 'transform', label: 'Transform', icon: Move },
+          { id: 'blending', label: 'Blending', icon: Droplet },
+        ];
       default:
         return [
           { id: 'transform', label: 'Transform', icon: Move },
@@ -138,7 +144,15 @@ export const InspectorPanel: React.FC = () => {
   // If current active tab is not valid for selected clip, switch to default
   React.useEffect(() => {
     if (visibleTabs.length > 0 && !visibleTabs.some((t) => t.id === activeTab)) {
-      setActiveTab(visibleTabs[0].id);
+      if (clip?.type === 'effect') {
+        setActiveTab('effects');
+      } else if (clip?.type === 'text') {
+        setActiveTab('text');
+      } else if (clip?.type === 'audio') {
+        setActiveTab('audio');
+      } else {
+        setActiveTab(visibleTabs[0].id);
+      }
     }
   }, [clip?.id, clip?.type]);
 
@@ -285,6 +299,16 @@ export const InspectorPanel: React.FC = () => {
                   >
                     <FlipVertical className="h-3.5 w-3.5" />
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      updateClipTransform(clip.id, { x: 0, y: 0, scale: 1, scaleX: 1, scaleY: 1, rotation: 0 });
+                    }}
+                    title="Reset All Transform"
+                    className="flex items-center justify-center h-6 w-6 rounded text-app-text-muted hover:bg-app-elevated hover:text-app-text transition cursor-pointer"
+                  >
+                    <RotateCcw className="h-3 w-3" />
+                  </button>
                 </div>
               </div>
 
@@ -425,8 +449,16 @@ export const InspectorPanel: React.FC = () => {
           {/* ===================== AUDIO TAB ===================== */}
           {activeTab === 'audio' && (
             <div className="space-y-3.5">
-              <div className="border-b border-app-border pb-1">
+              <div className="flex items-center justify-between border-b border-app-border pb-1">
                 <span className="text-xs font-bold text-app-text tracking-wider uppercase">Audio Controls</span>
+                <button
+                  type="button"
+                  onClick={() => updateClip(clip.id, { volume: 1, pan: 0, fadeIn: 0, fadeOut: 0, isMuted: false })}
+                  title="Reset Audio Parameters"
+                  className="flex items-center justify-center h-6 w-6 rounded text-app-text-muted hover:bg-app-elevated hover:text-app-text transition cursor-pointer"
+                >
+                  <RotateCcw className="h-3 w-3" />
+                </button>
               </div>
 
               {/* Volume */}
@@ -459,6 +491,36 @@ export const InspectorPanel: React.FC = () => {
                 />
               </div>
 
+              {/* Fade In & Fade Out */}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  {renderFieldHeader('fadeIn', 'Fade In')}
+                  <NumberField
+                    value={clip.fadeIn || 0}
+                    defaultValue={0}
+                    min={0}
+                    max={5}
+                    step={0.1}
+                    suffix="s"
+                    onChange={(val) => updateClip(clip.id, { fadeIn: val })}
+                    onReset={() => updateClip(clip.id, { fadeIn: 0 })}
+                  />
+                </div>
+                <div className="space-y-1">
+                  {renderFieldHeader('fadeOut', 'Fade Out')}
+                  <NumberField
+                    value={clip.fadeOut || 0}
+                    defaultValue={0}
+                    min={0}
+                    max={5}
+                    step={0.1}
+                    suffix="s"
+                    onChange={(val) => updateClip(clip.id, { fadeOut: val })}
+                    onReset={() => updateClip(clip.id, { fadeOut: 0 })}
+                  />
+                </div>
+              </div>
+
               {/* Mute Toggle */}
               <div className="flex items-center justify-between rounded-lg border border-app-border bg-app-elevated p-2.5">
                 <div className="flex items-center gap-2">
@@ -485,8 +547,16 @@ export const InspectorPanel: React.FC = () => {
           {/* ===================== SPEED TAB ===================== */}
           {activeTab === 'speed' && (
             <div className="space-y-3.5">
-              <div className="border-b border-app-border pb-1">
+              <div className="flex items-center justify-between border-b border-app-border pb-1">
                 <span className="text-xs font-bold text-app-text tracking-wider uppercase">Speed & Retiming</span>
+                <button
+                  type="button"
+                  onClick={() => updateClip(clip.id, { speed: 1, maintainPitch: false })}
+                  title="Reset Speed"
+                  className="flex items-center justify-center h-6 w-6 rounded text-app-text-muted hover:bg-app-elevated hover:text-app-text transition cursor-pointer"
+                >
+                  <RotateCcw className="h-3 w-3" />
+                </button>
               </div>
 
               {/* Speed Factor */}
@@ -509,8 +579,8 @@ export const InspectorPanel: React.FC = () => {
               </div>
 
               {/* Quick Preset Buttons */}
-              <div className="grid grid-cols-4 gap-1.5">
-                {[0.5, 1.0, 1.5, 2.0].map((rate) => (
+              <div className="grid grid-cols-5 gap-1.5">
+                {[0.5, 1.0, 1.5, 2.0, 4.0].map((rate) => (
                   <button
                     key={rate}
                     type="button"
@@ -1244,20 +1314,21 @@ export const InspectorPanel: React.FC = () => {
                       </div>
                     </div>
 
+                    <div className="space-y-1">
+                      <span className="text-xs font-medium text-app-text">Corner Radius</span>
+                      <NumberField
+                        value={clip.backgroundCornerRadius || 8}
+                        defaultValue={8}
+                        min={0}
+                        max={50}
+                        step={1}
+                        suffix="px"
+                        onChange={(val) => updateClip(clip.id, { backgroundCornerRadius: val })}
+                        onReset={() => updateClip(clip.id, { backgroundCornerRadius: 8 })}
+                      />
+                    </div>
+
                     <div className="grid grid-cols-2 gap-2">
-                      <div className="space-y-1">
-                        <span className="text-xs font-medium text-app-text">Corner Radius</span>
-                        <NumberField
-                          value={clip.backgroundCornerRadius || 8}
-                          defaultValue={8}
-                          min={0}
-                          max={50}
-                          step={1}
-                          suffix="px"
-                          onChange={(val) => updateClip(clip.id, { backgroundCornerRadius: val })}
-                          onReset={() => updateClip(clip.id, { backgroundCornerRadius: 8 })}
-                        />
-                      </div>
                       <div className="space-y-1">
                         <span className="text-xs font-medium text-app-text">Padding X</span>
                         <NumberField
@@ -1271,9 +1342,6 @@ export const InspectorPanel: React.FC = () => {
                           onReset={() => updateClip(clip.id, { backgroundPaddingX: 20 })}
                         />
                       </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2">
                       <div className="space-y-1">
                         <span className="text-xs font-medium text-app-text">Padding Y</span>
                         <NumberField
@@ -1285,6 +1353,22 @@ export const InspectorPanel: React.FC = () => {
                           suffix="px"
                           onChange={(val) => updateClip(clip.id, { backgroundPaddingY: val })}
                           onReset={() => updateClip(clip.id, { backgroundPaddingY: 12 })}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <span className="text-xs font-medium text-app-text">Offset X</span>
+                        <NumberField
+                          value={clip.backgroundOffsetX ?? 0}
+                          defaultValue={0}
+                          min={-200}
+                          max={200}
+                          step={1}
+                          suffix="px"
+                          onChange={(val) => updateClip(clip.id, { backgroundOffsetX: val })}
+                          onReset={() => updateClip(clip.id, { backgroundOffsetX: 0 })}
                         />
                       </div>
                       <div className="space-y-1">

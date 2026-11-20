@@ -359,8 +359,13 @@ export const ClipItem: React.FC<ClipItemProps> = React.memo(({ clip, isLocked, i
   return (
     <>
       <div
+        data-clip-id={clip.id}
         style={{ left: `${leftPos}px`, width: `${clipWidth}px` }}
         onMouseDown={handleMouseDown}
+        onClick={(e) => {
+          e.stopPropagation();
+          setSelectedClipId(clip.id);
+        }}
         onContextMenu={handleContextMenu}
         className={`group absolute inset-y-0.5 flex cursor-grab active:cursor-grabbing items-center justify-between rounded-sm border select-none transition-all duration-100 overflow-hidden ${
           theme.bg

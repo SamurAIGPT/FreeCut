@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { 
   Scissors, Plus, Search, Grid, List, Moon, Sun, 
   MoreVertical, Copy, Trash2, Edit3, Play, Clock, 
-  Film, AlertCircle
+  Film, AlertCircle, Info
 } from 'lucide-react';
 import { ProjectRecord, projectService, ProjectSortOption } from '@/services/storage/projectService';
 import { useEditorStore } from '@/store/useEditorStore';
@@ -50,6 +50,7 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({ onOpenProject }) => 
   const [renamingProject, setRenamingProject] = useState<ProjectRecord | null>(null);
   const [renameInput, setRenameInput] = useState('');
   const [deletingProject, setDeletingProject] = useState<ProjectRecord | null>(null);
+  const [infoProject, setInfoProject] = useState<ProjectRecord | null>(null);
   const [menuState, setMenuState] = useState<{
     project: ProjectRecord;
     anchorRect: DOMRect;
@@ -515,6 +516,18 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({ onOpenProject }) => 
               <span>Rename</span>
             </button>
 
+            <button
+              onClick={() => {
+                const proj = menuState.project;
+                setMenuState(null);
+                setInfoProject(proj);
+              }}
+              className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer"
+            >
+              <Info className="h-3.5 w-3.5 text-neutral-500 dark:text-neutral-400" />
+              <span>Project Info</span>
+            </button>
+
             <div className="my-1 h-px bg-neutral-200 dark:bg-neutral-800" />
 
             <button
@@ -590,6 +603,62 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({ onOpenProject }) => 
                 className="rounded-lg bg-red-600 px-4 py-2 text-xs font-semibold text-white hover:bg-red-700 transition cursor-pointer"
               >
                 Delete Permanently
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* ================= PROJECT INFO MODAL ================= */}
+      {infoProject && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4" onClick={() => setInfoProject(null)}>
+          <div className="w-full max-w-md rounded-2xl border border-app-border bg-app-surface p-5 shadow-2xl space-y-4" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-2 border-b border-app-border pb-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/10 text-blue-500">
+                <Info className="h-4 w-4" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-app-text">{infoProject.name}</h3>
+                <p className="text-[11px] text-app-text-muted">Project Metadata & Specifications</p>
+              </div>
+            </div>
+
+            <div className="space-y-2 text-xs">
+              <div className="flex items-center justify-between py-1 border-b border-app-border/40">
+                <span className="text-app-text-muted">Duration:</span>
+                <span className="font-mono font-semibold text-app-text">{formatTimecode(infoProject.duration || 10)}</span>
+              </div>
+              <div className="flex items-center justify-between py-1 border-b border-app-border/40">
+                <span className="text-app-text-muted">Aspect Ratio:</span>
+                <span className="rounded bg-app-elevated px-2 py-0.5 font-medium text-app-text">{infoProject.aspectRatio || '16:9'}</span>
+              </div>
+              <div className="flex items-center justify-between py-1 border-b border-app-border/40">
+                <span className="text-app-text-muted">Frame Rate:</span>
+                <span className="font-mono text-app-text">{infoProject.fps || 30} FPS</span>
+              </div>
+              <div className="flex items-center justify-between py-1 border-b border-app-border/40">
+                <span className="text-app-text-muted">Clips Count:</span>
+                <span className="font-mono text-app-text">{infoProject.clips?.length || 0} clips</span>
+              </div>
+              <div className="flex items-center justify-between py-1 border-b border-app-border/40">
+                <span className="text-app-text-muted">Tracks Count:</span>
+                <span className="font-mono text-app-text">{infoProject.tracks?.length || 0} tracks</span>
+              </div>
+              <div className="flex items-center justify-between py-1 border-b border-app-border/40">
+                <span className="text-app-text-muted">Created:</span>
+                <span className="text-app-text">{new Date(infoProject.createdAt).toLocaleString()}</span>
+              </div>
+              <div className="flex items-center justify-between py-1">
+                <span className="text-app-text-muted">Last Modified:</span>
+                <span className="text-app-text">{new Date(infoProject.updatedAt).toLocaleString()}</span>
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <button
+                onClick={() => setInfoProject(null)}
+                className="rounded-lg bg-neutral-900 px-4 py-2 text-xs font-semibold text-white hover:bg-neutral-800 dark:bg-white dark:text-neutral-900 dark:hover:bg-neutral-100 transition cursor-pointer"
+              >
+                Close
               </button>
             </div>
           </div>
