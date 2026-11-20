@@ -9,6 +9,13 @@ interface HistorySnapshot {
 
 export type ThemeMode = 'dark' | 'light';
 
+export type GuideType = 'none' | 'grid' | 'tiktok' | 'reels' | 'shorts';
+
+export interface GridConfig {
+  rows: number;
+  cols: number;
+}
+
 interface EditorState {
   theme: ThemeMode;
   projectTitle: string;
@@ -26,6 +33,10 @@ interface EditorState {
   activeTool: 'select' | 'razor';
   canvasZoom: number;
   showGrid: boolean;
+  activeGuide: GuideType;
+  gridConfig: GridConfig;
+  playbackRate: number;
+  isMasterMuted: boolean;
   markers: TimelineMarker[];
   snapGuideX: number | null;
   isRippleMode: boolean;
@@ -57,6 +68,10 @@ interface EditorState {
   setActiveTool: (tool: 'select' | 'razor') => void;
   setCanvasZoom: (zoom: number) => void;
   toggleShowGrid: () => void;
+  setActiveGuide: (guide: GuideType) => void;
+  setGridConfig: (config: Partial<GridConfig>) => void;
+  setPlaybackRate: (rate: number) => void;
+  toggleMasterMuted: () => void;
   setSnapGuideX: (x: number | null) => void;
   setCanvasBg: (bg: string) => void;
   setFps: (fps: number) => void;
@@ -204,6 +219,10 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   activeTool: 'select',
   canvasZoom: 0,
   showGrid: false,
+  activeGuide: 'none',
+  gridConfig: { rows: 3, cols: 3 },
+  playbackRate: 1,
+  isMasterMuted: false,
   markers: [
     { id: 'marker-1', time: 2.0, label: 'Intro Cut', color: '#3b82f6' },
     { id: 'marker-2', time: 5.0, label: 'B-Roll In', color: '#10b981' },
@@ -255,6 +274,10 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   setActiveTool: (tool) => set({ activeTool: tool }),
   setCanvasZoom: (zoom) => set({ canvasZoom: zoom }),
   toggleShowGrid: () => set((state) => ({ showGrid: !state.showGrid })),
+  setActiveGuide: (guide) => set({ activeGuide: guide, showGrid: guide === 'grid' }),
+  setGridConfig: (config) => set((s) => ({ gridConfig: { ...s.gridConfig, ...config } })),
+  setPlaybackRate: (playbackRate) => set({ playbackRate }),
+  toggleMasterMuted: () => set((s) => ({ isMasterMuted: !s.isMasterMuted })),
   setSnapGuideX: (x) => set({ snapGuideX: x }),
   setCanvasBg: (bg) => set({ canvasBg: bg }),
   setFps: (fps) => set({ fps }),

@@ -1,11 +1,14 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Grid, Maximize, ZoomIn, Film, Camera, Copy, Download, Check, CheckCircle2 } from 'lucide-react';
+import { Maximize, ZoomIn, Film, Copy, Download, Check, CheckCircle2, RotateCcw } from 'lucide-react';
 import { useEditorStore } from '@/store/useEditorStore';
 import { compositor } from '@/engine/compositor';
 import { AspectRatio } from '@/types/editor';
 import { TransportBar } from './TransportBar';
 import { CustomSelect, SelectOption } from '@/components/ui/CustomSelect';
+import { GuidePopover } from './GuidePopover';
+import { GridGuide, TikTokGuide, InstagramReelsGuide, YouTubeShortsGuide } from './SocialGuides';
+import { TransformOverlay } from './TransformOverlay';
 
 const ASPECT_OPTIONS: SelectOption<AspectRatio>[] = [
   { value: '16:9', label: '16:9 Landscape', description: 'YouTube & Desktop standard' },
@@ -17,14 +20,18 @@ const ASPECT_OPTIONS: SelectOption<AspectRatio>[] = [
 
 const ZOOM_OPTIONS: SelectOption<number>[] = [
   { value: 0, label: 'Fit' },
+  { value: 25, label: '25%' },
   { value: 50, label: '50%' },
   { value: 75, label: '75%' },
   { value: 100, label: '100%' },
+  { value: 150, label: '150%' },
+  { value: 200, label: '200%' },
 ];
 
 export const PreviewCanvas: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const viewportRef = useRef<HTMLDivElement>(null);
 
   const playhead = useEditorStore((s) => s.playhead);
   const aspect = useEditorStore((s) => s.aspectRatio);
@@ -32,14 +39,112 @@ export const PreviewCanvas: React.FC = () => {
   const tracks = useEditorStore((s) => s.tracks);
   const clips = useEditorStore((s) => s.clips);
   const assets = useEditorStore((s) => s.assets);
-  const showGrid = useEditorStore((s) => s.showGrid);
-  const toggleShowGrid = useEditorStore((s) => s.toggleShowGrid);
   const canvasZoom = useEditorStore((s) => s.canvasZoom);
   const setCanvasZoom = useEditorStore((s) => s.setCanvasZoom);
+  const activeGuide = useEditorStore((s) => s.activeGuide || (s.showGrid ? 'grid' : 'none'));
+  const gridConfig = useEditorStore((s) => s.gridConfig || { rows: 3, cols: 3 });
+
+  const [panOffset, setPanOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [isSpaceHeld, setIsSpaceHeld] = useState(false);
+  const [isPanning, setIsPanning] = useState(false);
+  const panStartRef = useRef<{ clientX: number; clientY: number; initialX: number; initialY: number } | null>(null);
 
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+  // Reset pan when switching to Fit
+  useEffect(() => {
+    if (canvasZoom === 0) {
+      setPanOffset({ x: 0, y: 0 });
+    }
+  }, [canvasZoom]);
+
+  // Spacebar pan listener
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+        return;
+      }
+      if (e.code === 'Space' && !e.repeat) {
+        setIsSpaceHeld(true);
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.code === 'Space') {
+        setIsSpaceHeld(false);
+        setIsPanning(false);
+        panStartRef.current = null;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, []);
+
+  // Mouse wheel zoom & pan
+  const handleWheel = (e: React.WheelEvent) => {
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      const delta = -e.deltaY;
+      const factor = delta > 0 ? 1.15 : 0.85;
+      const current = canvasZoom === 0 ? 100 : canvasZoom;
+      const nextZoom = Math.max(25, Math.min(300, Math.round(current * factor)));
+      setCanvasZoom(nextZoom);
+    } else if (canvasZoom > 0 && !isSpaceHeld) {
+      // Pan via trackpad / mousewheel
+      setPanOffset((prev) => ({
+        x: prev.x - e.deltaX * 0.8,
+        y: prev.y - e.deltaY * 0.8,
+      }));
+    }
+  };
+
+  // Viewport Pan Pointer Down (Space+LeftClick OR MiddleClick)
+  const handleViewportPointerDown = (e: React.PointerEvent) => {
+    const isMiddleClick = e.button === 1;
+    const isSpacePan = e.button === 0 && isSpaceHeld;
+
+    if (isMiddleClick || isSpacePan) {
+      e.preventDefault();
+      e.stopPropagation();
+
+      setIsPanning(true);
+      panStartRef.current = {
+        clientX: e.clientX,
+        clientY: e.clientY,
+        initialX: panOffset.x,
+        initialY: panOffset.y,
+      };
+
+      const handlePointerMove = (moveEvent: PointerEvent) => {
+        if (!panStartRef.current) return;
+        const dx = moveEvent.clientX - panStartRef.current.clientX;
+        const dy = moveEvent.clientY - panStartRef.current.clientY;
+        setPanOffset({
+          x: panStartRef.current.initialX + dx,
+          y: panStartRef.current.initialY + dy,
+        });
+      };
+
+      const handlePointerUp = () => {
+        setIsPanning(false);
+        panStartRef.current = null;
+        window.removeEventListener('pointermove', handlePointerMove);
+        window.removeEventListener('pointerup', handlePointerUp);
+      };
+
+      window.addEventListener('pointermove', handlePointerMove);
+      window.addEventListener('pointerup', handlePointerUp);
+    }
+  };
+
+  // Context menu close listener
   useEffect(() => {
     const handleClose = () => setContextMenu(null);
     if (contextMenu) {
@@ -95,11 +200,13 @@ export const PreviewCanvas: React.FC = () => {
     }
   };
 
+  // Render compositor output onto canvas
   useEffect(() => {
     if (canvasRef.current) {
-      compositor.render(canvasRef.current, playhead, aspect, tracks, clips, assets, showGrid);
+      // When React guide overlays are active, canvas itself renders clean content
+      compositor.render(canvasRef.current, playhead, aspect, tracks, clips, assets, false);
     }
-  }, [playhead, aspect, tracks, clips, assets, showGrid]);
+  }, [playhead, aspect, tracks, clips, assets]);
 
   const handleToggleFullscreen = () => {
     if (!containerRef.current) return;
@@ -132,7 +239,7 @@ export const PreviewCanvas: React.FC = () => {
       className="relative flex flex-1 min-h-0 min-w-0 flex-col overflow-hidden bg-app-bg select-none transition-colors duration-200"
     >
       {/* Floating Viewport HUD */}
-      <div className="absolute top-3 left-4 right-4 z-20 flex items-center justify-between pointer-events-none">
+      <div className="absolute top-3 left-4 right-4 z-30 flex items-center justify-between pointer-events-none">
         {/* Aspect Ratio Custom Select */}
         <div className="pointer-events-auto">
           <CustomSelect<AspectRatio>
@@ -142,12 +249,13 @@ export const PreviewCanvas: React.FC = () => {
             size="sm"
             prefix="Ratio:"
             icon={<Film className="h-3 w-3" />}
-            className="w-44"
+            className="w-44 shadow-sm"
           />
         </div>
 
-        {/* Viewport Scale & Grid & Fullscreen */}
+        {/* Viewport Scale & Guides & Fullscreen */}
         <div className="pointer-events-auto flex items-center gap-1 rounded-xl border border-app-border bg-app-surface/90 p-1 text-xs text-app-text backdrop-blur-md shadow-sm">
+          {/* Zoom Select */}
           <CustomSelect<number>
             value={canvasZoom}
             onChange={(val) => setCanvasZoom(val)}
@@ -159,50 +267,65 @@ export const PreviewCanvas: React.FC = () => {
 
           <div className="h-3.5 w-px bg-app-border" />
 
-          {/* Grid Toggle */}
-          <button
-            onClick={toggleShowGrid}
-            title="Toggle Safe Margins / Grid"
-            className={`rounded-lg p-1.5 transition ${
-              showGrid
-                ? 'bg-neutral-800 text-white dark:bg-neutral-200 dark:text-black font-semibold'
-                : 'text-app-text-muted hover:bg-app-elevated hover:text-app-text'
-            }`}
-          >
-            <Grid className="h-3.5 w-3.5" />
-          </button>
+          {/* Guides Popover */}
+          <GuidePopover />
+
+          <div className="h-3.5 w-px bg-app-border" />
 
           {/* Fullscreen */}
           <button
             onClick={handleToggleFullscreen}
             title="Toggle Fullscreen"
-            className="rounded-lg p-1.5 text-app-text-muted hover:bg-app-elevated hover:text-app-text transition"
+            className="rounded-lg p-1.5 text-app-text-muted hover:bg-app-elevated hover:text-app-text transition cursor-pointer"
           >
             <Maximize className="h-3.5 w-3.5" />
           </button>
         </div>
       </div>
 
-      {/* Canvas Viewport Frame */}
-      <div 
+      {/* Canvas Viewport Frame with Smooth Pan & Zoom */}
+      <div
+        ref={viewportRef}
+        onWheel={handleWheel}
+        onPointerDown={handleViewportPointerDown}
         onContextMenu={(e) => {
           e.preventDefault();
           setContextMenu({ x: e.clientX, y: e.clientY });
         }}
-        className="flex flex-1 min-h-0 items-center justify-center p-4 pt-11 overflow-hidden cursor-default"
+        className={`flex flex-1 min-h-0 items-center justify-center p-4 pt-11 overflow-hidden ${
+          isPanning ? 'cursor-grabbing' : isSpaceHeld ? 'cursor-grab' : 'cursor-default'
+        }`}
       >
         <div
-          style={
-            canvasZoom > 0
-              ? { transform: `scale(${canvasZoom / 100})`, transformOrigin: 'center center' }
-              : undefined
-          }
-          className={`relative flex items-center justify-center rounded-xl border border-app-border bg-black shadow-2xl overflow-hidden transition-transform duration-200 ${getAspectClass()}`}
+          style={{
+            transform:
+              canvasZoom > 0
+                ? `translate(${panOffset.x}px, ${panOffset.y}px) scale(${canvasZoom / 100})`
+                : undefined,
+            transformOrigin: 'center center',
+            transition: isPanning ? 'none' : 'transform 0.15s ease-out',
+          }}
+          className={`relative flex items-center justify-center ${getAspectClass()}`}
         >
-          <canvas
-            ref={canvasRef}
-            className="h-full w-full object-contain"
-          />
+          {/* Inner rounded container with overflow-hidden for the video canvas & guides */}
+          <div className="relative h-full w-full rounded-xl border border-app-border bg-black shadow-2xl overflow-hidden flex items-center justify-center">
+            {/* Output Video Canvas */}
+            <canvas
+              ref={canvasRef}
+              className="h-full w-full object-contain pointer-events-none"
+            />
+
+            {/* Social Platform Safe Zones & Rule of Thirds Guides */}
+            {activeGuide === 'grid' && <GridGuide config={gridConfig} />}
+            {activeGuide === 'tiktok' && <TikTokGuide aspectRatio={aspect} />}
+            {activeGuide === 'reels' && <InstagramReelsGuide aspectRatio={aspect} />}
+            {activeGuide === 'shorts' && <YouTubeShortsGuide aspectRatio={aspect} />}
+          </div>
+
+          {/* Interactive Transform Handles & Direct Selection Overlay (overflow-visible so rotation handle is never clipped) */}
+          <div className="absolute inset-0 overflow-visible pointer-events-none">
+            <TransformOverlay canvasRef={canvasRef} />
+          </div>
         </div>
       </div>
 
@@ -228,19 +351,20 @@ export const PreviewCanvas: React.FC = () => {
             style={{
               position: 'fixed',
               left: Math.max(10, Math.min(window.innerWidth - 220, contextMenu.x)),
-              top: Math.max(10, Math.min(window.innerHeight - 290, contextMenu.y)),
+              top: Math.max(10, Math.min(window.innerHeight - 340, contextMenu.y)),
             }}
             onClick={(e) => e.stopPropagation()}
-            className="w-52 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white/95 dark:bg-neutral-900/95 p-1.5 shadow-2xl backdrop-blur-md text-neutral-900 dark:text-neutral-100 select-none animate-in fade-in zoom-in-95 duration-100 text-xs"
+            className="w-56 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white/95 dark:bg-neutral-900/95 p-1.5 shadow-2xl backdrop-blur-md text-neutral-900 dark:text-neutral-100 select-none animate-in fade-in zoom-in-95 duration-100 text-xs"
           >
             <div className="px-2.5 py-1 text-[10px] font-semibold text-neutral-500 dark:text-neutral-400 border-b border-neutral-200 dark:border-neutral-800 mb-1">
-              Preview Player
+              Viewport & Canvas
             </div>
 
             {/* Fit to screen */}
             <button
               onClick={() => {
                 setCanvasZoom(0);
+                setPanOffset({ x: 0, y: 0 });
                 setContextMenu(null);
               }}
               className="flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer"
@@ -252,41 +376,35 @@ export const PreviewCanvas: React.FC = () => {
               {canvasZoom === 0 && <Check className="h-3.5 w-3.5 text-blue-500" />}
             </button>
 
-            {/* 50% Zoom */}
+            {/* Reset Pan & Zoom */}
             <button
               onClick={() => {
-                setCanvasZoom(50);
+                setCanvasZoom(0);
+                setPanOffset({ x: 0, y: 0 });
                 setContextMenu(null);
               }}
-              className="flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer"
+              className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer"
             >
-              <span>50%</span>
-              {canvasZoom === 50 && <Check className="h-3.5 w-3.5 text-blue-500" />}
+              <RotateCcw className="h-3.5 w-3.5 text-neutral-500 dark:text-neutral-400" />
+              <span>Reset Pan & Center</span>
             </button>
 
-            {/* 75% Zoom */}
-            <button
-              onClick={() => {
-                setCanvasZoom(75);
-                setContextMenu(null);
-              }}
-              className="flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer"
-            >
-              <span>75%</span>
-              {canvasZoom === 75 && <Check className="h-3.5 w-3.5 text-blue-500" />}
-            </button>
+            <div className="my-1 h-px bg-neutral-200 dark:bg-neutral-800" />
 
-            {/* 100% Zoom */}
-            <button
-              onClick={() => {
-                setCanvasZoom(100);
-                setContextMenu(null);
-              }}
-              className="flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer"
-            >
-              <span>100%</span>
-              {canvasZoom === 100 && <Check className="h-3.5 w-3.5 text-blue-500" />}
-            </button>
+            {/* Zoom presets */}
+            {[25, 50, 75, 100, 150, 200].map((preset) => (
+              <button
+                key={preset}
+                onClick={() => {
+                  setCanvasZoom(preset);
+                  setContextMenu(null);
+                }}
+                className="flex w-full items-center justify-between rounded-lg px-2.5 py-1 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer"
+              >
+                <span>{preset}%</span>
+                {canvasZoom === preset && <Check className="h-3.5 w-3.5 text-blue-500" />}
+              </button>
+            ))}
 
             <div className="my-1 h-px bg-neutral-200 dark:bg-neutral-800" />
 
@@ -299,7 +417,7 @@ export const PreviewCanvas: React.FC = () => {
               className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer"
             >
               <Maximize className="h-3.5 w-3.5 text-neutral-500 dark:text-neutral-400" />
-              <span>Full screen</span>
+              <span>Toggle Fullscreen</span>
             </button>
 
             {/* Save snapshot */}
@@ -311,7 +429,7 @@ export const PreviewCanvas: React.FC = () => {
               className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer"
             >
               <Download className="h-3.5 w-3.5 text-neutral-500 dark:text-neutral-400" />
-              <span>Save snapshot</span>
+              <span>Save snapshot (PNG)</span>
             </button>
 
             {/* Copy snapshot */}
@@ -324,23 +442,6 @@ export const PreviewCanvas: React.FC = () => {
             >
               <Copy className="h-3.5 w-3.5 text-neutral-500 dark:text-neutral-400" />
               <span>Copy snapshot</span>
-            </button>
-
-            <div className="my-1 h-px bg-neutral-200 dark:bg-neutral-800" />
-
-            {/* Safe Area / Grid */}
-            <button
-              onClick={() => {
-                toggleShowGrid();
-                setContextMenu(null);
-              }}
-              className="flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer"
-            >
-              <div className="flex items-center gap-2">
-                <Grid className="h-3.5 w-3.5 text-neutral-500 dark:text-neutral-400" />
-                <span>Safe Area / Grid</span>
-              </div>
-              {showGrid && <Check className="h-3.5 w-3.5 text-blue-500" />}
             </button>
           </div>
         </div>,
