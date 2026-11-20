@@ -21,6 +21,7 @@ import {
 
 import { formatDuration } from '@/utils/time';
 import { timelineDragSource } from '@/utils/dragSource';
+import { mediaStorage } from '@/services/storage/mediaStorage';
 
 /**
  * Auto-generating video thumbnail component that displays the video frame
@@ -222,11 +223,12 @@ export const SidebarContent: React.FC = () => {
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
-      const url = URL.createObjectURL(file);
       const isVideo = file.type.startsWith('video');
       const isAudio = file.type.startsWith('audio');
+      const assetId = `asset-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
 
       if (isVideo) {
+        const url = URL.createObjectURL(file);
         const v = document.createElement('video');
         v.src = url;
         v.preload = 'metadata';
@@ -234,11 +236,16 @@ export const SidebarContent: React.FC = () => {
         v.playsInline = true;
 
         let added = false;
-        const addVideo = (thumb?: string) => {
+        const addVideo = async (thumb?: string) => {
           if (added) return;
           added = true;
+          try {
+            await mediaStorage.saveMedia(assetId, file.name, file.type, file, thumb);
+          } catch {
+            // ignore
+          }
           addAsset({
-            id: `asset-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+            id: assetId,
             name: file.name,
             type: 'video',
             url,
@@ -275,10 +282,16 @@ export const SidebarContent: React.FC = () => {
         v.onerror = () => addVideo();
         setTimeout(() => addVideo(), 1000);
       } else if (isAudio) {
+        const url = URL.createObjectURL(file);
         const a = new Audio(url);
-        a.onloadedmetadata = () => {
+        a.onloadedmetadata = async () => {
+          try {
+            await mediaStorage.saveMedia(assetId, file.name, file.type, file);
+          } catch {
+            // ignore
+          }
           addAsset({
-            id: `asset-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+            id: assetId,
             name: file.name,
             type: 'audio',
             url,
@@ -286,22 +299,80 @@ export const SidebarContent: React.FC = () => {
           });
           showToast(`Imported ${file.name}`);
         };
-      } else {
-        const img = new Image();
-        img.src = url;
-        img.onload = () => {
+        a.onerror = async () => {
+          try {
+            await mediaStorage.saveMedia(assetId, file.name, file.type, file);
+          } catch {
+            // ignore
+          }
           addAsset({
-            id: `asset-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+            id: assetId,
             name: file.name,
-            type: 'image',
+            type: 'audio',
             url,
-            duration: 4,
-            width: img.width,
-            height: img.height,
-            thumbnailUrl: url,
+            duration: 5,
           });
           showToast(`Imported ${file.name}`);
         };
+      } else {
+        // Image: convert to permanent base64 dataUrl
+        const reader = new FileReader();
+        reader.onload = () => {
+          const dataUrl = reader.result as string;
+          const img = new Image();
+          img.onload = async () => {
+            try {
+              await mediaStorage.saveMedia(assetId, file.name, file.type, file, dataUrl);
+            } catch {
+              // ignore
+            }
+            addAsset({
+              id: assetId,
+              name: file.name,
+              type: 'image',
+              url: dataUrl,
+              duration: 4,
+              width: img.width,
+              height: img.height,
+              thumbnailUrl: dataUrl,
+            });
+            showToast(`Imported ${file.name}`);
+          };
+          img.onerror = async () => {
+            try {
+              await mediaStorage.saveMedia(assetId, file.name, file.type, file, dataUrl);
+            } catch {
+              // ignore
+            }
+            addAsset({
+              id: assetId,
+              name: file.name,
+              type: 'image',
+              url: dataUrl,
+              duration: 4,
+              width: 1920,
+              height: 1080,
+              thumbnailUrl: dataUrl,
+            });
+            showToast(`Imported ${file.name}`);
+          };
+          img.src = dataUrl;
+        };
+        reader.onerror = () => {
+          const fallbackUrl = URL.createObjectURL(file);
+          addAsset({
+            id: assetId,
+            name: file.name,
+            type: 'image',
+            url: fallbackUrl,
+            duration: 4,
+            width: 1920,
+            height: 1080,
+            thumbnailUrl: fallbackUrl,
+          });
+          showToast(`Imported ${file.name}`);
+        };
+        reader.readAsDataURL(file);
       }
     }
     e.target.value = '';
@@ -1276,8 +1347,14 @@ export const SidebarContent: React.FC = () => {
                                 loading="lazy"
                                 onError={(e) => {
                                   (e.currentTarget as HTMLElement).style.display = 'none';
+                                  const fallback = (e.currentTarget.parentElement?.querySelector('.img-fallback') as HTMLElement);
+                                  if (fallback) fallback.style.display = 'flex';
                                 }}
                               />
+                              <div className="img-fallback hidden flex-col items-center justify-center p-2 text-center text-neutral-400">
+                                <ImageIcon className="h-7 w-7 text-purple-400/80 mb-1" />
+                                <span className="text-[10px] font-medium text-neutral-400 truncate max-w-[100px]">{asset.name}</span>
+                              </div>
                               {/* Image Badge Top Left */}
                               <div className="absolute top-1.5 left-1.5 flex items-center gap-1 rounded bg-black/65 px-1.5 py-0.5 text-[9px] font-semibold text-purple-300 backdrop-blur-xs">
                                 <ImageIcon className="h-2.5 w-2.5" />
@@ -1292,10 +1369,19 @@ export const SidebarContent: React.FC = () => {
                                   alt={asset.name}
                                   className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                                   loading="lazy"
+                                  onError={(e) => {
+                                    (e.currentTarget as HTMLElement).style.display = 'none';
+                                    const fallback = (e.currentTarget.parentElement?.querySelector('.vid-fallback') as HTMLElement);
+                                    if (fallback) fallback.style.display = 'flex';
+                                  }}
                                 />
                               ) : (
                                 <VideoAutoThumbnail url={asset.url} alt={asset.name} />
                               )}
+                              <div className="vid-fallback hidden flex-col items-center justify-center p-2 text-center text-neutral-400">
+                                <Film className="h-7 w-7 text-blue-400/80 mb-1" />
+                                <span className="text-[10px] font-medium text-neutral-400 truncate max-w-[100px]">{asset.name}</span>
+                              </div>
                               {/* Video Badge Top Left */}
                               <div className="absolute top-1.5 left-1.5 flex items-center gap-1 rounded bg-black/65 px-1.5 py-0.5 text-[9px] font-semibold text-blue-300 backdrop-blur-xs">
                                 <Film className="h-2.5 w-2.5" />

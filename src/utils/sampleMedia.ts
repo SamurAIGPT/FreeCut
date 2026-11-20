@@ -1,4 +1,5 @@
 import { MediaAsset } from '@/types/editor';
+import { mediaStorage } from '@/services/storage/mediaStorage';
 
 /**
  * Generate a synthetic 4-second animated cyberpunk B-roll video in memory
@@ -23,11 +24,17 @@ export async function generateBrollVideo(name = 'Sample B-Roll City.webm'): Prom
   let thumbnailUrl = '';
 
   return new Promise((resolve) => {
-    recorder.onstop = () => {
+    recorder.onstop = async () => {
       const blob = new Blob(chunks, { type: 'video/webm' });
+      const id = 'sample-broll-' + Date.now();
+      try {
+        await mediaStorage.saveMedia(id, name, 'video/webm', blob, thumbnailUrl);
+      } catch {
+        // ignore
+      }
       const url = URL.createObjectURL(blob);
       resolve({
-        id: 'sample-broll-' + Date.now(),
+        id,
         name,
         type: 'video',
         url,
@@ -198,12 +205,19 @@ export async function generateCountdownVideo(): Promise<MediaAsset> {
   let thumbnailUrl = '';
 
   return new Promise((resolve) => {
-    recorder.onstop = () => {
+    recorder.onstop = async () => {
       const blob = new Blob(chunks, { type: 'video/webm' });
+      const id = 'sample-countdown-' + Date.now();
+      const assetName = 'Sample 5s Countdown.webm';
+      try {
+        await mediaStorage.saveMedia(id, assetName, 'video/webm', blob, thumbnailUrl);
+      } catch {
+        // ignore
+      }
       const url = URL.createObjectURL(blob);
       resolve({
-        id: 'sample-countdown-' + Date.now(),
-        name: 'Sample 5s Countdown.webm',
+        id,
+        name: assetName,
         type: 'video',
         url,
         duration,
@@ -414,10 +428,16 @@ export async function generateSoundEffect(
 
   const renderedBuffer = await ctx.startRendering();
   const wavBlob = audioBufferToWav(renderedBuffer);
+  const id = `sound-${type}-${Date.now()}`;
+  try {
+    await mediaStorage.saveMedia(id, name, 'audio/wav', wavBlob);
+  } catch {
+    // ignore
+  }
   const url = URL.createObjectURL(wavBlob);
 
   return {
-    id: `sound-${type}-${Date.now()}`,
+    id,
     name,
     type: 'audio',
     url,

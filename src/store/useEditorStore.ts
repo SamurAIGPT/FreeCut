@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { AspectRatio, Clip, ClipEffect, ClipMask, ColorFilter, MediaAsset, SidebarTab, TimelineMarker, Track, TrackType, Transform } from '@/types/editor';
 import { ProjectRecord, projectService } from '@/services/storage/projectService';
+import { mediaStorage } from '@/services/storage/mediaStorage';
 
 interface HistorySnapshot {
   tracks: Track[];
@@ -302,6 +303,38 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       selectedClipId: null,
       history: { past: [], future: [] },
     });
+
+    // Rehydrate assets and clips asynchronously from mediaStorage in case blob: URLs expired across browser sessions
+    if (record.assets && record.assets.length > 0) {
+      setTimeout(async () => {
+        let changed = false;
+        const updatedAssets = await Promise.all(
+          (record.assets || []).map(async (asset) => {
+            const freshUrl = await mediaStorage.getMediaUrl(asset.id);
+            if (freshUrl && freshUrl !== asset.url) {
+              changed = true;
+              return {
+                ...asset,
+                url: freshUrl,
+                thumbnailUrl: asset.thumbnailUrl?.startsWith('blob:') ? freshUrl : (asset.thumbnailUrl || freshUrl),
+              };
+            }
+            return asset;
+          })
+        );
+        if (changed) {
+          const state = get();
+          const assetUrlMap = new Map(updatedAssets.map((a) => [a.id, a.url]));
+          const updatedClips = state.clips.map((clip) => {
+            if (clip.assetId && assetUrlMap.has(clip.assetId)) {
+              return { ...clip, url: assetUrlMap.get(clip.assetId) };
+            }
+            return clip;
+          });
+          set({ assets: updatedAssets, clips: updatedClips });
+        }
+      }, 0);
+    }
   },
 
   saveCurrentProject: async () => {

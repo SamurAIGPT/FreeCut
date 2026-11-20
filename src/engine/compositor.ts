@@ -184,11 +184,16 @@ class CanvasCompositor {
   }
 
   public getOrCreateImage(asset: MediaAsset): HTMLImageElement {
-    let img = this.imageCache.get(asset.id);
-    if (!img) {
+    return this.getOrCreateImageByUrl(asset.id, asset.url);
+  }
+
+  public getOrCreateImageByUrl(id: string, url: string): HTMLImageElement {
+    let img = this.imageCache.get(id);
+    if (!img || img.src !== url) {
       img = new Image();
-      img.src = asset.url;
-      this.imageCache.set(asset.id, img);
+      img.crossOrigin = 'anonymous';
+      img.src = url;
+      this.imageCache.set(id, img);
     }
     return img;
   }
@@ -452,19 +457,28 @@ class CanvasCompositor {
           if (!videoDrawn) {
             this.drawProceduralVideoFrame(targetCtx, clip, relativeTime, baseDim.width, baseDim.height);
           }
-        } else if (clip.type === 'image' && asset) {
-          const img = this.getOrCreateImage(asset);
-          const iWidth = asset.width || (img.naturalWidth > 0 ? img.naturalWidth : 800);
-          const iHeight = asset.height || (img.naturalHeight > 0 ? img.naturalHeight : 600);
-          const scale = Math.min(baseDim.width / iWidth, baseDim.height / iHeight);
-          const dw = iWidth * scale;
-          const dh = iHeight * scale;
+        } else if (clip.type === 'image') {
+          const imageUrl = asset?.url || clip.url;
+          let imageDrawn = false;
+          if (imageUrl) {
+            const img = this.getOrCreateImageByUrl(asset?.id || clip.assetId || clip.id, imageUrl);
+            const iWidth = asset?.width || (img.naturalWidth > 0 ? img.naturalWidth : 800);
+            const iHeight = asset?.height || (img.naturalHeight > 0 ? img.naturalHeight : 600);
+            const scale = Math.min(baseDim.width / iWidth, baseDim.height / iHeight);
+            const dw = iWidth * scale;
+            const dh = iHeight * scale;
 
-          if (img.complete && img.naturalWidth > 0) {
-            targetCtx.drawImage(img, -dw / 2, -dh / 2, dw, dh);
-          } else {
-            // If image is still decoding, trigger decode and draw fallback rect
-            img.decode?.().catch(() => {});
+            if (img.complete && img.naturalWidth > 0) {
+              targetCtx.drawImage(img, -dw / 2, -dh / 2, dw, dh);
+              imageDrawn = true;
+            } else {
+              // Trigger decode in background
+              img.decode?.().catch(() => {});
+            }
+          }
+
+          if (!imageDrawn) {
+            this.drawProceduralImageFrame(targetCtx, clip, baseDim.width, baseDim.height);
           }
         } else if (clip.type === 'text') {
           const text = clip.text || 'FreeCut';
@@ -891,6 +905,92 @@ class CanvasCompositor {
         -dh / 2 + 40
       );
     }
+
+    targetCtx.restore();
+  }
+
+  private drawProceduralImageFrame(
+    targetCtx: CanvasRenderingContext2D,
+    clip: Clip,
+    canvasWidth: number,
+    canvasHeight: number
+  ) {
+    const iWidth = 1080;
+    const iHeight = 1080;
+    const scale = Math.min(canvasWidth / iWidth, canvasHeight / iHeight) * 0.9;
+    const dw = iWidth * scale;
+    const dh = iHeight * scale;
+
+    targetCtx.save();
+
+    // Rounded rectangle card
+    targetCtx.beginPath();
+    addRoundRect(targetCtx, -dw / 2, -dh / 2, dw, dh, 18);
+    targetCtx.clip();
+
+    // Elegant gradient background: deep dark purple / slate
+    const grad = targetCtx.createLinearGradient(-dw / 2, -dh / 2, dw / 2, dh / 2);
+    grad.addColorStop(0, '#1e1b4b');
+    grad.addColorStop(0.5, '#0f172a');
+    grad.addColorStop(1, '#020617');
+    targetCtx.fillStyle = grad;
+    targetCtx.fillRect(-dw / 2, -dh / 2, dw, dh);
+
+    // Decorative grid pattern
+    targetCtx.strokeStyle = 'rgba(168, 85, 247, 0.12)';
+    targetCtx.lineWidth = 1;
+    for (let x = -dw / 2; x <= dw / 2; x += 40) {
+      targetCtx.beginPath();
+      targetCtx.moveTo(x, -dh / 2);
+      targetCtx.lineTo(x, dh / 2);
+      targetCtx.stroke();
+    }
+    for (let y = -dh / 2; y <= dh / 2; y += 40) {
+      targetCtx.beginPath();
+      targetCtx.moveTo(-dw / 2, y);
+      targetCtx.lineTo(dw / 2, y);
+      targetCtx.stroke();
+    }
+
+    // Image Icon in center
+    targetCtx.fillStyle = '#a855f7';
+    targetCtx.beginPath();
+    targetCtx.arc(0, -35, 42, 0, Math.PI * 2);
+    targetCtx.fill();
+
+    // Mountain / Sun simple geometric icon
+    targetCtx.fillStyle = '#ffffff';
+    targetCtx.beginPath();
+    // Sun
+    targetCtx.arc(14, -50, 6, 0, Math.PI * 2);
+    targetCtx.fill();
+    // Mountains
+    targetCtx.beginPath();
+    targetCtx.moveTo(-22, -18);
+    targetCtx.lineTo(-6, -38);
+    targetCtx.lineTo(8, -24);
+    targetCtx.lineTo(16, -32);
+    targetCtx.lineTo(26, -18);
+    targetCtx.closePath();
+    targetCtx.fill();
+
+    // Clip name label
+    targetCtx.fillStyle = '#f8fafc';
+    targetCtx.font = 'bold 24px Inter, system-ui';
+    targetCtx.textAlign = 'center';
+    targetCtx.textBaseline = 'middle';
+    const displayName = clip.name && clip.name.length > 28 ? clip.name.substring(0, 25) + '...' : (clip.name || 'Image Clip');
+    targetCtx.fillText(displayName, 0, 35);
+
+    // Subtitle label
+    targetCtx.fillStyle = '#a855f7';
+    targetCtx.font = '600 14px Inter, system-ui';
+    targetCtx.fillText('IMAGE MEDIA • READY', 0, 70);
+
+    // Subtle border
+    targetCtx.strokeStyle = 'rgba(168, 85, 247, 0.5)';
+    targetCtx.lineWidth = 3;
+    targetCtx.strokeRect(-dw / 2, -dh / 2, dw, dh);
 
     targetCtx.restore();
   }

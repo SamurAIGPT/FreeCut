@@ -1,4 +1,5 @@
 import { MediaAsset } from '@/types/editor';
+import { mediaStorage } from '@/services/storage/mediaStorage';
 
 /**
  * Extracts metadata and thumbnail for a single File and returns a MediaAsset.
@@ -18,9 +19,14 @@ export async function importMediaFile(file: File): Promise<MediaAsset> {
       video.playsInline = true;
 
       let resolved = false;
-      const finalize = (thumbnailUrl?: string) => {
+      const finalize = async (thumbnailUrl?: string) => {
         if (resolved) return;
         resolved = true;
+        try {
+          await mediaStorage.saveMedia(id, file.name, file.type, file, thumbnailUrl);
+        } catch {
+          // ignore
+        }
         resolve({
           id,
           name: file.name,
@@ -63,53 +69,70 @@ export async function importMediaFile(file: File): Promise<MediaAsset> {
   if (isAudio) {
     return new Promise<MediaAsset>((resolve) => {
       const audio = new Audio(url);
-      audio.onloadedmetadata = () => {
+      const finalizeAudio = async (duration = 5) => {
+        try {
+          await mediaStorage.saveMedia(id, file.name, file.type, file);
+        } catch {
+          // ignore
+        }
         resolve({
           id,
           name: file.name,
           type: 'audio',
           url,
-          duration: audio.duration || 5,
+          duration,
         });
       };
-      audio.onerror = () => {
-        resolve({
-          id,
-          name: file.name,
-          type: 'audio',
-          url,
-          duration: 5,
-        });
-      };
-      setTimeout(() => {
-        resolve({
-          id,
-          name: file.name,
-          type: 'audio',
-          url,
-          duration: 5,
-        });
-      }, 1500);
+      audio.onloadedmetadata = () => finalizeAudio(audio.duration || 5);
+      audio.onerror = () => finalizeAudio(5);
+      setTimeout(() => finalizeAudio(5), 1500);
     });
   }
 
-  // Otherwise assume image
+  // Otherwise assume image - encode to persistent base64 dataUrl so it survives refreshes
   return new Promise<MediaAsset>((resolve) => {
-    const img = new Image();
-    img.src = url;
-    img.onload = () => {
-      resolve({
-        id,
-        name: file.name,
-        type: 'image',
-        url,
-        duration: 4,
-        width: img.width,
-        height: img.height,
-        thumbnailUrl: url,
-      });
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      const img = new Image();
+      img.onload = async () => {
+        try {
+          await mediaStorage.saveMedia(id, file.name, file.type, file, dataUrl);
+        } catch {
+          // ignore
+        }
+        resolve({
+          id,
+          name: file.name,
+          type: 'image',
+          url: dataUrl,
+          duration: 4,
+          width: img.width,
+          height: img.height,
+          thumbnailUrl: dataUrl,
+        });
+      };
+      img.onerror = async () => {
+        try {
+          await mediaStorage.saveMedia(id, file.name, file.type, file, dataUrl);
+        } catch {
+          // ignore
+        }
+        resolve({
+          id,
+          name: file.name,
+          type: 'image',
+          url: dataUrl,
+          duration: 4,
+          width: 1920,
+          height: 1080,
+          thumbnailUrl: dataUrl,
+        });
+      };
+      img.src = dataUrl;
     };
-    img.onerror = () => {
+    reader.onerror = () => {
+      // Fallback to object URL if FileReader fails
       resolve({
         id,
         name: file.name,
@@ -121,18 +144,7 @@ export async function importMediaFile(file: File): Promise<MediaAsset> {
         thumbnailUrl: url,
       });
     };
-    setTimeout(() => {
-      resolve({
-        id,
-        name: file.name,
-        type: 'image',
-        url,
-        duration: 4,
-        width: 1920,
-        height: 1080,
-        thumbnailUrl: url,
-      });
-    }, 1500);
+    reader.readAsDataURL(file);
   });
 }
 
