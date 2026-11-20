@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { 
   Magnet, Plus, Scissors, Trash2, ZoomIn, ZoomOut, MousePointer, 
   Copy, Link2, Bookmark, Sparkles, AlignLeft, AlignRight, Maximize2,
-  Film, Music, Type, Wand2, CheckCircle2, Eye, EyeOff, Volume2, VolumeX, Lock, Unlock, ClipboardPaste, X
+  Film, Video, Music, Type, Wand2, CheckCircle2, Eye, EyeOff, Volume2, VolumeX, Lock, Unlock, ClipboardPaste, X, Snowflake
 } from 'lucide-react';
 import { useEditorStore } from '@/store/useEditorStore';
 import { TrackHeader } from './TrackHeader';
@@ -509,182 +509,178 @@ export const Timeline: React.FC = () => {
         </div>
       )}
 
-      {/* Timeline Pro Control Bar */}
-      <div className="flex h-12 w-full items-center justify-between border-b border-app-border bg-app-surface px-3.5 gap-2.5 overflow-x-auto scrollbar-hidden">
-        {/* Left Section: Generous Padding Labeled & Icon Editing Tools with Hover Tooltips */}
-        <div className="flex items-center gap-2 shrink-0">
-          {/* Select Tool (V) */}
-          <Tooltip content="Selection Tool" shortcut="V" side="top">
-            <button
-              onClick={() => setActiveTool('select')}
-              className={`flex items-center gap-1.5 h-[34px] rounded-lg px-3.5 py-1.5 text-xs font-semibold border transition cursor-pointer ${
-                activeTool === 'select'
-                  ? 'border-neutral-900 bg-neutral-900 text-white shadow-xs dark:border-white dark:bg-white dark:text-neutral-950'
-                  : 'border-neutral-300 bg-neutral-100 text-neutral-700 hover:bg-neutral-200 hover:text-neutral-950 dark:border-[#27272a] dark:bg-[#18181b] dark:text-neutral-300 dark:hover:bg-[#27272a] dark:hover:text-white'
-              }`}
-            >
-              <MousePointer className="h-3.5 w-3.5" />
-              <span>Select</span>
-            </button>
-          </Tooltip>
+      {/* Timeline Control Bar (Clean Icon-Only Buttons with Rich Tooltips) */}
+      <div className="flex h-10 w-full items-center justify-between border-b border-app-border bg-app-surface px-2.5 gap-1 overflow-x-auto scrollbar-hidden">
+        {/* Left Section: Icon-Only Editing Tools matching reference project with Tooltips */}
+        <div className="flex items-center gap-1 shrink-0">
+          {/* Tool Modes: Select (V) & Razor (C) */}
+          <div className="flex items-center gap-0.5">
+            <Tooltip content="Selection Tool" shortcut="V" side="top">
+              <button
+                onClick={() => setActiveTool('select')}
+                className={`flex h-8 w-8 items-center justify-center rounded-md transition cursor-pointer ${
+                  activeTool === 'select'
+                    ? 'bg-neutral-200 text-neutral-900 dark:bg-neutral-800 dark:text-white shadow-xs font-semibold'
+                    : 'text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:text-white dark:hover:bg-neutral-800/60'
+                }`}
+              >
+                <MousePointer className="h-4 w-4" />
+              </button>
+            </Tooltip>
 
-          {/* Razor Tool (C) */}
-          <Tooltip content="Razor Tool (Click clip to cut)" shortcut="C" side="top">
-            <button
-              onClick={() => setActiveTool('razor')}
-              className={`flex items-center gap-1.5 h-[34px] rounded-lg px-3.5 py-1.5 text-xs font-semibold border transition cursor-pointer ${
-                activeTool === 'razor'
-                  ? 'border-red-500 bg-red-500/15 text-red-600 dark:border-red-500 dark:bg-red-500/20 dark:text-red-400 shadow-xs'
-                  : 'border-neutral-300 bg-neutral-100 text-neutral-700 hover:bg-neutral-200 hover:text-neutral-950 dark:border-[#27272a] dark:bg-[#18181b] dark:text-neutral-300 dark:hover:bg-[#27272a] dark:hover:text-white'
-              }`}
-            >
-              <Scissors className="h-3.5 w-3.5" />
-              <span>Razor</span>
-            </button>
-          </Tooltip>
+            <Tooltip content="Razor Tool (Click clip to cut)" shortcut="C" side="top">
+              <button
+                onClick={() => setActiveTool('razor')}
+                className={`flex h-8 w-8 items-center justify-center rounded-md transition cursor-pointer ${
+                  activeTool === 'razor'
+                    ? 'bg-red-500/20 text-red-500 shadow-xs font-semibold'
+                    : 'text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:text-white dark:hover:bg-neutral-800/60'
+                }`}
+              >
+                <Scissors className="h-4 w-4" />
+              </button>
+            </Tooltip>
+          </div>
 
-          <div className="mx-1 h-5 w-px bg-neutral-300 dark:bg-neutral-700" />
+          <div className="mx-1 h-5 w-px bg-neutral-200 dark:bg-neutral-800" />
 
-          {/* Split at Playhead (S) */}
-          <Tooltip content="Split element at playhead" shortcut="S" side="top">
-            <button
-              onClick={() => selectedClipId && splitClip(selectedClipId)}
-              disabled={!selectedClipId}
-              className="flex items-center gap-1.5 h-[34px] rounded-lg px-3 py-1.5 text-xs font-medium border border-neutral-300 bg-neutral-100 text-neutral-800 hover:bg-neutral-200 disabled:opacity-40 transition cursor-pointer dark:border-[#27272a] dark:bg-[#18181b] dark:text-neutral-200 dark:hover:bg-[#27272a]"
-            >
-              <Scissors className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Split</span>
-            </button>
-          </Tooltip>
+          {/* Core Editing Actions: Split (S), Split Left (Q), Split Right (W), Extract Audio, Duplicate (Ctrl+D), Freeze Frame, Ripple Delete (Shift+Del), Delete (Del) */}
+          <div className="flex items-center gap-0.5">
+            <Tooltip content="Split element at playhead" shortcut="S" side="top">
+              <button
+                onClick={() => selectedClipId && splitClip(selectedClipId)}
+                disabled={!selectedClipId}
+                className="flex h-8 w-8 items-center justify-center rounded-md text-neutral-600 hover:text-neutral-950 hover:bg-neutral-100 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent transition cursor-pointer dark:text-neutral-400 dark:hover:text-white dark:hover:bg-neutral-800/60"
+              >
+                <Scissors className="h-4 w-4" />
+              </button>
+            </Tooltip>
 
-          {/* Split Left (Q) */}
-          <Tooltip content="Split left (Trim start to playhead)" shortcut="Q" side="top">
-            <button
-              onClick={() => selectedClipId && splitLeft(selectedClipId)}
-              disabled={!selectedClipId}
-              className="flex items-center gap-1.5 h-[34px] rounded-lg px-3 py-1.5 text-xs font-medium border border-neutral-300 bg-neutral-100 text-neutral-800 hover:bg-neutral-200 disabled:opacity-40 transition cursor-pointer dark:border-[#27272a] dark:bg-[#18181b] dark:text-neutral-200 dark:hover:bg-[#27272a]"
-            >
-              <AlignLeft className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Left (Q)</span>
-            </button>
-          </Tooltip>
+            <Tooltip content="Split left (Trim start to playhead)" shortcut="Q" side="top">
+              <button
+                onClick={() => selectedClipId && splitLeft(selectedClipId)}
+                disabled={!selectedClipId}
+                className="flex h-8 w-8 items-center justify-center rounded-md text-neutral-600 hover:text-neutral-950 hover:bg-neutral-100 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent transition cursor-pointer dark:text-neutral-400 dark:hover:text-white dark:hover:bg-neutral-800/60"
+              >
+                <AlignLeft className="h-4 w-4" />
+              </button>
+            </Tooltip>
 
-          {/* Split Right (W) */}
-          <Tooltip content="Split right (Trim end to playhead)" shortcut="W" side="top">
-            <button
-              onClick={() => selectedClipId && splitRight(selectedClipId)}
-              disabled={!selectedClipId}
-              className="flex items-center gap-1.5 h-[34px] rounded-lg px-3 py-1.5 text-xs font-medium border border-neutral-300 bg-neutral-100 text-neutral-800 hover:bg-neutral-200 disabled:opacity-40 transition cursor-pointer dark:border-[#27272a] dark:bg-[#18181b] dark:text-neutral-200 dark:hover:bg-[#27272a]"
-            >
-              <AlignRight className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Right (W)</span>
-            </button>
-          </Tooltip>
+            <Tooltip content="Split right (Trim end to playhead)" shortcut="W" side="top">
+              <button
+                onClick={() => selectedClipId && splitRight(selectedClipId)}
+                disabled={!selectedClipId}
+                className="flex h-8 w-8 items-center justify-center rounded-md text-neutral-600 hover:text-neutral-950 hover:bg-neutral-100 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent transition cursor-pointer dark:text-neutral-400 dark:hover:text-white dark:hover:bg-neutral-800/60"
+              >
+                <AlignRight className="h-4 w-4" />
+              </button>
+            </Tooltip>
 
-          {/* Separate / Extract Audio from Video */}
-          <Tooltip content={isVideoSelected ? "Extract / Separate audio" : "Select video to extract audio"} side="top">
-            <button
-              onClick={() => selectedClipId && isVideoSelected && extractAudio(selectedClipId)}
-              disabled={!selectedClipId || !isVideoSelected}
-              className="flex items-center gap-1.5 h-[34px] rounded-lg px-3 py-1.5 text-xs font-medium border border-neutral-300 bg-neutral-100 text-emerald-600 hover:bg-emerald-500/10 disabled:opacity-40 transition cursor-pointer dark:border-[#27272a] dark:bg-[#18181b] dark:text-emerald-400 dark:hover:bg-emerald-500/15"
-            >
-              <Link2 className="h-3.5 w-3.5" />
-              <span className="hidden md:inline">Extract Audio</span>
-            </button>
-          </Tooltip>
+            <Tooltip content={isVideoSelected ? "Extract / Separate audio" : "Select video to extract audio"} side="top">
+              <button
+                onClick={() => selectedClipId && isVideoSelected && extractAudio(selectedClipId)}
+                disabled={!selectedClipId || !isVideoSelected}
+                className="flex h-8 w-8 items-center justify-center rounded-md text-neutral-600 hover:text-neutral-950 hover:bg-neutral-100 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent transition cursor-pointer dark:text-neutral-400 dark:hover:text-white dark:hover:bg-neutral-800/60"
+              >
+                <Link2 className="h-4 w-4" />
+              </button>
+            </Tooltip>
 
-          {/* Duplicate Clip (Ctrl+D) */}
-          <Tooltip content="Duplicate element" shortcut="Ctrl+D" side="top">
-            <button
-              onClick={() => selectedClipId && duplicateClip(selectedClipId)}
-              disabled={!selectedClipId}
-              className="flex items-center gap-1.5 h-[34px] rounded-lg px-3 py-1.5 text-xs font-medium border border-neutral-300 bg-neutral-100 text-neutral-800 hover:bg-neutral-200 disabled:opacity-40 transition cursor-pointer dark:border-[#27272a] dark:bg-[#18181b] dark:text-neutral-200 dark:hover:bg-[#27272a]"
-            >
-              <Copy className="h-3.5 w-3.5" />
-              <span className="hidden md:inline">Duplicate</span>
-            </button>
-          </Tooltip>
+            <Tooltip content="Duplicate element" shortcut="Ctrl+D" side="top">
+              <button
+                onClick={() => selectedClipId && duplicateClip(selectedClipId)}
+                disabled={!selectedClipId}
+                className="flex h-8 w-8 items-center justify-center rounded-md text-neutral-600 hover:text-neutral-950 hover:bg-neutral-100 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent transition cursor-pointer dark:text-neutral-400 dark:hover:text-white dark:hover:bg-neutral-800/60"
+              >
+                <Copy className="h-4 w-4" />
+              </button>
+            </Tooltip>
 
-          {/* Ripple Delete (Shift+Del) */}
-          <Tooltip content="Ripple delete (Close gap)" shortcut="Shift+Del" side="top">
-            <button
-              onClick={() => selectedClipId && rippleDelete(selectedClipId)}
-              disabled={!selectedClipId}
-              className="flex items-center gap-1.5 h-[34px] rounded-lg px-3 py-1.5 text-xs font-medium border border-neutral-300 bg-neutral-100 text-amber-600 hover:bg-amber-500/10 disabled:opacity-40 transition cursor-pointer dark:border-[#27272a] dark:bg-[#18181b] dark:text-amber-400 dark:hover:bg-amber-500/15"
-            >
-              <Sparkles className="h-3.5 w-3.5" />
-              <span className="hidden md:inline">Ripple Del</span>
-            </button>
-          </Tooltip>
+            <Tooltip content="Freeze frame (coming soon)" side="top">
+              <button
+                disabled={true}
+                className="flex h-8 w-8 items-center justify-center rounded-md text-neutral-600 opacity-40 cursor-not-allowed dark:text-neutral-400"
+              >
+                <Snowflake className="h-4 w-4" />
+              </button>
+            </Tooltip>
 
-          {/* Delete (Del) */}
-          <Tooltip content="Delete element" shortcut="Del" side="top">
-            <button
-              onClick={() => selectedClipId && deleteClip(selectedClipId)}
-              disabled={!selectedClipId}
-              className="flex items-center justify-center h-[34px] w-[34px] rounded-lg border border-neutral-300 bg-neutral-100 text-red-500 hover:bg-red-500/10 disabled:opacity-40 transition cursor-pointer dark:border-[#27272a] dark:bg-[#18181b] dark:hover:bg-red-500/15"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </button>
-          </Tooltip>
+            <Tooltip content="Ripple delete (Close gap)" shortcut="Shift+Del" side="top">
+              <button
+                onClick={() => selectedClipId && rippleDelete(selectedClipId)}
+                disabled={!selectedClipId}
+                className="flex h-8 w-8 items-center justify-center rounded-md text-neutral-600 hover:text-neutral-950 hover:bg-neutral-100 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent transition cursor-pointer dark:text-neutral-400 dark:hover:text-white dark:hover:bg-neutral-800/60"
+              >
+                <Sparkles className="h-4 w-4" />
+              </button>
+            </Tooltip>
 
-          <div className="mx-1 h-5 w-px bg-neutral-300 dark:bg-neutral-700" />
+            <Tooltip content="Delete element" shortcut="Del" side="top">
+              <button
+                onClick={() => selectedClipId && deleteClip(selectedClipId)}
+                disabled={!selectedClipId}
+                className="flex h-8 w-8 items-center justify-center rounded-md text-red-500 hover:text-red-600 hover:bg-red-500/10 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent transition cursor-pointer dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-500/15"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </Tooltip>
+          </div>
 
-          {/* Add Bookmark / Marker (M) */}
-          <Tooltip content="Add bookmark" shortcut="M" side="top">
-            <button
-              onClick={() => addMarker(useEditorStore.getState().playhead)}
-              className="flex items-center gap-1.5 h-[34px] rounded-lg px-3 py-1.5 text-xs font-medium border border-neutral-300 bg-neutral-100 text-blue-600 hover:bg-blue-500/10 transition cursor-pointer dark:border-[#27272a] dark:bg-[#18181b] dark:text-blue-400 dark:hover:bg-blue-500/15"
-            >
-              <Bookmark className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Marker</span>
-            </button>
-          </Tooltip>
+          <div className="mx-1 h-5 w-px bg-neutral-200 dark:bg-neutral-800" />
 
-          {/* Magnet Snapping Toggle */}
-          <Tooltip content={isSnapping ? "Auto snapping ON" : "Auto snapping OFF"} side="top">
-            <button
-              onClick={toggleSnapping}
-              className={`flex items-center gap-1.5 h-[34px] rounded-lg px-3.5 py-1.5 text-xs font-semibold border transition cursor-pointer ${
-                isSnapping
-                  ? 'border-neutral-900 bg-neutral-900 text-white shadow-xs dark:border-white dark:bg-white dark:text-neutral-950'
-                  : 'border-neutral-300 bg-neutral-100 text-neutral-700 hover:bg-neutral-200 hover:text-neutral-950 dark:border-[#27272a] dark:bg-[#18181b] dark:text-neutral-300 dark:hover:bg-[#27272a] dark:hover:text-white'
-              }`}
-            >
-              <Magnet className="h-3.5 w-3.5" />
-              <span>Snap</span>
-            </button>
-          </Tooltip>
+          {/* Timeline Controls: Bookmark / Marker (M) & Snapping (N) */}
+          <div className="flex items-center gap-0.5">
+            <Tooltip content="Add bookmark / marker" shortcut="M" side="top">
+              <button
+                onClick={() => addMarker(useEditorStore.getState().playhead)}
+                className="flex h-8 w-8 items-center justify-center rounded-md text-neutral-600 hover:text-neutral-950 hover:bg-neutral-100 transition cursor-pointer dark:text-neutral-400 dark:hover:text-white dark:hover:bg-neutral-800/60"
+              >
+                <Bookmark className="h-4 w-4" />
+              </button>
+            </Tooltip>
 
-          {/* Quick Add Track Buttons */}
-          <div className="flex items-center gap-1.5 pl-1">
+            <Tooltip content={isSnapping ? "Auto snapping ON" : "Auto snapping OFF"} shortcut="N" side="top">
+              <button
+                onClick={toggleSnapping}
+                className={`flex h-8 w-8 items-center justify-center rounded-md transition cursor-pointer ${
+                  isSnapping
+                    ? 'bg-neutral-200 text-neutral-900 dark:bg-neutral-800 dark:text-white shadow-xs font-semibold'
+                    : 'text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:text-white dark:hover:bg-neutral-800/60'
+                }`}
+              >
+                <Magnet className="h-4 w-4" />
+              </button>
+            </Tooltip>
+          </div>
+
+          <div className="mx-1 h-5 w-px bg-neutral-200 dark:bg-neutral-800" />
+
+          {/* Quick Add Track Buttons (Icon Only with tooltips) */}
+          <div className="flex items-center gap-0.5">
             <Tooltip content="Add Video Track" side="top">
               <button
                 onClick={() => addTrack('video')}
-                className="flex items-center gap-1.5 rounded-lg border border-neutral-300 bg-neutral-100 px-3.5 py-1.5 h-[34px] text-xs font-semibold text-blue-600 hover:bg-blue-500/10 transition cursor-pointer dark:border-[#27272a] dark:bg-[#18181b] dark:text-blue-400 dark:hover:bg-blue-500/15"
+                className="flex h-8 w-8 items-center justify-center rounded-md text-blue-600 hover:text-blue-700 hover:bg-blue-500/10 transition cursor-pointer dark:text-blue-400 dark:hover:text-blue-300 dark:hover:bg-blue-500/15"
               >
-                <Plus className="h-3.5 w-3.5" />
-                <span>Video</span>
+                <Video className="h-4 w-4" />
               </button>
             </Tooltip>
 
             <Tooltip content="Add Audio Track" side="top">
               <button
                 onClick={() => addTrack('audio')}
-                className="flex items-center gap-1.5 rounded-lg border border-neutral-300 bg-neutral-100 px-3.5 py-1.5 h-[34px] text-xs font-semibold text-emerald-600 hover:bg-emerald-500/10 transition cursor-pointer dark:border-[#27272a] dark:bg-[#18181b] dark:text-emerald-400 dark:hover:bg-emerald-500/15"
+                className="flex h-8 w-8 items-center justify-center rounded-md text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10 transition cursor-pointer dark:text-emerald-400 dark:hover:text-emerald-300 dark:hover:bg-emerald-500/15"
               >
-                <Plus className="h-3.5 w-3.5" />
-                <span>Audio</span>
+                <Music className="h-4 w-4" />
               </button>
             </Tooltip>
 
             <Tooltip content="Add Text Track" side="top">
               <button
                 onClick={() => addTrack('text')}
-                className="flex items-center gap-1.5 rounded-lg border border-neutral-300 bg-neutral-100 px-3.5 py-1.5 h-[34px] text-xs font-semibold text-amber-600 hover:bg-amber-500/10 transition cursor-pointer dark:border-[#27272a] dark:bg-[#18181b] dark:text-amber-400 dark:hover:bg-amber-500/15"
+                className="flex h-8 w-8 items-center justify-center rounded-md text-amber-600 hover:text-amber-700 hover:bg-amber-500/10 transition cursor-pointer dark:text-amber-400 dark:hover:text-amber-300 dark:hover:bg-amber-500/15"
               >
-                <Plus className="h-3.5 w-3.5" />
-                <span>Text</span>
+                <Type className="h-4 w-4" />
               </button>
             </Tooltip>
           </div>
@@ -695,18 +691,18 @@ export const Timeline: React.FC = () => {
           <Tooltip content="Fit timeline to screen" side="top">
             <button
               onClick={handleFitToZoom}
-              className="flex h-7 w-7 items-center justify-center rounded-lg text-neutral-600 hover:bg-neutral-200 hover:text-neutral-900 transition cursor-pointer dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-white"
+              className="flex h-8 w-8 items-center justify-center rounded-md text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 transition cursor-pointer dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-white"
             >
-              <Maximize2 className="h-3.5 w-3.5" />
+              <Maximize2 className="h-4 w-4" />
             </button>
           </Tooltip>
 
           <Tooltip content="Zoom Out" side="top">
             <button
               onClick={() => setZoom(zoom - 20)}
-              className="flex h-7 w-7 items-center justify-center rounded-lg text-neutral-600 hover:bg-neutral-200 hover:text-neutral-900 transition cursor-pointer dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-white"
+              className="flex h-8 w-8 items-center justify-center rounded-md text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 transition cursor-pointer dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-white"
             >
-              <ZoomOut className="h-3.5 w-3.5" />
+              <ZoomOut className="h-4 w-4" />
             </button>
           </Tooltip>
 
@@ -722,9 +718,9 @@ export const Timeline: React.FC = () => {
           <Tooltip content="Zoom In" side="top">
             <button
               onClick={() => setZoom(zoom + 20)}
-              className="flex h-7 w-7 items-center justify-center rounded-lg text-neutral-600 hover:bg-neutral-200 hover:text-neutral-900 transition cursor-pointer dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-white"
+              className="flex h-8 w-8 items-center justify-center rounded-md text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 transition cursor-pointer dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-white"
             >
-              <ZoomIn className="h-3.5 w-3.5" />
+              <ZoomIn className="h-4 w-4" />
             </button>
           </Tooltip>
         </div>
