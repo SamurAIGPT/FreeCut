@@ -166,15 +166,19 @@ class CanvasCompositor {
   }
 
   public getOrCreateVideo(asset: MediaAsset): HTMLVideoElement {
-    let video = this.videoCache.get(asset.id);
+    return this.getOrCreateVideoByUrl(asset.id, asset.url);
+  }
+
+  public getOrCreateVideoByUrl(id: string, url: string): HTMLVideoElement {
+    let video = this.videoCache.get(id);
     if (!video) {
       video = document.createElement('video');
-      video.src = asset.url;
+      video.src = url;
       video.crossOrigin = 'anonymous';
       video.muted = true;
       video.playsInline = true;
       video.preload = 'auto';
-      this.videoCache.set(asset.id, video);
+      this.videoCache.set(id, video);
     }
     return video;
   }
@@ -407,19 +411,41 @@ class CanvasCompositor {
 
       // Helper to draw the actual clip media or text onto any context
       const drawClipContent = (targetCtx: CanvasRenderingContext2D) => {
-        if (clip.type === 'video' && asset) {
-          const video = this.getOrCreateVideo(asset);
-          if (Math.abs(video.currentTime - relativeTime) > 0.04) {
-            video.currentTime = relativeTime;
+        if (clip.type === 'video') {
+          const videoUrl = asset?.url || clip.url;
+          let videoDrawn = false;
+
+          if (videoUrl) {
+            const video = this.getOrCreateVideoByUrl(asset?.id || clip.assetId || clip.id, videoUrl);
+            if (video && video.readyState >= 2) {
+              if (Math.abs(video.currentTime - relativeTime) > 0.04) {
+                video.currentTime = relativeTime;
+              }
+              const vWidth = video.videoWidth || asset?.width || 1280;
+              const vHeight = video.videoHeight || asset?.height || 720;
+              const scale = Math.min(width / vWidth, height / vHeight);
+              const dw = vWidth * scale;
+              const dh = vHeight * scale;
+              targetCtx.drawImage(video, -dw / 2, -dh / 2, dw, dh);
+              videoDrawn = true;
+
+              if (clip.trackId === 'track-video-2' || (clip.transform?.scale ?? 1) < 0.95) {
+                targetCtx.save();
+                targetCtx.strokeStyle = 'rgba(168, 85, 247, 0.85)';
+                targetCtx.lineWidth = 4;
+                targetCtx.strokeRect(-dw / 2, -dh / 2, dw, dh);
+                targetCtx.restore();
+              }
+            } else if (video) {
+              if (video.paused && Math.abs(video.currentTime - relativeTime) > 0.04) {
+                video.currentTime = relativeTime;
+              }
+            }
           }
 
-          const vWidth = asset.width || 1280;
-          const vHeight = asset.height || 720;
-          const scale = Math.min(width / vWidth, height / vHeight);
-          const dw = vWidth * scale;
-          const dh = vHeight * scale;
-
-          targetCtx.drawImage(video, -dw / 2, -dh / 2, dw, dh);
+          if (!videoDrawn) {
+            this.drawProceduralVideoFrame(targetCtx, clip, relativeTime, width, height);
+          }
         } else if (clip.type === 'image' && asset) {
           const img = this.getOrCreateImage(asset);
           const iWidth = asset.width || (img.naturalWidth > 0 ? img.naturalWidth : 800);
@@ -656,6 +682,211 @@ class CanvasCompositor {
       default:
         return { width: 1920, height: 1080 };
     }
+  }
+
+  private drawProceduralVideoFrame(
+    targetCtx: CanvasRenderingContext2D,
+    clip: Clip,
+    relativeTime: number,
+    canvasWidth: number,
+    canvasHeight: number
+  ) {
+    const vWidth = 1280;
+    const vHeight = 720;
+    const scale = Math.min(canvasWidth / vWidth, canvasHeight / vHeight);
+    const dw = vWidth * scale;
+    const dh = vHeight * scale;
+
+    const isBroll =
+      clip.trackId === 'track-video-2' ||
+      clip.name.toLowerCase().includes('b-roll') ||
+      clip.name.toLowerCase().includes('broll') ||
+      clip.name.toLowerCase().includes('picture-in-picture') ||
+      clip.name.toLowerCase().includes('pip');
+
+    targetCtx.save();
+
+    if (isBroll) {
+      // ================= B-ROLL CAMERA FEED OVERLAY =================
+      // Rounded PiP container clip path
+      targetCtx.beginPath();
+      addRoundRect(targetCtx, -dw / 2, -dh / 2, dw, dh, 16);
+      targetCtx.clip();
+
+      // Deep cyberpunk dark purple / indigo gradient
+      const bgGrad = targetCtx.createLinearGradient(-dw / 2, -dh / 2, dw / 2, dh / 2);
+      bgGrad.addColorStop(0, '#110726');
+      bgGrad.addColorStop(0.5, '#1e0f3d');
+      bgGrad.addColorStop(1, '#0c051a');
+      targetCtx.fillStyle = bgGrad;
+      targetCtx.fillRect(-dw / 2, -dh / 2, dw, dh);
+
+      // Cyberpunk 3D perspective grid lines
+      targetCtx.save();
+      targetCtx.strokeStyle = 'rgba(168, 85, 247, 0.25)';
+      targetCtx.lineWidth = 1.5;
+      const gridOffset = (relativeTime * 50) % 30;
+      for (let y = 0; y < dh / 2; y += 22) {
+        const lineY = dh / 2 - y - gridOffset;
+        if (lineY > 0) {
+          targetCtx.beginPath();
+          targetCtx.moveTo(-dw / 2, lineY);
+          targetCtx.lineTo(dw / 2, lineY);
+          targetCtx.stroke();
+        }
+      }
+      for (let x = -dw / 2; x <= dw / 2; x += 60) {
+        targetCtx.beginPath();
+        targetCtx.moveTo(0, 0);
+        targetCtx.lineTo(x * 1.8, dh / 2);
+        targetCtx.stroke();
+      }
+      targetCtx.restore();
+
+      // Live animated center drone / camera reticle
+      const angle = relativeTime * 1.8;
+      targetCtx.save();
+      targetCtx.strokeStyle = '#06b6d4';
+      targetCtx.lineWidth = 2.5;
+      targetCtx.beginPath();
+      targetCtx.arc(0, 0, 70, angle, angle + Math.PI * 0.8);
+      targetCtx.stroke();
+      targetCtx.beginPath();
+      targetCtx.arc(0, 0, 70, angle + Math.PI, angle + Math.PI * 1.8);
+      targetCtx.stroke();
+
+      // Center crosshair
+      targetCtx.strokeStyle = 'rgba(6, 182, 212, 0.7)';
+      targetCtx.lineWidth = 1.5;
+      targetCtx.beginPath();
+      targetCtx.moveTo(-20, 0);
+      targetCtx.lineTo(20, 0);
+      targetCtx.moveTo(0, -20);
+      targetCtx.lineTo(0, 20);
+      targetCtx.stroke();
+      targetCtx.restore();
+
+      // Animated Audio Waveform Spectrum at bottom
+      const bars = 24;
+      const barW = (dw * 0.7) / bars;
+      const startX = -((bars * barW) / 2);
+      for (let i = 0; i < bars; i++) {
+        const wave = Math.sin(relativeTime * 7 + i * 0.45) * 0.5 + 0.5;
+        const barH = 10 + wave * 45;
+        const barX = startX + i * barW;
+        const barY = dh / 2 - 40 - barH;
+
+        const barGrad = targetCtx.createLinearGradient(barX, barY, barX, barY + barH);
+        barGrad.addColorStop(0, '#ec4899');
+        barGrad.addColorStop(1, '#8b5cf6');
+        targetCtx.fillStyle = barGrad;
+        targetCtx.fillRect(barX + 2, barY, barW - 4, barH);
+      }
+
+      // HUD Badge Top-Left: Red blinking recording dot & B-ROLL label
+      const isBlink = Math.floor(relativeTime * 2) % 2 === 0;
+      targetCtx.fillStyle = isBlink ? '#ef4444' : '#7f1d1d';
+      targetCtx.beginPath();
+      targetCtx.arc(-dw / 2 + 35, -dh / 2 + 35, 7, 0, Math.PI * 2);
+      targetCtx.fill();
+
+      targetCtx.fillStyle = '#ffffff';
+      targetCtx.font = 'bold 16px Inter, system-ui';
+      targetCtx.textAlign = 'left';
+      targetCtx.textBaseline = 'middle';
+      targetCtx.fillText('B-ROLL CAM-02', -dw / 2 + 50, -dh / 2 + 35);
+
+      // HUD Badge Top-Right: Timecode
+      targetCtx.fillStyle = '#38bdf8';
+      targetCtx.font = '600 15px monospace';
+      targetCtx.textAlign = 'right';
+      const m = Math.floor(relativeTime / 60);
+      const s = Math.floor(relativeTime % 60);
+      const f = Math.floor((relativeTime % 1) * 30);
+      const tc = `REC 00:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}:${String(f).padStart(2, '0')}`;
+      targetCtx.fillText(tc, dw / 2 - 30, -dh / 2 + 35);
+
+      // Bottom Badge: Resolution
+      targetCtx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+      targetCtx.font = '12px Inter, system-ui';
+      targetCtx.textAlign = 'left';
+      targetCtx.fillText('4K UHD • 60 FPS • PIP OVERLAY', -dw / 2 + 35, dh / 2 - 25);
+
+      // Sleek glowing border around B-Roll PiP
+      targetCtx.strokeStyle = 'rgba(168, 85, 247, 0.8)';
+      targetCtx.lineWidth = 4;
+      targetCtx.strokeRect(-dw / 2, -dh / 2, dw, dh);
+    } else {
+      // ================= MAIN COUNTDOWN VIDEO =================
+      const bgGrad = targetCtx.createLinearGradient(-dw / 2, -dh / 2, dw / 2, dh / 2);
+      bgGrad.addColorStop(0, '#060b19');
+      bgGrad.addColorStop(0.5, '#0f172a');
+      bgGrad.addColorStop(1, '#020617');
+      targetCtx.fillStyle = bgGrad;
+      targetCtx.fillRect(-dw / 2, -dh / 2, dw, dh);
+
+      // Concentric cyan radar circles
+      const sweepAngle = relativeTime * 1.5 * Math.PI * 2;
+      [240, 180, 120, 60].forEach((r, idx) => {
+        targetCtx.strokeStyle = idx === 1 ? 'rgba(56, 189, 248, 0.4)' : 'rgba(56, 189, 248, 0.18)';
+        targetCtx.lineWidth = idx === 1 ? 2.5 : 1.5;
+        targetCtx.beginPath();
+        targetCtx.arc(0, 0, r, 0, Math.PI * 2);
+        targetCtx.stroke();
+      });
+
+      // Rotating radar sweep line
+      targetCtx.save();
+      targetCtx.strokeStyle = '#38bdf8';
+      targetCtx.lineWidth = 3;
+      targetCtx.beginPath();
+      targetCtx.moveTo(0, 0);
+      targetCtx.lineTo(Math.cos(sweepAngle) * 240, Math.sin(sweepAngle) * 240);
+      targetCtx.stroke();
+      targetCtx.restore();
+
+      // Countdown number
+      const count = Math.max(1, 6 - Math.floor(relativeTime));
+      targetCtx.fillStyle = '#ffffff';
+      targetCtx.font = 'bold 130px Inter, system-ui';
+      targetCtx.textAlign = 'center';
+      targetCtx.textBaseline = 'middle';
+      targetCtx.fillText(String(count), 0, 0);
+
+      // Labels
+      targetCtx.font = 'bold 22px Inter, system-ui';
+      targetCtx.fillStyle = '#38bdf8';
+      targetCtx.fillText('MAIN CAMERA FEED', 0, 180);
+
+      targetCtx.font = '14px Inter, system-ui';
+      targetCtx.fillStyle = '#64748b';
+      targetCtx.fillText('CINEMATIC 4K MASTER', 0, 215);
+
+      // Top-Left Badge
+      targetCtx.fillStyle = '#10b981';
+      targetCtx.beginPath();
+      targetCtx.arc(-dw / 2 + 40, -dh / 2 + 40, 6, 0, Math.PI * 2);
+      targetCtx.fill();
+      targetCtx.fillStyle = '#ffffff';
+      targetCtx.font = 'bold 14px Inter, system-ui';
+      targetCtx.textAlign = 'left';
+      targetCtx.fillText('MAIN FOOTAGE [CAM-01]', -dw / 2 + 55, -dh / 2 + 40);
+
+      // Top-Right Timecode
+      targetCtx.fillStyle = '#94a3b8';
+      targetCtx.font = '600 14px monospace';
+      targetCtx.textAlign = 'right';
+      const m = Math.floor(relativeTime / 60);
+      const s = Math.floor(relativeTime % 60);
+      const f = Math.floor((relativeTime % 1) * 30);
+      targetCtx.fillText(
+        `TC 00:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}:${String(f).padStart(2, '0')}`,
+        dw / 2 - 40,
+        -dh / 2 + 40
+      );
+    }
+
+    targetCtx.restore();
   }
 }
 

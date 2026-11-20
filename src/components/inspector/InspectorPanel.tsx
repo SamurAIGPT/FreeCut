@@ -312,6 +312,73 @@ export const InspectorPanel: React.FC = () => {
                 </div>
               </div>
 
+              {/* B-Roll & PiP Placement Presets */}
+              <div className="rounded-xl border border-app-border bg-app-elevated/70 p-2.5 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-semibold text-app-text flex items-center gap-1.5">
+                    <Layers className="h-3.5 w-3.5 text-purple-400" />
+                    PiP & B-Roll Presets
+                  </span>
+                  <span className="text-[10px] text-app-text-muted">1-Click Layout</span>
+                </div>
+                <div className="grid grid-cols-3 gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => updateClipTransform(clip.id, { x: 200, y: -110, scale: 0.4, scaleX: 0.4, scaleY: 0.4, rotation: 0 })}
+                    className="flex flex-col items-center justify-center py-2 px-1 rounded-lg border border-app-border bg-app-surface hover:border-purple-500/50 hover:bg-purple-500/10 transition cursor-pointer text-center group"
+                    title="Top-Right Picture-in-Picture"
+                  >
+                    <span className="text-[10px] font-medium text-app-text group-hover:text-purple-400">Top Right</span>
+                    <span className="text-[9px] text-app-text-muted font-mono">PiP 40%</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => updateClipTransform(clip.id, { x: -200, y: -110, scale: 0.4, scaleX: 0.4, scaleY: 0.4, rotation: 0 })}
+                    className="flex flex-col items-center justify-center py-2 px-1 rounded-lg border border-app-border bg-app-surface hover:border-purple-500/50 hover:bg-purple-500/10 transition cursor-pointer text-center group"
+                    title="Top-Left Picture-in-Picture"
+                  >
+                    <span className="text-[10px] font-medium text-app-text group-hover:text-purple-400">Top Left</span>
+                    <span className="text-[9px] text-app-text-muted font-mono">PiP 40%</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => updateClipTransform(clip.id, { x: 200, y: 110, scale: 0.4, scaleX: 0.4, scaleY: 0.4, rotation: 0 })}
+                    className="flex flex-col items-center justify-center py-2 px-1 rounded-lg border border-app-border bg-app-surface hover:border-purple-500/50 hover:bg-purple-500/10 transition cursor-pointer text-center group"
+                    title="Bottom-Right Picture-in-Picture"
+                  >
+                    <span className="text-[10px] font-medium text-app-text group-hover:text-purple-400">Bottom Right</span>
+                    <span className="text-[9px] text-app-text-muted font-mono">PiP 40%</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => updateClipTransform(clip.id, { x: -200, y: 110, scale: 0.4, scaleX: 0.4, scaleY: 0.4, rotation: 0 })}
+                    className="flex flex-col items-center justify-center py-2 px-1 rounded-lg border border-app-border bg-app-surface hover:border-purple-500/50 hover:bg-purple-500/10 transition cursor-pointer text-center group"
+                    title="Bottom-Left Picture-in-Picture"
+                  >
+                    <span className="text-[10px] font-medium text-app-text group-hover:text-purple-400">Bottom Left</span>
+                    <span className="text-[9px] text-app-text-muted font-mono">PiP 40%</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => updateClipTransform(clip.id, { x: -160, y: 0, scale: 0.75, scaleX: 0.75, scaleY: 0.75, rotation: 0 })}
+                    className="flex flex-col items-center justify-center py-2 px-1 rounded-lg border border-app-border bg-app-surface hover:border-purple-500/50 hover:bg-purple-500/10 transition cursor-pointer text-center group"
+                    title="Split Left Frame"
+                  >
+                    <span className="text-[10px] font-medium text-app-text group-hover:text-purple-400">Split Left</span>
+                    <span className="text-[9px] text-app-text-muted font-mono">75%</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => updateClipTransform(clip.id, { x: 0, y: 0, scale: 1, scaleX: 1, scaleY: 1, rotation: 0 })}
+                    className="flex flex-col items-center justify-center py-2 px-1 rounded-lg border border-app-border bg-app-surface hover:border-purple-500/50 hover:bg-purple-500/10 transition cursor-pointer text-center group"
+                    title="Full Screen Overlay"
+                  >
+                    <span className="text-[10px] font-medium text-app-text group-hover:text-purple-400">Full Screen</span>
+                    <span className="text-[9px] text-app-text-muted font-mono">100%</span>
+                  </button>
+                </div>
+              </div>
+
               {/* Position X */}
               <div className="space-y-1.5">
                 {renderFieldHeader('transform.positionX', 'Position X')}

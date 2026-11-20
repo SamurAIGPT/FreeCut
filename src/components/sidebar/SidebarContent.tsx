@@ -5,13 +5,14 @@ import {
   Image as ImageIcon, Play, Pause, Square, Check, ArrowRight, Zap, Flame, Star, 
   Heart, PartyPopper, Rocket, Lightbulb, ThumbsUp, Target, Clapperboard, 
   Bell, Volume2, Subtitles, SlidersHorizontal, Settings, Globe, FileText, 
-  RotateCcw, Monitor, RefreshCw, Loader2, Info, Trash2, Download, Copy
+  RotateCcw, Monitor, RefreshCw, Loader2, Info, Trash2, Download, Copy, Layers
 } from 'lucide-react';
 import { useEditorStore } from '@/store/useEditorStore';
 import { MediaAsset, ColorFilter, AspectRatio, ClipEffect, ClipTransition } from '@/types/editor';
 import { CustomSelect, SelectOption } from '@/components/ui/CustomSelect';
 import { 
   generateCountdownVideo, 
+  generateBrollVideo,
   generateSampleAudio, 
   generateSoundEffect, 
   playLiveSoundPreview, 
@@ -312,17 +313,25 @@ export const SidebarContent: React.FC = () => {
       setIsGenerating(true);
       const videoAsset = await generateCountdownVideo();
       addAsset(videoAsset);
+      const brollAsset = await generateBrollVideo('Cyberpunk B-Roll Overlay.webm');
+      addAsset(brollAsset);
       const audioAsset = await generateSampleAudio();
       addAsset(audioAsset);
 
-      const videoTrack = tracks.find((t) => t.type === 'video');
+      const mainVideoTrack = tracks.find((t) => t.id === 'track-video-1') || tracks.find((t) => t.type === 'video');
+      let brollTrack = tracks.find((t) => t.id === 'track-video-2') || tracks.filter((t) => t.type === 'video')[1];
       const audioTrack = tracks.find((t) => t.type === 'audio');
+
+      if (!brollTrack) {
+        const newTrackId = addTrack('video', 'Overlay B-Roll');
+        brollTrack = { id: newTrackId, name: 'Overlay B-Roll', type: 'video', isVisible: true };
+      }
 
       const currentPlayhead = useEditorStore.getState().playhead;
 
-      if (videoTrack) {
+      if (mainVideoTrack) {
         addClip({
-          trackId: videoTrack.id,
+          trackId: mainVideoTrack.id,
           assetId: videoAsset.id,
           name: videoAsset.name,
           type: 'video',
@@ -334,6 +343,25 @@ export const SidebarContent: React.FC = () => {
           volume: 1,
           color: '#2563eb',
           thumbnailUrl: videoAsset.thumbnailUrl,
+          url: videoAsset.url,
+        });
+      }
+
+      if (brollTrack) {
+        addClip({
+          trackId: brollTrack.id,
+          assetId: brollAsset.id,
+          name: brollAsset.name,
+          type: 'video',
+          start: currentPlayhead + 1.2,
+          duration: brollAsset.duration,
+          trimStart: 0,
+          trimEnd: brollAsset.duration,
+          transform: { x: 180, y: -100, scale: 0.45, rotation: 0, opacity: 1 },
+          volume: 0.7,
+          color: '#7c3aed',
+          thumbnailUrl: brollAsset.thumbnailUrl,
+          url: brollAsset.url,
         });
       }
 
@@ -352,7 +380,41 @@ export const SidebarContent: React.FC = () => {
           color: '#059669',
         });
       }
-      showToast('Loaded demo footage and audio to timeline');
+      showToast('Loaded demo footage, B-Roll & audio to timeline');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleGenerateBrollOnly = async () => {
+    try {
+      setIsGenerating(true);
+      const brollAsset = await generateBrollVideo('Cyberpunk B-Roll Feed.webm');
+      addAsset(brollAsset);
+
+      let brollTrack = tracks.find((t) => t.id === 'track-video-2') || tracks.filter((t) => t.type === 'video')[1];
+      if (!brollTrack) {
+        const newTrackId = addTrack('video', 'Overlay B-Roll');
+        brollTrack = { id: newTrackId, name: 'Overlay B-Roll', type: 'video', isVisible: true };
+      }
+
+      const currentPlayhead = useEditorStore.getState().playhead;
+      addClip({
+        trackId: brollTrack.id,
+        assetId: brollAsset.id,
+        name: brollAsset.name,
+        type: 'video',
+        start: currentPlayhead,
+        duration: brollAsset.duration,
+        trimStart: 0,
+        trimEnd: brollAsset.duration,
+        transform: { x: 180, y: -100, scale: 0.45, rotation: 0, opacity: 1 },
+        volume: 0.7,
+        color: '#7c3aed',
+        thumbnailUrl: brollAsset.thumbnailUrl,
+        url: brollAsset.url,
+      });
+      showToast('Added B-Roll PiP overlay to timeline');
     } finally {
       setIsGenerating(false);
     }
@@ -1138,14 +1200,25 @@ export const SidebarContent: React.FC = () => {
               <p className="text-[11px] text-app-text-muted">MP4, WebM, WAV, MP3, PNG, JPG</p>
             </div>
 
-            <button
-              onClick={handleAddSampleFootage}
-              disabled={isGenerating}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-neutral-900 dark:bg-neutral-100 py-2.5 text-xs font-semibold text-white dark:text-neutral-900 shadow-sm hover:opacity-90 transition active:scale-98 disabled:opacity-50 cursor-pointer"
-            >
-              <Sparkles className="h-3.5 w-3.5 text-amber-400 dark:text-amber-600" />
-              <span>{isGenerating ? 'Synthesizing...' : 'Load Demo Footage & Audio'}</span>
-            </button>
+            <div className="grid grid-cols-1 gap-2">
+              <button
+                onClick={handleAddSampleFootage}
+                disabled={isGenerating}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-neutral-900 dark:bg-neutral-100 py-2.5 px-3 text-xs font-semibold text-white dark:text-neutral-900 shadow-sm hover:opacity-90 transition active:scale-98 disabled:opacity-50 cursor-pointer"
+              >
+                <Sparkles className="h-3.5 w-3.5 text-amber-400 dark:text-amber-600" />
+                <span>{isGenerating ? 'Synthesizing Media...' : 'Load Demo Package (Main + B-Roll + Beat)'}</span>
+              </button>
+
+              <button
+                onClick={handleGenerateBrollOnly}
+                disabled={isGenerating}
+                className="flex w-full items-center justify-center gap-2 rounded-xl border border-purple-500/30 bg-purple-500/10 py-2 px-3 text-xs font-semibold text-purple-600 dark:text-purple-300 shadow-sm hover:bg-purple-500/20 transition active:scale-98 disabled:opacity-50 cursor-pointer"
+              >
+                <Layers className="h-3.5 w-3.5 text-purple-400" />
+                <span>+ Add Cyber B-Roll (PiP Overlay)</span>
+              </button>
+            </div>
 
             <div>
               <div className="flex items-center justify-between text-xs font-semibold text-app-text-muted mb-2">

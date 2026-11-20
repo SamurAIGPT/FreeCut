@@ -883,3 +883,7 @@ useEditorStore.subscribe((state) => {
     state.saveCurrentProject();
   }, 800);
 });
+
+if (typeof window !== 'undefined') {
+  (window as any).__editorStore = useEditorStore;
+}

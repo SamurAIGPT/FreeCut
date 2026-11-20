@@ -1,6 +1,181 @@
 import { MediaAsset } from '@/types/editor';
 
 /**
+ * Generate a synthetic 4-second animated cyberpunk B-roll video in memory
+ */
+export async function generateBrollVideo(name = 'Sample B-Roll City.webm'): Promise<MediaAsset> {
+  const canvas = document.createElement('canvas');
+  canvas.width = 1280;
+  canvas.height = 720;
+  const ctx = canvas.getContext('2d')!;
+
+  const stream = canvas.captureStream(30);
+  const recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+  const chunks: Blob[] = [];
+
+  recorder.ondataavailable = (e) => {
+    if (e.data.size > 0) chunks.push(e.data);
+  };
+
+  const duration = 4; // 4 seconds
+  const fps = 30;
+  const totalFrames = duration * fps;
+  let thumbnailUrl = '';
+
+  return new Promise((resolve) => {
+    recorder.onstop = () => {
+      const blob = new Blob(chunks, { type: 'video/webm' });
+      const url = URL.createObjectURL(blob);
+      resolve({
+        id: 'sample-broll-' + Date.now(),
+        name,
+        type: 'video',
+        url,
+        duration,
+        width: 1280,
+        height: 720,
+        thumbnailUrl: thumbnailUrl || undefined,
+      });
+    };
+
+    recorder.start();
+
+    let frame = 0;
+    const interval = setInterval(() => {
+      if (frame >= totalFrames) {
+        clearInterval(interval);
+        recorder.stop();
+        return;
+      }
+
+      const relativeTime = frame / fps;
+
+      // Dark cyberpunk violet gradient
+      const grad = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+      grad.addColorStop(0, '#0c0418');
+      grad.addColorStop(0.5, '#1e0c38');
+      grad.addColorStop(1, '#07020f');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Perspective 3D grid lines
+      ctx.save();
+      ctx.strokeStyle = 'rgba(192, 132, 252, 0.28)';
+      ctx.lineWidth = 1.5;
+      const gridOffset = (relativeTime * 50) % 30;
+      for (let y = canvas.height / 2; y <= canvas.height; y += 24) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(canvas.width, y);
+        ctx.stroke();
+      }
+      for (let x = -canvas.width * 0.2; x <= canvas.width * 1.2; x += 60) {
+        ctx.beginPath();
+        ctx.moveTo(canvas.width / 2, canvas.height * 0.45);
+        ctx.lineTo(x + gridOffset, canvas.height);
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      // Horizon glow
+      const hGrad = ctx.createLinearGradient(0, canvas.height * 0.4, 0, canvas.height * 0.55);
+      hGrad.addColorStop(0, 'rgba(236, 72, 153, 0.4)');
+      hGrad.addColorStop(1, 'transparent');
+      ctx.fillStyle = hGrad;
+      ctx.fillRect(0, canvas.height * 0.4, canvas.width, canvas.height * 0.15);
+
+      // Center targeting reticle
+      const cx = canvas.width / 2;
+      const cy = canvas.height * 0.45;
+      const reticleAngle = relativeTime * Math.PI * 0.5;
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(reticleAngle);
+      ctx.strokeStyle = '#f472b6';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(0, 0, 70, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Corner ticks
+      const tick = 18;
+      ctx.strokeStyle = '#c084fc';
+      ctx.lineWidth = 3;
+      [-70, 70].forEach((x) => {
+        [-70, 70].forEach((y) => {
+          ctx.beginPath();
+          ctx.moveTo(x, y - (y > 0 ? tick : -tick));
+          ctx.lineTo(x, y);
+          ctx.lineTo(x - (x > 0 ? tick : -tick), y);
+          ctx.stroke();
+        });
+      });
+      ctx.restore();
+
+      // Audio Spectrum Waveform Bars
+      const bars = 28;
+      const barW = (canvas.width * 0.6) / bars;
+      const startX = (canvas.width - bars * barW) / 2;
+      for (let i = 0; i < bars; i++) {
+        const wave = Math.sin(relativeTime * 8 + i * 0.4) * 0.5 + 0.5;
+        const barH = 12 + wave * 65;
+        const barX = startX + i * barW;
+        const barY = canvas.height - 80 - barH;
+
+        const barGrad = ctx.createLinearGradient(barX, barY, barX, barY + barH);
+        barGrad.addColorStop(0, '#ec4899');
+        barGrad.addColorStop(1, '#8b5cf6');
+        ctx.fillStyle = barGrad;
+        ctx.fillRect(barX + 2, barY, barW - 4, barH);
+      }
+
+      // HUD Badge Top-Left: Red blinking recording dot & B-ROLL CAM-02
+      const isBlink = Math.floor(relativeTime * 2) % 2 === 0;
+      ctx.fillStyle = isBlink ? '#ef4444' : '#7f1d1d';
+      ctx.beginPath();
+      ctx.arc(45, 45, 8, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 20px Inter, system-ui';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('B-ROLL CAM-02', 65, 45);
+
+      // HUD Badge Top-Right: Timecode
+      ctx.fillStyle = '#38bdf8';
+      ctx.font = '600 18px monospace';
+      ctx.textAlign = 'right';
+      const m = Math.floor(relativeTime / 60);
+      const s = Math.floor(relativeTime % 60);
+      const f = Math.floor((relativeTime % 1) * 30);
+      const tc = `REC 00:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}:${String(f).padStart(2, '0')}`;
+      ctx.fillText(tc, canvas.width - 45, 45);
+
+      // Bottom Badges
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+      ctx.font = '14px Inter, system-ui';
+      ctx.textAlign = 'left';
+      ctx.fillText('4K UHD • 60 FPS • PIP OVERLAY FOOTAGE', 45, canvas.height - 35);
+
+      // Outer Glowing Frame
+      ctx.strokeStyle = 'rgba(168, 85, 247, 0.75)';
+      ctx.lineWidth = 6;
+      ctx.strokeRect(3, 3, canvas.width - 6, canvas.height - 6);
+
+      // Capture crisp thumbnail on frame 15
+      if (frame === 15) {
+        try {
+          thumbnailUrl = canvas.toDataURL('image/jpeg', 0.85);
+        } catch (e) {}
+      }
+
+      frame++;
+    }, 1000 / fps);
+  });
+}
+
+/**
  * Generate a synthetic 5-second animated countdown video in memory
  */
 export async function generateCountdownVideo(): Promise<MediaAsset> {
